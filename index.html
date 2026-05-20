@@ -817,6 +817,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div class="kpi"><div class="kl">Sociétés couvertes</div><div class="kv">—</div><div class="ks">BA / BKA / BKSJ…</div></div>
   </div>
 
+  <div class="card">
+    <div class="card-title">📅 Suivi des échéances — tous contrats</div>
+    <table class="tbl">
+      <thead><tr><th>Contrat</th><th>Assureur</th><th class="r">Prime</th><th class="r">Échéance</th><th class="r">Statut</th></tr></thead>
+      <tbody id="echeances-tbl">
+        <tr><td colspan="5" style="color:var(--text3);text-align:center;padding:14px;">Les contrats apparaîtront ici une fois chargés.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
   <div class="card-title">Contrats professionnels</div>
   <div class="soc-grid">
     <div class="soc-card miss" onclick="sw('import',null)">
@@ -1135,6 +1145,7 @@ ${depasse?`<div style="font-size:11px;color:var(--warn);margin-top:6px;">⚠ Ver
 
 // ── FICHES ASSURANCE ──
 let ficheTarget = 'bien';
+let allFiches = [];
 const catToList = {'Habitation':'bien','Auto':'bien','Moto':'bien','Entreprise / Pro':'pro','Autre':'bien'};
 
 function openFiche(target) {
@@ -1163,6 +1174,7 @@ async function saveFiche() {
     }
     renderFiche(data || f, prime?[{annee:new Date().getFullYear(),montant:prime}]:[]);
   } catch(e) { renderFiche(f, []); }
+  renderEcheances();
   closeFiche();
 }
 
@@ -1179,6 +1191,7 @@ function trendLabel(hist) {
 
 function renderFiche(f, hist) {
   hist = hist || [];
+  allFiches.push(f);
   const list = catToList[f.categorie]==='pro' ? 'list-pro' : 'list-bien';
   const wrap = document.getElementById(list);
   if(!wrap) return;
@@ -1187,15 +1200,17 @@ function renderFiche(f, hist) {
   if(f.id) d.dataset.fid = f.id;
   const prime = f.prime ? Math.round(f.prime).toLocaleString('fr-FR')+'€' : '—';
   const histTxt = hist.length ? hist.sort((a,b)=>a.annee-b.annee).map(h=>`${h.annee}: ${Math.round(h.montant).toLocaleString('fr-FR')}€`).join(' · ') : 'Aucun historique';
-  d.innerHTML = `<div class="soc-hdr"><div><div class="soc-name">${f.nom}</div><div class="soc-type">${f.categorie}${f.assureur?' · '+f.assureur:''}</div></div>${f.id?`<span style="cursor:pointer;color:var(--text3);" onclick="deleteFiche(${f.id},this)">×</span>`:'<span class="tag tag-g">Ajouté</span>'}</div>
+  const explBlock = f.explication ? `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;color:var(--accent);font-weight:600;">📄 Explication du contrat</summary><div style="font-size:12px;color:var(--text2);line-height:1.5;margin-top:6px;">${f.explication}</div></details>` : '';
+  d.innerHTML = `<div class="soc-hdr"><div><div class="soc-name">${f.nom}</div><div class="soc-type">${f.categorie}${f.assureur?' · '+f.assureur:''}</div></div>${(f.id&&f.id>0)?`<span style="cursor:pointer;color:var(--text3);" onclick="deleteFiche(${f.id},this)">×</span>`:'<span class="tag tag-g">PDF</span>'}</div>
 <div class="soc-nums">
   <div class="soc-num"><div class="nl">Prime actuelle</div><div class="nv">${prime}</div></div>
   <div class="soc-num"><div class="nl">Échéance</div><div class="nv">${f.echeance||'—'}</div></div>
 </div>
+${explBlock}
 <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
   <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Suivi de prix ${trendLabel(hist)}</div>
   <div style="font-size:11px;color:var(--text2);font-family:var(--mono);" class="hist-line">${histTxt}</div>
-  ${f.id?`<button class="btn" style="font-size:11px;padding:4px 10px;margin-top:6px;" onclick="addPrime(${f.id},this)">+ Ajouter le prix d'une année</button>`:''}
+  ${(f.id&&f.id>0)?`<button class="btn" style="font-size:11px;padding:4px 10px;margin-top:6px;" onclick="addPrime(${f.id},this)">+ Ajouter le prix d'une année</button>`:''}
 </div>`;
   wrap.appendChild(d);
 }
@@ -1230,18 +1245,64 @@ async function deleteFiche(id, el) {
   if(card) card.remove();
 }
 
+// Assurances réelles (extraites des PDF) — affichées en dur
+const ASSUR_SEED = [
+  {id:-101, categorie:'Entreprise / Pro', nom:'Immeuble Boulanger — Digne-les-Bains', assureur:'AXA (Atouts Immeuble)', prime:1434.85, echeance:'19/09/2026',
+    explication:"Assurance de l'immeuble Boulanger (3 av. de St Christophe, Digne, 1 244 m²). Couvre incendie, dégâts des eaux, événements climatiques, catastrophes naturelles/technologiques, perte de loyer (2 ans) et RC propriétaire d'immeuble. Reconstruction garantie en valeur à neuf, plafond global 19,9 M€. Pas de franchise générale. Reconduction tacite. Note : document marqué « projet » du 19/09/2025 — vérifier l'attestation définitive.",
+    hist:[{annee:2025,montant:1434.85}]},
+  {id:-102, categorie:'Entreprise / Pro', nom:'Immeuble Funéraire — Pamiers', assureur:'Allianz Immeuble (n° 62418208)', prime:1566.52, echeance:'02/09/2026',
+    explication:"Assurance de l'immeuble Funéraire (Rte de Verniolle, Pamiers, 748 m², loué à OGF, usage pompes funèbres). Garanties : incendie, tempête/grêle/neige, attentats, dégâts des eaux, vol, bris de glaces, catastrophes naturelles, RC immeuble, défense pénale et recours, assistance. Franchise générale 500 €. Effet 02/09/2022, échéance annuelle au 02/09. ⚠ Prime en hausse de +22% en 3 ans (1 282€ → 1 567€) — candidat à renégociation.",
+    hist:[{annee:2022,montant:1281.86},{annee:2024,montant:1404.77},{annee:2025,montant:1566.52}]}
+];
+
 async function loadFiches() {
   try {
+    // 1) assurances réelles (toujours affichées)
+    ASSUR_SEED.forEach(f => renderFiche(f, f.hist||[]));
+    // 2) assurances ajoutées via le bouton (Supabase)
     const {data} = await sb.from('assurances').select('*').order('created_at',{ascending:true});
-    if(!data) return;
-    // charge tout l'historique de prix en une fois
-    let hist = [];
-    try { const {data:h} = await sb.from('primes_historique').select('*'); hist = h||[]; } catch(e){}
-    data.forEach(f => {
-      const fh = hist.filter(x=>x.assurance_id===f.id);
-      renderFiche(f, fh);
-    });
-  } catch(e) {}
+    if(data){
+      let hist = [];
+      try { const {data:h} = await sb.from('primes_historique').select('*'); hist = h||[]; } catch(e){}
+      data.forEach(f => {
+        const fh = hist.filter(x=>x.assurance_id===f.id);
+        renderFiche(f, fh);
+      });
+    }
+    renderEcheances();
+  } catch(e) { renderEcheances(); }
+}
+
+// Parse une échéance "JJ/MM/AAAA" en Date (ou null)
+function parseEch(s) {
+  if(!s) return null;
+  const m = (''+s).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  return new Date(+m[3], +m[2]-1, +m[1]);
+}
+
+function renderEcheances() {
+  const tbl = document.getElementById('echeances-tbl');
+  if(!tbl) return;
+  const today = new Date();
+  const rows = allFiches.filter(f=>f.echeance).map(f=>{
+    const dt = parseEch(f.echeance);
+    let days = dt ? Math.round((dt-today)/(1000*60*60*24)) : null;
+    return {f, dt, days};
+  }).sort((a,b)=>{
+    if(!a.dt) return 1; if(!b.dt) return -1; return a.dt-b.dt;
+  });
+  if(!rows.length){ tbl.innerHTML='<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:14px;">Aucun contrat avec échéance.</td></tr>'; return; }
+  tbl.innerHTML = rows.map(({f,days})=>{
+    let tag;
+    if(days===null) tag='<span class="tag tag-gr">—</span>';
+    else if(days<0) tag='<span class="tag tag-r">Échue</span>';
+    else if(days<=30) tag=`<span class="tag tag-r">Dans ${days}j</span>`;
+    else if(days<=90) tag=`<span class="tag tag-w">Dans ${days}j</span>`;
+    else tag='<span class="tag tag-g">OK</span>';
+    const prime = f.prime?Math.round(f.prime).toLocaleString('fr-FR')+'€':'—';
+    return `<tr><td><strong>${f.nom}</strong></td><td>${f.assureur||'—'}</td><td class="r">${prime}</td><td class="r">${f.echeance}</td><td class="r">${tag}</td></tr>`;
+  }).join('');
 }
 
 // ── IMMOBILIER (SCI VH Immo) ──
