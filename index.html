@@ -186,10 +186,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-item" onclick="sw('soc-bksj',this)"><span class="sb-ico">▣</span>BK Saint-Jean<span class="sb-badge" id="b-bksj">—</span></div>
   <div class="sb-item" onclick="sw('soc-fvh',this)"><span class="sb-ico">▣</span>FVH SARL<span class="sb-badge" id="b-fvh">—</span></div>
   <div class="sb-item" onclick="sw('soc-sci',this)"><span class="sb-ico">▣</span>SCI VH Immo<span class="sb-badge" id="b-sci">—</span></div>
-  <div class="sb-section">Patrimoine perso</div>
-  <div class="sb-item" onclick="sw('contrats',this)"><span class="sb-ico">🛡</span>Contrats & Prévoyance<span class="sb-badge g" id="b-contrats">6</span></div>
-  <div class="sb-section">Déclaration</div>
-  <div class="sb-item" onclick="sw('checklist',this)"><span class="sb-ico">☐</span>Checklist 2026</div>
+  <div class="sb-section">Impôts</div>
+  <div class="sb-item" onclick="sw('declaration',this)"><span class="sb-ico">📋</span>Ma déclaration 2026</div>
+  <div class="sb-item" onclick="sw('checklist',this)"><span class="sb-ico">☐</span>Checklist documents</div>
+  <div class="sb-section">Assurances</div>
+  <div class="sb-item" onclick="sw('contrats',this)"><span class="sb-ico">🛡</span>Prévoyance & Retraite<span class="sb-badge g" id="b-contrats">6</span></div>
+  <div class="sb-item" onclick="sw('assur-bien',this)"><span class="sb-ico">🏠</span>Habitation & Véhicules<span class="sb-badge" id="b-bien">—</span></div>
+  <div class="sb-item" onclick="sw('assur-pro',this)"><span class="sb-ico">🏢</span>Entreprise & Pro<span class="sb-badge" id="b-pro">—</span></div>
+  <div class="sb-section">Outils</div>
   <div class="sb-item" onclick="sw('import',this)"><span class="sb-ico">↑</span>Import fichiers<span class="sb-badge" id="b-imp">0</span></div>
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
@@ -454,6 +458,67 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="alert a-b"><span>ℹ</span><div><strong>SCI VH Immo</strong> — VH détient 10%. CC actif de VH dans la SCI : 1 379 169€. Loyers personnels estimés 14 400€/an. <button class="btn btn-p" style="margin-left:10px;" onclick="sw('import',null)">Importer →</button></div></div>
 </div>
 
+<!-- MA DECLARATION 2026 -->
+<div id="tab-declaration" class="panel">
+  <div class="alert a-b"><span>📋</span><div><strong>Accompagnement déclaration 2026 (revenus 2025).</strong> Pré-rempli à partir de tes avis 2022, 2023 et 2024. Cette page t'aide à ne rien oublier — à valider avec ton expert-comptable.</div></div>
+
+  <div class="g4">
+    <div class="kpi acc"><div class="kl">Échéance déclaration</div><div class="kv">Juin 2026</div><div class="ks">Dépt 34 · en ligne</div></div>
+    <div class="kpi dan"><div class="kl">Plafond retraite gâché/an</div><div class="kv">~115k€</div><div class="ks">≈ 10k€ d'impôt potentiel</div></div>
+    <div class="kpi"><div class="kl">Étape en cours</div><div class="kv" id="decl-step">0 / 6</div><div class="ks">Progression</div></div>
+    <div class="kpi suc"><div class="kl">Foyer</div><div class="kv">2,5 parts</div><div class="ks">Marié · 1 enfant (Hugo)</div></div>
+  </div>
+
+  <!-- ALERTE PER -->
+  <div class="alert a-r"><span>🚨</span><div><strong>Plafond épargne retraite massif et non utilisé.</strong> Tes avis indiquent un plafond disponible Vincent de <strong>115 761€</strong> (revenus 2025) qui augmente de ~25k€/an et se périme après 3 ans. À 41% de TMI, chaque tranche utilisée économise 41 cts/€. <strong>Mais</strong> tes déclarations montrent déjà des cotisations facultatives (case DSEA : 23 617€ en 2024) — à clarifier avec l'expert-comptable : où sont déduites tes cotisations GAN/AREAS, et quelle marge reste-t-il ?</div></div>
+
+  <!-- HISTORIQUE 3 ANS -->
+  <div class="card">
+    <div class="card-title">Historique fiscal — d'après tes avis</div>
+    <table class="tbl">
+      <thead><tr><th>Revenus de l'année</th><th class="r">Impôt net</th><th class="r">Reste à payer</th><th class="r">RFR</th><th class="r">TMI</th></tr></thead>
+      <tbody>
+        <tr class="hl"><td>2022</td><td class="r">179 108€</td><td class="r">179 884€</td><td class="r">951 119€</td><td class="r">45%</td></tr>
+        <tr><td>2023</td><td class="r">64 760€</td><td class="r">22 618€</td><td class="r">539 241€</td><td class="r">41%</td></tr>
+        <tr class="ok"><td><strong>2024</strong></td><td class="r"><strong>75 477€</strong></td><td class="r">79 194€</td><td class="r">494 792€</td><td class="r">41%</td></tr>
+      </tbody>
+    </table>
+    <div class="alert a-w" style="margin-top:10px;"><span>📊</span><div>RFR 2024 = <strong>494 792€</strong>, juste <strong>5 208€</strong> sous le seuil CEHR couple (500 000€). En 2022, RFR 951k€ → CEHR de 13 534€ payée. Un versement retraite déductible réduit le RFR et éloigne du seuil.</div></div>
+  </div>
+
+  <!-- ETAPES -->
+  <div class="card">
+    <div class="card-title">Les étapes de ta déclaration — dans l'ordre</div>
+    <div class="lev"><div class="lev-tog" data-key="decl1" onclick="togLev(this)"></div><div class="lev-n nb">1</div><div class="lev-body"><div class="lev-title">Revenus pro gérant TNS</div><div class="lev-desc">Rém. gérant 1GB (199 359€ en 2024). Dividendes VH Company 2DC (200 005€) + crédit PFL 2CK (25 611€). BNC 5QC (51 072€) + exonérés 5QB (12 768€). Source : IFU + liasse 2035.</div></div></div>
+    <div class="lev"><div class="lev-tog" data-key="decl2" onclick="togLev(this)"></div><div class="lev-n nb">2</div><div class="lev-body"><div class="lev-title">Revenus du foyer</div><div class="lev-desc">Salaire Émilie 1BJ (37 601€) + RAS 8IV (3 708€) + prime partage 1BD (3 000€). Revenus fonciers micro 4BE (14 400€).</div></div></div>
+    <div class="lev"><div class="lev-tog" data-key="decl3" onclick="togLev(this)"></div><div class="lev-n nr">3</div><div class="lev-body"><div class="lev-title">⚠ Déductions retraite — le gros sujet</div><div class="lev-desc">Plafond 115 761€ dispo. Cotisations facultatives déjà déclarées (DSEA 23 617€). Récupérer attestations GAN/AREAS et vérifier cases 6QS (Madelin) / 6OS (PER) avec le comptable.</div></div></div>
+    <div class="lev"><div class="lev-tog" data-key="decl4" onclick="togLev(this)"></div><div class="lev-n nb">4</div><div class="lev-body"><div class="lev-title">Crédits & réductions d'impôt</div><div class="lev-desc">Emploi à domicile Mme Renault Sophie : 7DB (10 222€ en 2024) + avance 7HB (5 111€). Plafond 12 000€ → marge de ~1 778€ encore disponible.</div></div></div>
+    <div class="lev"><div class="lev-tog" data-key="decl5" onclick="togLev(this)"></div><div class="lev-n nw">5</div><div class="lev-body"><div class="lev-title">Obligations particulières</div><div class="lev-desc">Compte étranger 8UU (coché chaque année → 3916 obligatoire). Actifs numériques : moins-values reportables (15 937€ en 2024, 13 660€ report 2023). CEHR si RFR &gt; 500k€.</div></div></div>
+    <div class="lev"><div class="lev-tog" data-key="decl6" onclick="togLev(this)"></div><div class="lev-n ng">6</div><div class="lev-body"><div class="lev-title">Vérifier & signer sur impots.gouv.fr</div><div class="lev-desc">Conserver le PFU sur dividendes (ne pas cocher 2OP — le barème serait plus coûteux). Valider avant l'échéance de juin 2026.</div></div></div>
+  </div>
+
+  <!-- CE QUI MANQUE -->
+  <div class="card">
+    <div class="card-title">Ce qui te manque pour 2025 — fiches à rassembler</div>
+    <table class="tbl">
+      <thead><tr><th>Document / info</th><th class="r">Statut</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Attestations retraite Madelin/PER 2025</strong> (GAN, AREAS)</td><td class="r"><span class="tag tag-r">Manquant — clé</span></td></tr>
+        <tr><td>Attestation prévoyance Roederer/Allianz</td><td class="r"><span class="tag tag-w">À récupérer</span></td></tr>
+        <tr><td>IFU VH Company 2025 (dividendes, PFL)</td><td class="r"><span class="tag tag-gr">Janv. 2026</span></td></tr>
+        <tr><td>Liasse BNC 2035 2025 + cotisations (DSCA/DSEA)</td><td class="r"><span class="tag tag-gr">Expert-comptable</span></td></tr>
+        <tr><td>Bulletin salaire annuel Émilie 2025</td><td class="r"><span class="tag tag-gr">À récupérer</span></td></tr>
+        <tr><td>Attestation CESU Mme Renault Sophie 2025</td><td class="r"><span class="tag tag-gr">URSSAF CNCESU</span></td></tr>
+        <tr><td>Quittances loyer 2025 (revenus fonciers)</td><td class="r"><span class="tag tag-gr">À rassembler</span></td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-p" onclick="sw('checklist',null)">→ Checklist complète</button>
+      <button class="btn" onclick="sw('contrats',null)">→ Mes contrats retraite</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONTRATS & PREVOYANCE -->
 <div id="tab-contrats" class="panel">
   <div class="alert a-b"><span>🛡</span><div><strong>Tous les contrats prévoyance, retraite et santé au même endroit.</strong> Assuré : Vincent Hilaire (né 13/02/1979) · 2 chemin Vieux, 34690 Fabrègues. Documents 2024-2026.</div></div>
@@ -634,6 +699,97 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   </div>
 </div>
 
+<!-- ASSURANCES HABITATION & VEHICULES -->
+<div id="tab-assur-bien" class="panel">
+  <div class="alert a-b"><span>🏠</span><div><strong>Assurances habitation & véhicules.</strong> Dépose tes contrats dans le chat (PDF) et je remplis les cartes avec les vraies infos : assureur, n° de contrat, échéance, prime annuelle, garanties.</div></div>
+
+  <div class="g4">
+    <div class="kpi"><div class="kl">Contrats biens</div><div class="kv" id="bien-count">0</div><div class="ks">À renseigner</div></div>
+    <div class="kpi"><div class="kl">Prime totale / an</div><div class="kv">—</div><div class="ks">Après import</div></div>
+    <div class="kpi war"><div class="kl">Prochaine échéance</div><div class="kv">—</div><div class="ks">À surveiller</div></div>
+    <div class="kpi"><div class="kl">Sinistres en cours</div><div class="kv">0</div><div class="ks">—</div></div>
+  </div>
+
+  <div class="card-title">Habitation</div>
+  <div class="soc-grid">
+    <div class="soc-card miss" onclick="sw('import',null)">
+      <div class="soc-hdr"><div><div class="soc-name">Résidence principale</div><div class="soc-type">2 chemin Vieux · 34690 Fabrègues</div></div><span class="tag tag-gr">À compléter</span></div>
+      <div class="soc-nums">
+        <div class="soc-num"><div class="nl">Assureur</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
+        <div class="soc-num"><div class="nl">Prime/an</div><div class="nv" style="color:var(--warn)">—</div></div>
+        <div class="soc-num"><div class="nl">N° contrat</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">Échéance</div><div class="nv">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-title">Véhicules</div>
+  <div class="soc-grid">
+    <div class="soc-card miss" onclick="sw('import',null)">
+      <div class="soc-hdr"><div><div class="soc-name">Voiture</div><div class="soc-type">Auto · à préciser</div></div><span class="tag tag-gr">À compléter</span></div>
+      <div class="soc-nums">
+        <div class="soc-num"><div class="nl">Assureur</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
+        <div class="soc-num"><div class="nl">Prime/an</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">Formule</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">Échéance</div><div class="nv">—</div></div>
+      </div>
+    </div>
+    <div class="soc-card miss" onclick="sw('import',null)">
+      <div class="soc-hdr"><div><div class="soc-name">Moto</div><div class="soc-type">Moto · à préciser</div></div><span class="tag tag-gr">À compléter</span></div>
+      <div class="soc-nums">
+        <div class="soc-num"><div class="nl">Assureur</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
+        <div class="soc-num"><div class="nl">Prime/an</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">Formule</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">Échéance</div><div class="nv">—</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="alert a-w"><span>💡</span><div>Tu peux ajouter autant de véhicules que nécessaire — dis-le-moi avec les contrats et j'ajoute les cartes.</div></div>
+
+  <div class="card-title" style="margin-top:6px;">Mes fiches ajoutées</div>
+  <div class="soc-grid" id="list-bien"></div>
+  <button class="btn btn-p" onclick="openFiche('bien')">+ Ajouter une assurance</button>
+</div>
+
+<!-- ASSURANCES ENTREPRISE & PRO -->
+<div id="tab-assur-pro" class="panel">
+  <div class="alert a-b"><span>🏢</span><div><strong>Assurances entreprise & professionnelles.</strong> Multirisque pro, RC pro, locaux des restaurants, flotte, etc. Dépose les contrats dans le chat pour remplir les cartes.</div></div>
+
+  <div class="g4">
+    <div class="kpi"><div class="kl">Contrats pro</div><div class="kv" id="pro-count">0</div><div class="ks">À renseigner</div></div>
+    <div class="kpi"><div class="kl">Prime totale / an</div><div class="kv">—</div><div class="ks">Après import</div></div>
+    <div class="kpi war"><div class="kl">Prochaine échéance</div><div class="kv">—</div><div class="ks">À surveiller</div></div>
+    <div class="kpi"><div class="kl">Sociétés couvertes</div><div class="kv">—</div><div class="ks">BA / BKA / BKSJ…</div></div>
+  </div>
+
+  <div class="card-title">Contrats professionnels</div>
+  <div class="soc-grid">
+    <div class="soc-card miss" onclick="sw('import',null)">
+      <div class="soc-hdr"><div><div class="soc-name">Multirisque restaurants</div><div class="soc-type">Locaux & exploitation</div></div><span class="tag tag-gr">À compléter</span></div>
+      <div class="soc-nums">
+        <div class="soc-num"><div class="nl">Assureur</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
+        <div class="soc-num"><div class="nl">Prime/an</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">N° contrat</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">Échéance</div><div class="nv">—</div></div>
+      </div>
+    </div>
+    <div class="soc-card miss" onclick="sw('import',null)">
+      <div class="soc-hdr"><div><div class="soc-name">RC professionnelle</div><div class="soc-type">Responsabilité civile pro</div></div><span class="tag tag-gr">À compléter</span></div>
+      <div class="soc-nums">
+        <div class="soc-num"><div class="nl">Assureur</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
+        <div class="soc-num"><div class="nl">Prime/an</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">N° contrat</div><div class="nv">—</div></div>
+        <div class="soc-num"><div class="nl">Échéance</div><div class="nv">—</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="alert a-w"><span>💡</span><div>La prévoyance TNS Roederer/Allianz et l'AREAS pro sont déjà dans « Prévoyance & Retraite ». Ici on met les assurances de biens et de responsabilité des sociétés.</div></div>
+
+  <div class="card-title" style="margin-top:6px;">Mes fiches ajoutées</div>
+  <div class="soc-grid" id="list-pro"></div>
+  <button class="btn btn-p" onclick="openFiche('pro')">+ Ajouter une assurance</button>
+</div>
+
 <!-- CHECKLIST -->
 <div id="tab-checklist" class="panel">
   <div class="alert a-b"><span>📅</span><div>Déclaration 2026 (revenus 2025) — Département 34, date limite fin mai/juin 2026.</div></div>
@@ -661,33 +817,76 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
 <!-- IMPORT -->
 <div id="tab-import" class="panel">
-  <div class="alert a-b"><span>💡</span><div><strong>Import intelligent :</strong> Glissez vos PDFs. L'appli détecte la société automatiquement et met à jour le tableau de bord. Les imports sont sauvegardés dans Supabase.</div></div>
+  <div class="alert a-b"><span>💡</span><div><strong>Point d'entrée unique.</strong> Choisis la catégorie, dépose ton fichier : il est archivé ici, classé au bon endroit. <strong>Pour que Claude lise et analyse un document, envoie-le aussi dans le chat</strong> — l'appli archive, le chat analyse.</div></div>
+
+  <div class="card">
+    <div class="card-title">Catégorie du document</div>
+    <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;">
+      <select id="imp-cat" class="sim-in" style="width:100%;font-family:var(--font);">
+        <option value="Impôts">Impôts — avis, déclaration, IFU, liasse</option>
+        <option value="Assurance habitation">Assurance — habitation</option>
+        <option value="Assurance auto">Assurance — auto</option>
+        <option value="Assurance moto">Assurance — moto</option>
+        <option value="Assurance pro">Assurance — entreprise / pro</option>
+        <option value="Retraite">Retraite — Madelin, PER</option>
+        <option value="Prévoyance">Prévoyance</option>
+        <option value="Santé">Santé — mutuelle</option>
+        <option value="Société">Société — bilan, liasse</option>
+        <option value="Banque">Banque — relevé, RIB</option>
+        <option value="Autre">Autre</option>
+      </select>
+    </div>
+  </div>
+
   <div class="drop" id="drop-z" onclick="document.getElementById('finput').click()" ondragover="dov(event)" ondragleave="dol()" ondrop="ddrop(event)">
     <div style="font-size:32px;margin-bottom:8px;">📎</div>
-    <h3>Glissez vos bilans et documents fiscaux</h3>
-    <p>PDF · CSV · XLSX · Bilans SARL, avis d'impôt, IFU, liasses fiscales, attestations CESU</p>
-    <p style="font-size:11px;color:var(--text3);margin-top:6px;">Nommez vos fichiers avec le nom de la société : BK_Avenue_2025.pdf, Burger_Avenue.pdf…</p>
-    <input type="file" id="finput" multiple accept=".pdf,.csv,.xlsx,.xls" style="display:none;" onchange="handleF(this.files)">
+    <h3>Glisse ton fichier ici</h3>
+    <p>PDF · CSV · XLSX · JPG — tout document administratif</p>
+    <p style="font-size:11px;color:var(--text3);margin-top:6px;">Le fichier est rangé dans la catégorie choisie ci-dessus.</p>
+    <input type="file" id="finput" multiple accept=".pdf,.csv,.xlsx,.xls,.jpg,.jpeg,.png" style="display:none;" onchange="handleF(this.files)">
   </div>
+
   <div id="flist"></div>
+
   <div class="card">
-    <div class="card-title">État des imports</div>
+    <div class="card-title">Mes documents archivés</div>
     <table class="tbl">
-      <thead><tr><th>Document</th><th>Type</th><th class="r">Statut</th><th class="r">Données clés</th></tr></thead>
+      <thead><tr><th>Document</th><th>Catégorie</th><th class="r">Date</th></tr></thead>
       <tbody id="import-tbl">
-        <tr class="ok"><td><strong>VH Company</strong> — Bilan 30/06/2025</td><td><span class="tag tag-g">Bilan Holding</span></td><td class="r"><span class="tag tag-g">✓ Intégré</span></td><td class="r">674 285€</td></tr>
-        <tr class="ok"><td><strong>Avis d'impôt</strong> — Revenus 2022/2023/2024</td><td><span class="tag tag-g">Avis IR</span></td><td class="r"><span class="tag tag-g">✓ Intégré</span></td><td class="r">3 exercices</td></tr>
-        <tr><td><strong>Burger Avenue SARL</strong></td><td><span class="tag tag-gr">Bilan SARL</span></td><td class="r"><span class="tag tag-w">En attente</span></td><td class="r">CA ~4,4M€</td></tr>
-        <tr><td><strong>BK Avenue SARL</strong></td><td><span class="tag tag-gr">Bilan SARL</span></td><td class="r"><span class="tag tag-w">En attente</span></td><td class="r">CA ~6,4M€</td></tr>
-        <tr><td><strong>BK Saint-Jean SARL</strong></td><td><span class="tag tag-gr">Bilan SARL</span></td><td class="r"><span class="tag tag-w">En attente</span></td><td class="r">CA ~5,1M€</td></tr>
-        <tr><td><strong>FVH SARL</strong></td><td><span class="tag tag-gr">Bilan SARL</span></td><td class="r"><span class="tag tag-w">En attente</span></td><td class="r">Déficitaire</td></tr>
-        <tr><td><strong>SCI VH Immo</strong></td><td><span class="tag tag-gr">Bilan SCI</span></td><td class="r"><span class="tag tag-w">En attente</span></td><td class="r">CC VH 1,38M€</td></tr>
+        <tr><td colspan="3" style="color:var(--text3);text-align:center;padding:14px;">Aucun document encore — dépose ton premier fichier ci-dessus.</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
 </div></div></div>
+
+<!-- MODAL AJOUT FICHE ASSURANCE -->
+<div id="modal-fiche" style="display:none;position:fixed;inset:0;background:rgba(26,24,20,0.5);z-index:100;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border-radius:var(--rl);box-shadow:var(--shadow);max-width:440px;width:100%;padding:22px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="card-title" style="margin:0;">Nouvelle assurance</div>
+      <span style="cursor:pointer;font-size:20px;color:var(--text3);" onclick="closeFiche()">×</span>
+    </div>
+    <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;"><label style="width:auto;">Catégorie</label>
+      <select id="fi-cat" class="sim-in" style="width:100%;font-family:var(--font);">
+        <option value="Habitation">Habitation</option>
+        <option value="Auto">Auto</option>
+        <option value="Moto">Moto</option>
+        <option value="Entreprise / Pro">Entreprise / Pro</option>
+        <option value="Autre">Autre</option>
+      </select>
+    </div>
+    <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;"><label style="width:auto;">Nom de la fiche</label><input id="fi-nom" class="sim-in" style="width:100%;font-family:var(--font);" placeholder="Ex : Résidence principale"></div>
+    <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;"><label style="width:auto;">Assureur</label><input id="fi-ass" class="sim-in" style="width:100%;font-family:var(--font);" placeholder="Ex : AXA, MAAF…"></div>
+    <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;"><label style="width:auto;">Prime annuelle (€)</label><input id="fi-prime" type="number" class="sim-in" style="width:100%;"></div>
+    <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;"><label style="width:auto;">Échéance</label><input id="fi-ech" class="sim-in" style="width:100%;font-family:var(--font);" placeholder="Ex : 15/03 ou annuel"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-p" style="flex:1;" onclick="saveFiche()">Enregistrer</button>
+      <button class="btn" onclick="closeFiche()">Annuler</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── SUPABASE ──
@@ -700,6 +899,7 @@ async function init() {
   try {
     await setupTables();
     await loadState();
+    await loadFiches();
     document.getElementById('db-dot').classList.remove('off');
     document.getElementById('db-status').textContent = 'Supabase connecté';
   } catch(e) {
@@ -717,7 +917,7 @@ async function setupTables() {
 }
 
 // ── NAVIGATION ──
-const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',contrats:'Contrats & Prévoyance',checklist:'Checklist 2026',import:'Import fichiers'};
+const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',declaration:'Ma déclaration 2026',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents',import:'Import fichiers'};
 function sw(id, btn) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -746,8 +946,14 @@ async function togLev(el) {
 }
 
 function updateScore() {
-  const n = document.querySelectorAll('.lev-tog.on').length;
+  const n = document.querySelectorAll('.lev-tog.on[data-key^="lev"]').length;
   document.getElementById('opt-score').textContent = n + ' / 6';
+  // Progression déclaration (étapes decl*)
+  const dEl = document.getElementById('decl-step');
+  if (dEl) {
+    const dn = document.querySelectorAll('.lev-tog.on[data-key^="decl"]').length;
+    dEl.textContent = dn + ' / 6';
+  }
 }
 
 // ── CHECKLIST ──
@@ -774,14 +980,14 @@ async function loadState() {
       }
     });
     updateScore();
-    // Charger documents
+    // Charger documents archivés
     const {data: docs} = await sb.from('documents').select('*').order('created_at', {ascending: false});
     if (docs && docs.length > 0) {
       let count = 0;
       docs.forEach(doc => {
         count++;
         addFileToUI(doc.nom, doc.type, doc.societe, true);
-        updateSocBadge(doc.societe);
+        addDocToTable(doc.nom, doc.societe);
       });
       document.getElementById('b-imp').textContent = count;
     }
@@ -854,6 +1060,117 @@ function calcFiscal() {
 ${depasse?`<div style="font-size:11px;color:var(--warn);margin-top:6px;">⚠ Versements > plafond : ${fr(cot-plafond)} non déductibles cette année.</div>`:`<div style="font-size:11px;color:var(--success);margin-top:6px;">✓ Marge restante : ${fr(plafond-cot)} (verser plus = déduire plus).</div>`}`;
 }
 
+// ── FICHES ASSURANCE ──
+let ficheTarget = 'bien';
+const catToList = {'Habitation':'bien','Auto':'bien','Moto':'bien','Entreprise / Pro':'pro','Autre':'bien'};
+
+function openFiche(target) {
+  ficheTarget = target;
+  // pré-sélectionne une catégorie cohérente avec l'onglet
+  document.getElementById('fi-cat').value = target==='pro' ? 'Entreprise / Pro' : 'Habitation';
+  ['fi-nom','fi-ass','fi-prime','fi-ech'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modal-fiche').style.display='flex';
+}
+function closeFiche() { document.getElementById('modal-fiche').style.display='none'; }
+
+async function saveFiche() {
+  const prime = +document.getElementById('fi-prime').value || null;
+  const f = {
+    categorie: document.getElementById('fi-cat').value,
+    nom: document.getElementById('fi-nom').value || 'Sans nom',
+    assureur: document.getElementById('fi-ass').value,
+    prime: prime,
+    echeance: document.getElementById('fi-ech').value
+  };
+  try {
+    const {data} = await sb.from('assurances').insert(f).select().single();
+    // Enregistre la prime de l'année en cours comme 1er point d'historique
+    if(data && prime) {
+      try { await sb.from('primes_historique').insert({assurance_id:data.id, annee:new Date().getFullYear(), montant:prime}); } catch(e){}
+    }
+    renderFiche(data || f, prime?[{annee:new Date().getFullYear(),montant:prime}]:[]);
+  } catch(e) { renderFiche(f, []); }
+  closeFiche();
+}
+
+function trendLabel(hist) {
+  if(!hist || hist.length<2) return '';
+  const sorted = [...hist].sort((a,b)=>a.annee-b.annee);
+  const first = sorted[0].montant, last = sorted[sorted.length-1].montant;
+  if(!first) return '';
+  const pct = Math.round((last-first)/first*100);
+  if(pct>0) return `<span style="color:var(--danger);font-size:11px;">▲ +${pct}% depuis ${sorted[0].annee}</span>`;
+  if(pct<0) return `<span style="color:var(--success);font-size:11px;">▼ ${pct}% depuis ${sorted[0].annee}</span>`;
+  return `<span style="color:var(--text3);font-size:11px;">= stable</span>`;
+}
+
+function renderFiche(f, hist) {
+  hist = hist || [];
+  const list = catToList[f.categorie]==='pro' ? 'list-pro' : 'list-bien';
+  const wrap = document.getElementById(list);
+  if(!wrap) return;
+  const d = document.createElement('div');
+  d.className = 'soc-card imp';
+  if(f.id) d.dataset.fid = f.id;
+  const prime = f.prime ? Math.round(f.prime).toLocaleString('fr-FR')+'€' : '—';
+  const histTxt = hist.length ? hist.sort((a,b)=>a.annee-b.annee).map(h=>`${h.annee}: ${Math.round(h.montant).toLocaleString('fr-FR')}€`).join(' · ') : 'Aucun historique';
+  d.innerHTML = `<div class="soc-hdr"><div><div class="soc-name">${f.nom}</div><div class="soc-type">${f.categorie}${f.assureur?' · '+f.assureur:''}</div></div>${f.id?`<span style="cursor:pointer;color:var(--text3);" onclick="deleteFiche(${f.id},this)">×</span>`:'<span class="tag tag-g">Ajouté</span>'}</div>
+<div class="soc-nums">
+  <div class="soc-num"><div class="nl">Prime actuelle</div><div class="nv">${prime}</div></div>
+  <div class="soc-num"><div class="nl">Échéance</div><div class="nv">${f.echeance||'—'}</div></div>
+</div>
+<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+  <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Suivi de prix ${trendLabel(hist)}</div>
+  <div style="font-size:11px;color:var(--text2);font-family:var(--mono);" class="hist-line">${histTxt}</div>
+  ${f.id?`<button class="btn" style="font-size:11px;padding:4px 10px;margin-top:6px;" onclick="addPrime(${f.id},this)">+ Ajouter le prix d'une année</button>`:''}
+</div>`;
+  wrap.appendChild(d);
+}
+
+async function addPrime(id, btn) {
+  const annee = prompt('Année (ex : 2026) ?', new Date().getFullYear());
+  if(!annee) return;
+  const montant = prompt('Montant de la prime cette année-là (€) ?');
+  if(!montant) return;
+  const a = parseInt(annee), m = parseFloat(montant.replace(',','.'));
+  if(isNaN(a)||isNaN(m)) { alert('Valeurs invalides.'); return; }
+  try { await sb.from('primes_historique').insert({assurance_id:id, annee:a, montant:m}); } catch(e){}
+  // recharge l'historique de cette fiche et réaffiche la ligne
+  try {
+    const {data} = await sb.from('primes_historique').select('*').eq('assurance_id', id);
+    const card = btn.closest('.soc-card');
+    const line = card.querySelector('.hist-line');
+    const hdr = card.querySelector('.soc-num .nv');
+    if(data && data.length) {
+      const sorted = [...data].sort((x,y)=>x.annee-y.annee);
+      line.textContent = sorted.map(h=>`${h.annee}: ${Math.round(h.montant).toLocaleString('fr-FR')}€`).join(' · ');
+      const lbl = card.querySelector('div[style*="uppercase"]');
+      if(lbl) lbl.innerHTML = 'Suivi de prix '+trendLabel(data);
+    }
+  } catch(e){}
+}
+
+async function deleteFiche(id, el) {
+  if(!confirm('Supprimer cette fiche ?')) return;
+  try { await sb.from('assurances').delete().eq('id', id); } catch(e) {}
+  const card = el.closest('.soc-card');
+  if(card) card.remove();
+}
+
+async function loadFiches() {
+  try {
+    const {data} = await sb.from('assurances').select('*').order('created_at',{ascending:true});
+    if(!data) return;
+    // charge tout l'historique de prix en une fois
+    let hist = [];
+    try { const {data:h} = await sb.from('primes_historique').select('*'); hist = h||[]; } catch(e){}
+    data.forEach(f => {
+      const fh = hist.filter(x=>x.assurance_id===f.id);
+      renderFiche(f, fh);
+    });
+  } catch(e) {}
+}
+
 function baremeIR(rev, parts) {
   const q = rev/parts; let t = 0;
   if(q>180294)t+=(q-180294)*.45;
@@ -864,77 +1181,62 @@ function baremeIR(rev, parts) {
 }
 const fr = n => Math.round(n).toLocaleString('fr-FR')+'€';
 
-// ── IMPORT ──
+// ── IMPORT (par catégorie) ──
 let impCount = 0;
 function dov(e){e.preventDefault();document.getElementById('drop-z').classList.add('over');}
 function dol(){document.getElementById('drop-z').classList.remove('over');}
 function ddrop(e){e.preventDefault();dol();handleF(e.dataTransfer.files);}
 
-function detectSoc(name) {
-  const n = name.toLowerCase();
-  if(n.includes('burger')||n.includes('burger_avenue')||n.includes('ba_')) return 'Burger Avenue';
-  if(n.includes('bk_avenue')||n.includes('bkavenue')||n.includes('bk avenue')) return 'BK Avenue';
-  if(n.includes('bk_saint')||n.includes('saint_jean')||n.includes('bksj')||n.includes('bk saint')) return 'BK Saint-Jean';
-  if(n.includes('fvh')) return 'FVH';
-  if(n.includes('sci')||n.includes('immo')) return 'SCI VH Immo';
-  if(n.includes('vh_company')||n.includes('vhcompany')||n.includes('vh company')) return 'VH Company';
-  if(n.includes('avis')||n.includes('impot')) return 'Foyer fiscal';
-  if(n.includes('cesu')||n.includes('urssaf')) return 'Foyer fiscal';
-  return 'Document fiscal';
-}
-
 async function handleF(files) {
+  const cat = document.getElementById('imp-cat') ? document.getElementById('imp-cat').value : 'Autre';
   for(const f of Array.from(files)) {
     impCount++;
     document.getElementById('b-imp').textContent = impCount;
     const ext = f.name.split('.').pop().toUpperCase();
-    const soc = detectSoc(f.name);
-    addFileToUI(f.name, ext, soc, false);
-    // Sauvegarder dans Supabase
+    addFileToUI(f.name, ext, cat, false);
+    let saved = null;
     try {
-      await sb.from('documents').insert({
-        nom: f.name,
-        type: ext,
-        societe: soc,
-        statut: 'integre',
+      const {data} = await sb.from('documents').insert({
+        nom: f.name, type: ext, societe: cat, statut: 'archive',
         donnees: {taille: f.size}
-      });
+      }).select().single();
+      saved = data;
     } catch(e) {}
-    // Marquer comme intégré après délai
+    addDocToTable(f.name, cat);
     setTimeout(() => {
       const items = document.querySelectorAll('.fitem');
       if(items.length > 0) {
         const st = items[0].querySelector('.fst');
-        if(st) {st.className='fst fst-ok';st.textContent='Intégré ✓';}
+        if(st) {st.className='fst fst-ok';st.textContent='Archivé ✓';}
       }
-      updateSocBadge(soc);
-    }, 1500);
+    }, 800);
   }
 }
 
-function addFileToUI(name, type, soc, already) {
+function addFileToUI(name, type, cat, already) {
   const list = document.getElementById('flist');
   const d = document.createElement('div');
   d.className = 'fitem';
-  const ext = type.toUpperCase();
+  const ext = (type||'').toUpperCase();
   d.innerHTML = `<div class="fext ${ext==='CSV'?'csv':''}">${ext}</div>
-<div class="finfo"><div class="fname">${name}</div><div class="fmeta">${soc} · ${new Date().toLocaleDateString('fr-FR')}</div></div>
-<span class="fst ${already?'fst-ok':'fst-p'}">${already?'Intégré ✓':'Analyse…'}</span>`;
+<div class="finfo"><div class="fname">${name}</div><div class="fmeta">${cat} · ${new Date().toLocaleDateString('fr-FR')}</div></div>
+<span class="fst ${already?'fst-ok':'fst-p'}">${already?'Archivé ✓':'…'}</span>`;
   list.prepend(d);
 }
 
-function updateSocBadge(soc) {
-  const map = {'Burger Avenue':'ba','BK Avenue':'bka','BK Saint-Jean':'bksj','FVH':'fvh','SCI VH Immo':'sci'};
-  const key = map[soc];
-  if(key) {
-    const b = document.getElementById('b-'+key);
-    if(b){b.className='sb-badge g';b.textContent='✓';}
-    const card = document.getElementById('card-'+key);
-    if(card){card.classList.remove('miss');card.classList.add('imp');}
-    const tag = document.getElementById('tag-'+key);
-    if(tag){tag.className='tag tag-g';tag.textContent='✓ Importé';}
-  }
+function addDocToTable(name, cat) {
+  const tbl = document.getElementById('import-tbl');
+  if(!tbl) return;
+  // retirer la ligne "aucun document" si présente
+  const empty = tbl.querySelector('td[colspan]');
+  if(empty) empty.closest('tr').remove();
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><strong>${name}</strong></td><td><span class="tag tag-b">${cat}</span></td><td class="r">${new Date().toLocaleDateString('fr-FR')}</td>`;
+  tbl.prepend(tr);
 }
+
+// conservé pour compatibilité (ne fait plus rien de visible)
+function updateSocBadge(soc) {}
 
 // ── START ──
 init();
