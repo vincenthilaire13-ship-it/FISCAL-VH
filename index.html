@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fiscal Hub — Hilaire / Vincent</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 :root {
@@ -227,7 +229,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 01h17
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 01h28
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -426,36 +428,67 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
 <!-- VH COMPANY -->
 <div id="tab-soc-vh" class="panel">
-  <div class="alert a-b"><span>▣</span><div><strong>VH Company</strong> — SARL Holding · APE 6420Z · détenue à 100% par Vincent Hilaire. Société mère du groupe (détient BK Avenue, BK Saint-Jean, Burger Avenue, FVH à 100%, SCI VH Immo à 10%).</div></div>
-  <div class="card">
-    <div class="card-title">Suivi par exercice</div>
-    <div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente des bilans. Dépose-les ci-dessous et envoie-les-moi dans le chat : je remplis le suivi exercice par exercice à partir de 2023.</div>
+  <div class="alert a-g"><span>✓</span><div><strong>VH Company</strong> — SARL Holding · SIRET 80203462900021 · APE 6420Z · Capital 305 000€ · Vincent Hilaire 100%. <strong>Bilan clos le 30/06/2025</strong> (exercice 12 mois) analysé. Société mère du groupe.</div></div>
+  <div class="g4">
+    <div class="kpi acc"><div class="kl">Résultat net</div><div class="kv">674 285€</div><div class="ks">vs 697 326€ N-1</div></div>
+    <div class="kpi"><div class="kl">Résultat fiscal</div><div class="kv">9 056€</div><div class="ks">après déficits antérieurs</div></div>
+    <div class="kpi"><div class="kl">Capitaux propres</div><div class="kv">1 507 111€</div><div class="ks">+474 285€ vs N-1</div></div>
+    <div class="kpi war"><div class="kl">Trésorerie banque</div><div class="kv">11 628€</div><div class="ks">tout est en comptes courants</div></div>
   </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">Compte de résultat 2025</div>
+      <div class="row"><span class="rl">Charges d'exploitation</span><span class="rv r">−39 585€</span></div>
+      <div class="row"><span class="rl">Résultat d'exploitation</span><span class="rv r">−39 585€</span></div>
+      <div class="row"><span class="rl">Dividendes filiales (titres particip.)</span><span class="rv g">+700 241€</span></div>
+      <div class="row"><span class="rl">Autres produits financiers</span><span class="rv g">+20 058€</span></div>
+      <div class="row"><span class="rl">Intérêts CC (charges fin.)</span><span class="rv r">−6 429€</span></div>
+      <div class="row"><span class="rl">Résultat financier</span><span class="rv g">+713 870€</span></div>
+      <div class="row"><span class="rl"><strong>Résultat net</strong></span><span class="rv"><strong>674 285€</strong></span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Capitaux propres au 30/06/2025</div>
+      <div class="row"><span class="rl">Capital social</span><span class="rv">305 000€</span></div>
+      <div class="row"><span class="rl">Réserve légale</span><span class="rv">30 500€</span></div>
+      <div class="row"><span class="rl">Report à nouveau</span><span class="rv">497 326€</span></div>
+      <div class="row"><span class="rl">Résultat de l'exercice</span><span class="rv g">674 285€</span></div>
+      <div class="row"><span class="rl"><strong>Total capitaux propres</strong></span><span class="rv"><strong>1 507 111€</strong></span></div>
+      <div class="row" style="margin-top:6px;"><span class="rl">Dividendes votés sur résultat N-1</span><span class="rv">200 000€</span></div>
+    </div>
+  </div>
+
   <div class="card">
-    <div class="card-title">📒 Cahier de bord — dividendes décidés vs virements réellement faits</div>
-    <div class="alert a-w" style="margin-bottom:12px;"><span>⚠</span><div><strong>Dividende décidé ≠ argent reçu.</strong> Trace ici chaque virement réel (date, montant, n° / banque). Les montants des dividendes et le sens des comptes courants se rempliront à partir des bilans, exercice par exercice.</div></div>
+    <div class="card-title">🔄 Comptes courants mère ↔ filles au 30/06/2025 — qui doit à qui</div>
+    <div class="alert a-b" style="margin-bottom:12px;"><span>💡</span><div><strong>Lecture du bilan VH.</strong> À l'actif (compte 451 « groupe ») = ce que les filiales <strong>doivent à VH</strong>. Au passif (compte « associés ») = ce que <strong>VH doit aux filiales</strong>. Position nette du groupe : VH est globalement créancière de <strong>+1 376 441€</strong> vis-à-vis de ses filiales (hors ton CC perso).</div></div>
     <table class="tbl">
-      <thead><tr><th>Filiale</th><th class="r">Dividende décidé</th><th class="r">Viré (réel)</th><th class="r">Reste dû</th><th class="r"></th></tr></thead>
-      <tbody id="vir-tbody">
-        <tr data-fil="bka"><td><strong>BK Avenue</strong> SARL</td><td class="r" id="vdiv-bka">—</td><td class="r" id="vsum-bka">—</td><td class="r" id="vrest-bka">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('bka')">📒 Suivi</button></td></tr>
-        <tr data-fil="bksj"><td><strong>BK Saint-Jean</strong> SARL</td><td class="r" id="vdiv-bksj">—</td><td class="r" id="vsum-bksj">—</td><td class="r" id="vrest-bksj">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('bksj')">📒 Suivi</button></td></tr>
-        <tr data-fil="ba"><td><strong>Burger Avenue</strong> SARL</td><td class="r" id="vdiv-ba">—</td><td class="r" id="vsum-ba">—</td><td class="r" id="vrest-ba">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('ba')">📒 Suivi</button></td></tr>
-        <tr data-fil="fvh"><td><strong>FVH</strong> SARL</td><td class="r" id="vdiv-fvh">—</td><td class="r" id="vsum-fvh">—</td><td class="r">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('fvh')">📒 Suivi</button></td></tr>
+      <thead><tr><th>Filiale</th><th>Sens</th><th class="r">Montant 30/06/2025</th><th class="r">N-1 (30/06/2024)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>SCI VH Immo</strong></td><td><span class="tag tag-g">Fille → Mère (doit à VH)</span></td><td class="r g">1 379 169€</td><td class="r">975 993€</td></tr>
+        <tr><td><strong>BK Saint-Jean</strong></td><td><span class="tag tag-g">Fille → Mère (doit à VH)</span></td><td class="r g">545 605€</td><td class="r">303 650€</td></tr>
+        <tr><td><strong>FVH</strong></td><td><span class="tag tag-g">Fille → Mère (doit à VH)</span></td><td class="r g">101 000€</td><td class="r">171 514€</td></tr>
+        <tr style="border-top:1px solid var(--border);"><td colspan="2" style="font-weight:600;">Total créances VH (actif)</td><td class="r"><strong>2 025 773€</strong></td><td class="r">1 451 156€</td></tr>
+        <tr><td><strong>BK Avenue</strong></td><td><span class="tag tag-w">Mère → Fille (VH doit)</span></td><td class="r r">480 029€</td><td class="r">501 656€</td></tr>
+        <tr><td><strong>Burger Avenue</strong></td><td><span class="tag tag-w">Mère → Fille (VH doit)</span></td><td class="r r">169 303€</td><td class="r">195 414€</td></tr>
+        <tr style="border-top:1px solid var(--border);"><td colspan="2" style="font-weight:600;">Total dettes VH envers filiales</td><td class="r"><strong>649 332€</strong></td><td class="r">697 070€</td></tr>
+        <tr style="border-top:2px solid var(--border2);"><td colspan="2" style="font-weight:600;">Position nette VH (créance)</td><td class="r g"><strong>+1 376 441€</strong></td><td class="r">+754 086€</td></tr>
+        <tr><td>+ Ton CC perso (Vincent)</td><td><span class="tag tag-b">Vincent → VH (tu prêtes à VH)</span></td><td class="r">304 987€</td><td class="r">164 987€</td></tr>
       </tbody>
     </table>
-    <div class="card" style="margin-top:14px;background:var(--surface2);">
-      <div class="card-title">🔄 Comptes courants — qui doit à qui (trésorerie réelle)</div>
-      <table class="tbl">
-        <thead><tr><th>Filiale</th><th>Sens</th><th class="r">Montant</th></tr></thead>
-        <tbody>
-          <tr><td><strong>BK Avenue</strong></td><td><span class="tag tag-gr">à compléter au bilan</span></td><td class="r">—</td></tr>
-          <tr><td><strong>BK Saint-Jean</strong></td><td><span class="tag tag-gr">à compléter au bilan</span></td><td class="r">—</td></tr>
-          <tr><td><strong>Burger Avenue</strong></td><td><span class="tag tag-gr">à compléter au bilan</span></td><td class="r">—</td></tr>
-          <tr><td><strong>FVH</strong></td><td><span class="tag tag-gr">à compléter au bilan</span></td><td class="r">—</td></tr>
-          <tr><td><strong>SCI VH Immo</strong></td><td><span class="tag tag-gr">à compléter au bilan</span></td><td class="r">—</td></tr>
-        </tbody>
-      </table>
-    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📒 Cahier de bord — dividendes remontés des filiales vers VH (réellement encaissés)</div>
+    <div class="alert a-w" style="margin-bottom:12px;"><span>⚠</span><div><strong>Dividende décidé ≠ argent reçu.</strong> Le bilan VH montre 700 241€ de dividendes reçus des filiales en produits. Trace ici les virements réels (date, montant, n° / banque) pour vérifier que l'argent est bien rentré. Les dividendes décidés se préciseront avec les PV d'AG de chaque filiale.</div></div>
+    <table class="tbl">
+      <thead><tr><th>Filiale</th><th class="r">Dividende reçu (bilan)</th><th class="r">Viré (réel)</th><th class="r">Écart</th><th class="r"></th></tr></thead>
+      <tbody id="vir-tbody">
+        <tr data-fil="bka"><td><strong>BK Avenue</strong> SARL</td><td class="r g" id="vdiv-bka">435 901€</td><td class="r" id="vsum-bka">—</td><td class="r" id="vrest-bka">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('bka')">📒 Suivi</button></td></tr>
+        <tr data-fil="bksj"><td><strong>BK Saint-Jean</strong> SARL</td><td class="r g" id="vdiv-bksj">236 553€</td><td class="r" id="vsum-bksj">—</td><td class="r" id="vrest-bksj">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('bksj')">📒 Suivi</button></td></tr>
+        <tr data-fil="ba"><td><strong>Burger Avenue</strong> SARL</td><td class="r g" id="vdiv-ba">27 787€</td><td class="r" id="vsum-ba">—</td><td class="r" id="vrest-ba">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('ba')">📒 Suivi</button></td></tr>
+        <tr data-fil="fvh"><td><strong>FVH</strong> SARL</td><td class="r r" id="vdiv-fvh">−2 104€ (déficit)</td><td class="r" id="vsum-fvh">—</td><td class="r">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('fvh')">📒 Suivi</button></td></tr>
+        <tr style="border-top:2px solid var(--border2);"><td style="font-weight:600;">Total dividendes filiales</td><td class="r g"><strong>700 241€</strong></td><td class="r"></td><td class="r"></td><td class="r"></td></tr>
+      </tbody>
+    </table>
   </div>
   <div class="socimp" data-soc="vh"></div>
 </div>
@@ -2864,6 +2897,10 @@ async function socImpHandle(box, files) {
         if(st){st.className='fst fst-ok';st.textContent='Dropbox ✓';}
       }
       markSoc(soc);
+      // Extraction automatique des chiffres si c'est un Bilan PDF
+      if(/bilan/i.test(doctype) && ext==='pdf'){
+        extraireBilanIA(box, f, soc, year, tmp);
+      }
     }
   }
   socImpRender(box);
@@ -3024,6 +3061,81 @@ async function virRefreshAll() {
       const reste = div - total;
       restEl.innerHTML = reste<=0 ? '<span class="tag tag-g">Soldé ✓</span>' : `<span class="tag tag-w">${eurV(reste)}</span>`;
     }
+  }
+}
+
+// ── EXTRACTION AUTOMATIQUE DES BILANS VIA IA (gardien /api/ia) ──
+// Convertit le PDF en images compressées (pdf.js), les envoie au gardien,
+// récupère les chiffres clés en JSON, et les enregistre dans societe_finances.
+
+// Convertit les N premières pages d'un PDF en images JPEG base64 compressées
+async function pdfToImages(file, maxPages) {
+  if(!window.pdfjsLib) throw new Error('pdf.js non chargé');
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const n = Math.min(pdf.numPages, maxPages||6);
+  const imgs = [];
+  for(let p=1; p<=n; p++){
+    const page = await pdf.getPage(p);
+    const vp = page.getViewport({scale:1.4});
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
+    imgs.push(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+  }
+  return imgs;
+}
+
+async function extraireBilanIA(box, file, soc, year, rowEl) {
+  const list = box.querySelector('.si-list');
+  const note = document.createElement('div');
+  note.style.cssText='font-size:11px;color:var(--accent);margin-top:6px;';
+  note.textContent='🤖 Lecture automatique du bilan en cours…';
+  if(list) list.appendChild(note);
+  try {
+    const imgs = await pdfToImages(file, 6);
+    const content = imgs.map(b64 => ({type:'image', source:{type:'base64', media_type:'image/jpeg', data:b64}}));
+    content.push({type:'text', text:
+`Tu es expert-comptable. Voici les pages d'un bilan d'une société française (${IS_SOC_LABEL[soc]||soc}, exercice ${year}). Extrais les chiffres clés et réponds UNIQUEMENT par un objet JSON, sans aucun texte autour, avec ces clés (mets null si absent) :
+{
+ "resultat_net": nombre,
+ "resultat_fiscal": nombre,
+ "capitaux_propres": nombre,
+ "capital_social": nombre,
+ "report_a_nouveau": nombre,
+ "reserves": nombre,
+ "total_bilan": nombre,
+ "tresorerie": nombre,
+ "chiffre_affaires": nombre,
+ "dividendes_verses": nombre,
+ "cc_associes_passif": nombre,
+ "cc_groupe_actif": nombre,
+ "date_cloture": "JJ/MM/AAAA"
+}
+Les nombres sont en euros, sans espaces ni symboles.`});
+    const r = await fetch('/api/ia', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-5', max_tokens:1500, messages:[{role:'user', content}] })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error((data && data.error) || ('HTTP '+r.status));
+    // Récupère le texte renvoyé par l'IA
+    let txt = '';
+    if(Array.isArray(data.content)) txt = data.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const clean = txt.replace(/```json|```/g,'').trim();
+    let fin = null;
+    try { fin = JSON.parse(clean); } catch(e){ throw new Error('Réponse IA illisible'); }
+    // Enregistre dans societe_finances (clé société+exercice)
+    try {
+      await sb.from('societe_finances').upsert({
+        societe: soc, exercice: parseInt(year), donnees: fin, updated_at: new Date().toISOString()
+      }, { onConflict: 'societe,exercice' });
+    } catch(e){}
+    note.style.color='var(--success)';
+    note.innerHTML = '✓ Bilan lu automatiquement — résultat net : <strong>'+(fin.resultat_net!=null?Math.round(fin.resultat_net).toLocaleString('fr-FR')+'€':'n.c.')+'</strong>, capitaux propres : <strong>'+(fin.capitaux_propres!=null?Math.round(fin.capitaux_propres).toLocaleString('fr-FR')+'€':'n.c.')+'</strong>';
+  } catch(e) {
+    note.style.color='var(--warn)';
+    note.textContent='⚠ Lecture auto indisponible ('+((e&&e.message)||'')+'). Le fichier reste archivé ; tu peux me l\'envoyer dans le chat.';
   }
 }
 
