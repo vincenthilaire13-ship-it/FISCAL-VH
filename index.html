@@ -229,7 +229,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 01h28
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 01h45
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -2841,6 +2841,7 @@ function buildSocImports() {
           <p style="font-size:12px;">PDF · XLSX · CSV · JPG — plusieurs fichiers acceptés</p>
           <input type="file" class="si-input" multiple accept=".pdf,.csv,.xlsx,.xls,.jpg,.jpeg,.png" style="display:none;">
         </div>
+        <div class="si-ia" style="margin-top:10px;"></div>
         <div class="si-list" style="margin-top:12px;"></div>
       </div>`;
     const drop = box.querySelector('.si-drop');
@@ -2898,6 +2899,7 @@ async function socImpHandle(box, files) {
       }
       markSoc(soc);
       // Extraction automatique des chiffres si c'est un Bilan PDF
+      console.log('[IA] doctype=',doctype,'ext=',ext,'→ extraction',(/bilan/i.test(doctype) && ext==='pdf'));
       if(/bilan/i.test(doctype) && ext==='pdf'){
         extraireBilanIA(box, f, soc, year, tmp);
       }
@@ -3087,11 +3089,11 @@ async function pdfToImages(file, maxPages) {
 }
 
 async function extraireBilanIA(box, file, soc, year, rowEl) {
-  const list = box.querySelector('.si-list');
+  const zone = box.querySelector('.si-ia');
   const note = document.createElement('div');
-  note.style.cssText='font-size:11px;color:var(--accent);margin-top:6px;';
-  note.textContent='🤖 Lecture automatique du bilan en cours…';
-  if(list) list.appendChild(note);
+  note.style.cssText='font-size:12px;color:var(--accent);margin-top:6px;padding:8px 10px;background:var(--accent-l);border-radius:8px;';
+  note.textContent='🤖 Lecture automatique du bilan en cours… (cela peut prendre 10-20 secondes)';
+  if(zone) zone.prepend(note);
   try {
     const imgs = await pdfToImages(file, 6);
     const content = imgs.map(b64 => ({type:'image', source:{type:'base64', media_type:'image/jpeg', data:b64}}));
