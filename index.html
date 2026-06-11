@@ -227,7 +227,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 01h14
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 01h17
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -2847,8 +2847,22 @@ async function socImpHandle(box, files) {
       else { const st=tmp&&tmp.querySelector('.fst'); if(st){st.className='fst';st.style.color='var(--danger)';st.textContent='Échec Dropbox';} }
     } catch(e){ const st=tmp&&tmp.querySelector('.fst'); if(st){st.className='fst';st.style.color='var(--danger)';st.textContent='Erreur Dropbox';} }
     if(ok){
-      try { await sb.from('societe_docs').insert({societe:soc,exercice:parseInt(year),doctype,nom:f.name,type:ext.toUpperCase(),taille:f.size,dropbox_path,url,statut:'archive'}); } catch(e){}
-      const st=tmp&&tmp.querySelector('.fst'); if(st){st.className='fst fst-ok';st.textContent='Dropbox ✓';}
+      let dbErr = null;
+      try {
+        const res = await sb.from('societe_docs').insert({societe:soc,exercice:parseInt(year),doctype,nom:f.name,type:ext.toUpperCase(),taille:f.size,dropbox_path,url,statut:'archive'});
+        if(res && res.error) dbErr = res.error.message || JSON.stringify(res.error);
+      } catch(e){ dbErr = (e&&e.message)||'exception'; }
+      const st=tmp&&tmp.querySelector('.fst');
+      if(dbErr){
+        if(st){st.className='fst';st.style.color='var(--warn)';st.textContent='Dropbox ✓ / index KO';}
+        console.warn('societe_docs insert error:', dbErr);
+        const warn = document.createElement('div');
+        warn.style.cssText='font-size:11px;color:var(--warn);margin-top:6px;';
+        warn.textContent='⚠ Fichier envoyé sur Dropbox mais non indexé (la frise ne passera pas en vert). Détail : '+dbErr;
+        list.appendChild(warn);
+      } else {
+        if(st){st.className='fst fst-ok';st.textContent='Dropbox ✓';}
+      }
       markSoc(soc);
     }
   }
@@ -2877,8 +2891,12 @@ async function socImpRender(box) {
   const frise = box.querySelector('.si-frise');
   if(!list) return;
   list.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:6px 0;">Chargement…</div>';
-  let docs = [];
-  try { const {data}=await sb.from('societe_docs').select('*').eq('societe',soc).order('exercice',{ascending:false}).order('created_at',{ascending:false}); docs=data||[]; } catch(e){}
+  let docs = [], readErr = null;
+  try {
+    const res = await sb.from('societe_docs').select('*').eq('societe',soc).order('exercice',{ascending:false}).order('created_at',{ascending:false});
+    if(res && res.error) readErr = res.error.message || JSON.stringify(res.error);
+    else docs = res.data || [];
+  } catch(e){ readErr = (e&&e.message)||'exception'; }
   const byYear={}; docs.forEach(d=>{(byYear[d.exercice]=byYear[d.exercice]||[]).push(d);});
   // Frise des exercices 2023 → année courante : statut bilan + PV d'AG par année
   if(frise) {
@@ -2899,6 +2917,7 @@ async function socImpRender(box) {
     }
     frise.innerHTML = html;
   }
+  if(readErr){ list.innerHTML='<div style="font-size:12px;color:var(--warn);padding:8px;text-align:center;">⚠ Impossible de lire l\'index des fichiers (table societe_docs). Détail : '+readErr+'</div>'; return; }
   if(!docs.length){ list.innerHTML='<div style="color:var(--text3);font-size:12px;padding:6px 0;text-align:center;">Aucun fichier encore — dépose les bilans des derniers exercices ci-dessus.</div>'; return; }
   list.innerHTML='';
   Object.keys(byYear).sort((a,b)=>b-a).forEach(y=>{
