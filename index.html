@@ -227,7 +227,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 00h34
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 00h51
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -453,7 +453,53 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <div class="row"><span class="rl" style="font-weight:600">Total</span><span class="rv g"><strong>700 137€</strong></span></div>
     </div>
   </div>
+  <div class="card">
+    <div class="card-title">📒 Cahier de bord — dividendes décidés vs virements réellement faits</div>
+    <div class="alert a-w" style="margin-bottom:12px;"><span>⚠</span><div><strong>Dividende décidé ≠ argent reçu.</strong> Trace ici chaque virement réel (date, montant, n° / banque). Tant que le total des virements n'atteint pas le dividende décidé, le reste est dû par la filiale à la holding (compte courant). Cliquez sur une filiale pour voir et ajouter ses virements.</div></div>
+    <table class="tbl">
+      <thead><tr><th>Filiale</th><th class="r">Dividende décidé</th><th class="r">Viré (réel)</th><th class="r">Reste dû</th><th class="r"></th></tr></thead>
+      <tbody id="vir-tbody">
+        <tr data-fil="bka" data-soc="BK Avenue" data-div="435901"><td><strong>BK Avenue</strong> SARL</td><td class="r g">435 901€</td><td class="r" id="vsum-bka">—</td><td class="r" id="vrest-bka">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('bka')">📒 Suivi</button></td></tr>
+        <tr data-fil="bksj" data-soc="BK Saint-Jean" data-div="236553"><td><strong>BK Saint-Jean</strong> SARL</td><td class="r g">236 553€</td><td class="r" id="vsum-bksj">—</td><td class="r" id="vrest-bksj">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('bksj')">📒 Suivi</button></td></tr>
+        <tr data-fil="ba" data-soc="Burger Avenue" data-div="27787"><td><strong>Burger Avenue</strong> SARL</td><td class="r g">27 787€</td><td class="r" id="vsum-ba">—</td><td class="r" id="vrest-ba">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('ba')">📒 Suivi</button></td></tr>
+        <tr data-fil="fvh" data-soc="FVH" data-div="0"><td><strong>FVH</strong> SARL</td><td class="r r">déficit</td><td class="r" id="vsum-fvh">—</td><td class="r">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('fvh')">📒 Suivi</button></td></tr>
+      </tbody>
+    </table>
+    <div class="card" style="margin-top:14px;background:var(--surface2);">
+      <div class="card-title">🔄 Comptes courants — qui doit à qui (trésorerie réelle)</div>
+      <table class="tbl">
+        <thead><tr><th>Filiale</th><th>Sens</th><th class="r">Montant</th></tr></thead>
+        <tbody>
+          <tr><td><strong>FVH</strong> SARL</td><td><span class="tag tag-w">Mère → Fille (la holding a avancé)</span></td><td class="r">101 000€</td></tr>
+          <tr><td><strong>SCI VH Immo</strong></td><td><span class="tag tag-g">Fille → Mère (créance VH)</span></td><td class="r">1 379 169€</td></tr>
+          <tr><td>BK Avenue / BK SJ / Burger Av.</td><td><span class="tag tag-gr">à compléter avec les bilans</span></td><td class="r">—</td></tr>
+          <tr style="border-top:2px solid var(--border2);"><td style="font-weight:600">CC inter-sociétés actif VH</td><td></td><td class="r"><strong>≈ 2 025 773€</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
   <div class="socimp" data-soc="vh"></div>
+</div>
+
+<!-- MODAL JOURNAL VIREMENTS -->
+<div id="modal-vir" style="display:none;position:fixed;inset:0;background:rgba(26,24,20,0.5);z-index:100;align-items:center;justify-content:center;padding:20px;">
+  <div class="card" style="max-width:560px;width:100%;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div class="card-title" style="margin:0;" id="vir-title">Virements</div>
+      <span style="cursor:pointer;font-size:20px;color:var(--text3);" onclick="virClose()">×</span>
+    </div>
+    <div id="vir-recap" style="font-size:12px;color:var(--text2);margin-bottom:12px;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Ajouter un virement</div>
+      <div style="display:flex;gap:8px;">
+        <input id="vir-date" type="date" class="sim-in" style="font-family:var(--font);flex:1;">
+        <input id="vir-montant" type="number" class="sim-in" placeholder="Montant €" style="flex:1;">
+      </div>
+      <input id="vir-note" class="sim-in" placeholder="Note : n° de virement, banque émettrice…" style="font-family:var(--font);">
+      <button class="btn btn-p" onclick="virAdd()">+ Enregistrer le virement</button>
+    </div>
+    <div id="vir-list"></div>
+  </div>
 </div>
 
 <!-- AUTRES SOCIETES -->
@@ -475,7 +521,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 </div>
 <div id="tab-soc-sci" class="panel">
   <div class="alert a-b"><span>🏢</span><div><strong>SCI VH Immo</strong> — VH détient 10%. Cette section regroupe le <strong>financier de la société</strong> : capital, comptes courants, résultat et bilan. Les bâtiments (notaire, banque, syndic, bail, loyers, taxe foncière) se gèrent dans la section <strong>Bâtiments</strong>.</div></div>
-  <div class="socimp" data-soc="sci"></div>
 
   <div class="g4">
     <div class="kpi acc"><div class="kl">Capital social</div><div class="kv" id="sci-k-capital">—</div><div class="ks">SCI VH Immo</div></div>
@@ -536,6 +581,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     </div>
     <button class="btn btn-p" onclick="document.querySelector('.sb-item[onclick*=batiments]').click()">Ouvrir les bâtiments →</button>
   </div>
+  <div class="socimp" data-soc="sci"></div>
 </div>
 
 <!-- MODAL AJOUT BATIMENT -->
@@ -2957,7 +3003,98 @@ async function socImpDelete(btn, id, dropbox_path) {
   const box = btn.closest('.socimp'); if(box) socImpRender(box);
 }
 
+// ── CAHIER DE BORD : JOURNAL DES VIREMENTS DIVIDENDES (mère ↔ filles) ──
+const VIR_DIV = {bka:435901, bksj:236553, ba:27787, fvh:0};
+const VIR_NOM = {bka:'BK Avenue', bksj:'BK Saint-Jean', ba:'Burger Avenue', fvh:'FVH'};
+let _virCur = null;
+const eurV = n => (n||n===0) ? Math.round(n).toLocaleString('fr-FR')+'€' : '—';
+
+async function virOpen(fil) {
+  _virCur = fil;
+  document.getElementById('vir-title').textContent = '📒 Virements — ' + (VIR_NOM[fil]||fil) + ' → VH Company';
+  document.getElementById('vir-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('vir-montant').value = '';
+  document.getElementById('vir-note').value = '';
+  document.getElementById('modal-vir').style.display = 'flex';
+  await virRenderList();
+}
+function virClose() { document.getElementById('modal-vir').style.display = 'none'; _virCur = null; }
+
+async function virAdd() {
+  if(!_virCur) return;
+  const date = document.getElementById('vir-date').value;
+  const montant = parseFloat(document.getElementById('vir-montant').value);
+  const note = document.getElementById('vir-note').value.trim();
+  if(!date || isNaN(montant)) { alert('Indique au moins une date et un montant.'); return; }
+  try {
+    await sb.from('virements').insert({filiale:_virCur, date_vir:date, montant, note, sens:'dividende'});
+  } catch(e) { alert('Enregistrement impossible (table virements absente ?).'); return; }
+  document.getElementById('vir-montant').value = '';
+  document.getElementById('vir-note').value = '';
+  await virRenderList();
+  await virRefreshAll();
+}
+
+async function virDelete(id) {
+  if(!confirm('Supprimer ce virement du cahier de bord ?')) return;
+  try { await sb.from('virements').delete().eq('id', id); } catch(e) {}
+  await virRenderList();
+  await virRefreshAll();
+}
+
+async function virFetch(fil) {
+  try {
+    const {data} = await sb.from('virements').select('*').eq('filiale', fil).order('date_vir',{ascending:true});
+    return data || [];
+  } catch(e) { return []; }
+}
+
+async function virRenderList() {
+  const list = document.getElementById('vir-list');
+  const recap = document.getElementById('vir-recap');
+  if(!list) return;
+  const fil = _virCur;
+  const rows = await virFetch(fil);
+  const total = rows.reduce((s,r)=>s+(+r.montant||0),0);
+  const div = VIR_DIV[fil]||0;
+  const reste = div - total;
+  if(div>0) {
+    const solde = reste<=0;
+    recap.innerHTML = `Dividende décidé : <strong>${eurV(div)}</strong> · Viré en vrai : <strong>${eurV(total)}</strong> · ` +
+      (solde ? `<span style="color:var(--success);font-weight:600;">Soldé ✓</span>` : `<span style="color:var(--warn);font-weight:600;">Reste dû : ${eurV(reste)}</span> (en compte courant)`);
+  } else {
+    recap.innerHTML = `Pas de dividende décidé pour cette filiale · Viré : <strong>${eurV(total)}</strong>`;
+  }
+  if(!rows.length) { list.innerHTML = '<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px;">Aucun virement enregistré. Ajoute le premier ci-dessus.</div>'; return; }
+  list.innerHTML = '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Virements enregistrés</div>';
+  rows.forEach(r => {
+    const d = document.createElement('div');
+    d.className = 'fitem';
+    const dateFr = r.date_vir ? r.date_vir.split('-').reverse().join('/') : '';
+    d.innerHTML = `<div class="finfo"><div class="fname">${eurV(+r.montant)} — ${dateFr}</div><div class="fmeta">${r.note||'—'}</div></div>
+<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="virDelete('${r.id}')">Suppr.</button>`;
+    list.appendChild(d);
+  });
+}
+
+// Met à jour les colonnes "Viré / Reste dû" du tableau récap
+async function virRefreshAll() {
+  for(const fil of Object.keys(VIR_DIV)) {
+    const rows = await virFetch(fil);
+    const total = rows.reduce((s,r)=>s+(+r.montant||0),0);
+    const div = VIR_DIV[fil]||0;
+    const sumEl = document.getElementById('vsum-'+fil);
+    const restEl = document.getElementById('vrest-'+fil);
+    if(sumEl) sumEl.innerHTML = total>0 ? `<span class="g">${eurV(total)}</span>` : '<span style="color:var(--text3);">0€</span>';
+    if(restEl && div>0) {
+      const reste = div - total;
+      restEl.innerHTML = reste<=0 ? '<span class="tag tag-g">Soldé ✓</span>' : `<span class="tag tag-w">${eurV(reste)}</span>`;
+    }
+  }
+}
+
 // ── START ──
+virRefreshAll();
 buildSocImports();
 isFillYears();
 isRenderFiles();
