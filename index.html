@@ -236,7 +236,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 22h41
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 22h54
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -2352,45 +2352,74 @@ JSON attendu :
 // Réutilise /api/ia comme pour les bilans (conversion PDF → images via pdf.js).
 async function batExtractDoc(cat, file, batNom){
   if((file.name.split('.').pop()||'').toLowerCase()!=='pdf'){ return {error:'Pas un PDF — lecture auto impossible.'}; }
-  // On lit TOUTES les pages du document (jamais de troncature) : un bail détaille la
-  // surface/dépôt/charges en pages 4-6, un tableau d'amortissement étale le capital
-  // restant dû sur de nombreuses pages. Si le lot est trop lourd pour /api/ia, on baisse
-  // la RÉSOLUTION (pas le nombre de pages) jusqu'à ce que ça passe.
-  const ALL = 80; // lit toutes les pages (plafond haut de sécurité pour ne pas figer le navigateur)
+  const total = await pdfPageCount(file) || 1;
+  const CHUNK = 20;            // pages lues par appel (sous la limite API)
+  const MAX_CHUNKS = 6;        // sécurité : jusqu'à 120 pages au total
+  const MAX_BYTES = 22 * 1024 * 1024;
+  let merged = null, lastErr = '', pagesLues = 0, chunks = 0;
+  for(let start=1; start<=total && chunks<MAX_CHUNKS; start+=CHUNK){
+    chunks++;
+    const res = await batExtractChunk(cat, file, batNom, start, CHUNK, MAX_BYTES);
+    if(res && !res.error){
+      merged = mergeExtract(merged, res);
+      pagesLues = Math.min(total, start+CHUNK-1);
+    } else if(res && res.error){
+      lastErr = res.error;
+      // on continue quand même les tranches suivantes (une tranche peut échouer isolément)
+    }
+  }
+  if(!merged){ return {error: lastErr || 'Lecture auto impossible.'}; }
+  // Indique si le document n'a pas été lu en entier (l'utilisateur pourra « Relire » pour la suite)
+  if(pagesLues < total){ merged._incomplet = true; merged._pages_lues = pagesLues; merged._pages_total = total; }
+  return merged;
+}
+
+// Lit UNE tranche de pages [start, start+chunk) avec repli sur la résolution si trop lourd.
+async function batExtractChunk(cat, file, batNom, start, chunk, maxBytes){
   const paliers = [
-    {pages:ALL, maxWidth:1400, quality:0.68},
-    {pages:ALL, maxWidth:1150, quality:0.55},
-    {pages:ALL, maxWidth:950,  quality:0.45},
-    {pages:ALL, maxWidth:800,  quality:0.38}
+    {maxWidth:1300, quality:0.62},
+    {maxWidth:1050, quality:0.52},
+    {maxWidth:850,  quality:0.42}
   ];
   let lastErr = '';
-  for(let i=0;i<paliers.length;i++){
-    const cfg = paliers[i];
+  for(const cfg of paliers){
     try {
-      const imgs = await pdfToImages(file, cfg.pages, {maxWidth:cfg.maxWidth, quality:cfg.quality});
-      if(!imgs || !imgs.length){ lastErr='PDF illisible (aucune page rendue).'; continue; }
+      let imgs = await pdfToImages(file, chunk, {maxWidth:cfg.maxWidth, quality:cfg.quality, startPage:start});
+      if(!imgs || !imgs.length){ lastErr='aucune page'; continue; }
+      while(imgs.length>1 && imgsBytes(imgs) > maxBytes){ imgs = imgs.slice(0, imgs.length-1); }
       const content = imgs.map(d=>({type:'image', source:{type:'base64', media_type:'image/jpeg', data:d}}));
       content.push({type:'text', text: batPromptFor(cat, batNom)});
       const payload = JSON.stringify({ model:'claude-sonnet-4-5', max_tokens:1500, messages:[{role:'user', content}] });
       const r = await fetch('/api/ia', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload });
-      if(!r.ok){
-        lastErr = 'Serveur IA : HTTP '+r.status;
-        // 413/400 = trop gros → palier suivant (résolution plus basse, mêmes pages)
-        if(r.status===413 || r.status===400){ continue; }
-        return {error:lastErr};
-      }
+      if(!r.ok){ lastErr='HTTP '+r.status; if(r.status===413||r.status===400){ continue; } return {error:lastErr}; }
       const j = await r.json();
       let txt = '';
       if(j && Array.isArray(j.content)) txt = j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
       else if(j && j.content && j.content[0] && j.content[0].text) txt = j.content[0].text;
       txt = (txt||'').replace(/```json|```/g,'').trim();
       const m = txt.match(/\{[\s\S]*\}/);
-      if(!m){ lastErr='Réponse IA non exploitable.'; continue; }
-      try { return JSON.parse(m[0]); }
-      catch(e){ lastErr='JSON IA invalide.'; continue; }
-    } catch(e){ lastErr=(e&&e.message)||'erreur inconnue'; }
+      if(!m){ lastErr='réponse non exploitable'; continue; }
+      try { return JSON.parse(m[0]); } catch(e){ lastErr='JSON invalide'; continue; }
+    } catch(e){ lastErr=(e&&e.message)||'erreur'; }
   }
-  return {error: lastErr || 'Lecture auto impossible.'};
+  return {error:lastErr};
+}
+
+// Fusionne deux résultats d'extraction (tranches successives) : garde la 1ʳᵉ valeur
+// non vide pour chaque champ scalaire, concatène les tableaux. Le CRD le plus récent
+// (dernière tranche non nulle) l'emporte pour les tableaux d'amortissement.
+function mergeExtract(a, b){
+  if(!a) return b;
+  if(!b) return a;
+  const out = Object.assign({}, a);
+  Object.keys(b).forEach(k=>{
+    const v = b[k];
+    if(v==null || v==='') return;
+    if(Array.isArray(v)){ out[k] = (Array.isArray(out[k])?out[k]:[]).concat(v); }
+    else if(out[k]==null || out[k]===''){ out[k] = v; }
+    else if(k==='crd' || k==='duree_mois' || k==='date_fin'){ out[k] = v; } // tranche plus tardive = info plus à jour
+  });
+  return out;
 }
 
 // Construit la zone « documents de cette catégorie » : liste cliquable + dépôt.
@@ -2469,9 +2498,13 @@ async function batDocHandle(cat, files){
     await saveBatToDb(b);
     recomputeBat();
     if(statusEl){
-      statusEl.innerHTML = data
-        ? '<span style="color:var(--success);">✓ '+f.name+' ajouté et lu. Les champs ci-dessous ont été pré-remplis — vérifie et enregistre.</span>'
-        : '<span style="color:var(--warn);">⚠ '+f.name+' sauvegardé dans Dropbox, mais lecture auto non aboutie'+(errMsg?(' ('+errMsg+')'):'')+'. Utilise « 🔄 Relire » sur le document, ou remplis les champs à la main.</span>';
+      if(data && data._incomplet){
+        statusEl.innerHTML = '<span style="color:var(--warn);">✓ '+f.name+' lu en partie ('+data._pages_lues+'/'+data._pages_total+' pages). Les premières pages ont été traitées. Clique « 🔄 Relire » pour continuer la lecture du reste du document.</span>';
+      } else {
+        statusEl.innerHTML = data
+          ? '<span style="color:var(--success);">✓ '+f.name+' ajouté et lu. Les champs ci-dessous ont été pré-remplis — vérifie et enregistre.</span>'
+          : '<span style="color:var(--warn);">⚠ '+f.name+' sauvegardé dans Dropbox, mais lecture auto non aboutie'+(errMsg?(' ('+errMsg+')'):'')+'. Utilise « 🔄 Relire » sur le document, ou remplis les champs à la main.</span>';
+      }
     }
   }
   batSub(cat);
@@ -4122,14 +4155,14 @@ async function pdfToImages(file, maxPages, opts) {
   opts = opts || {};
   const maxW = opts.maxWidth || 1300;   // largeur cible (suffisant pour lire une liasse)
   const quality = opts.quality || 0.72; // compression JPEG
+  const start = opts.startPage || 1;    // page de départ (pour lecture par tranches)
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data:buf}).promise;
-  const n = Math.min(pdf.numPages, maxPages||6);
+  const end = Math.min(pdf.numPages, start + (maxPages||6) - 1);
   const imgs = [];
-  for(let p=1; p<=n; p++){
+  for(let p=start; p<=end; p++){
     const page = await pdf.getPage(p);
     const base = page.getViewport({scale:1});
-    // Échelle calée pour atteindre maxW (sans dépasser ~2x), garde le texte net mais léger
     const scale = Math.min(2, Math.max(1, maxW / base.width));
     const vp = page.getViewport({scale});
     const canvas = document.createElement('canvas');
@@ -4138,6 +4171,12 @@ async function pdfToImages(file, maxPages, opts) {
     imgs.push(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
   }
   return imgs;
+}
+
+// Nombre total de pages d'un PDF
+async function pdfPageCount(file){
+  try { const buf = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data:buf}).promise; return pdf.numPages; }
+  catch(e){ return 0; }
 }
 
 // Estime le poids total (octets) d'un lot d'images base64
@@ -5413,19 +5452,30 @@ async function tresoHandle(files){
     // 2) Lecture IA (toutes les pages)
     let data = null, err = '';
     try {
-      const paliers = [{maxWidth:1300,quality:0.6},{maxWidth:1050,quality:0.5},{maxWidth:850,quality:0.42}];
-      for(const cfg of paliers){
-        const imgs = await pdfToImages(file, 80, cfg);
-        const content = imgs.map(d=>({type:'image', source:{type:'base64', media_type:'image/jpeg', data:d}}));
-        content.push({type:'text', text: tresoPrompt()});
-        const r = await fetch('/api/ia', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({model:'claude-sonnet-4-5', max_tokens:4000, messages:[{role:'user', content}]})});
-        if(!r.ok){ if(r.status===413||r.status===400){ err='trop volumineux'; continue; } err='HTTP '+r.status; break; }
-        const j = await r.json();
-        let txt = Array.isArray(j.content) ? j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n') : '';
-        txt = txt.replace(/```json|```/g,'').trim();
-        const m = txt.match(/\{[\s\S]*\}/);
-        if(m){ try { data = JSON.parse(m[0]); break; } catch(e){ err='JSON invalide'; } }
+      const MAX_BYTES = 22 * 1024 * 1024;
+      const total = await pdfPageCount(file) || 1;
+      const CHUNK = 15, MAX_CHUNKS = 8;
+      const allMouv = []; let periode = ''; let chunks = 0;
+      for(let start=1; start<=total && chunks<MAX_CHUNKS; start+=CHUNK){
+        chunks++;
+        const paliers = [{maxWidth:1200,quality:0.55},{maxWidth:1000,quality:0.48},{maxWidth:850,quality:0.42}];
+        for(const cfg of paliers){
+          let imgs = await pdfToImages(file, CHUNK, {maxWidth:cfg.maxWidth, quality:cfg.quality, startPage:start});
+          if(!imgs || !imgs.length){ break; }
+          while(imgs.length>1 && imgsBytes(imgs) > MAX_BYTES){ imgs = imgs.slice(0, imgs.length-1); }
+          const content = imgs.map(d=>({type:'image', source:{type:'base64', media_type:'image/jpeg', data:d}}));
+          content.push({type:'text', text: tresoPrompt()});
+          const r = await fetch('/api/ia', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({model:'claude-sonnet-4-5', max_tokens:4000, messages:[{role:'user', content}]})});
+          if(!r.ok){ if(r.status===413||r.status===400){ err='trop volumineux'; continue; } err='HTTP '+r.status; break; }
+          const j = await r.json();
+          let txt = Array.isArray(j.content) ? j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n') : '';
+          txt = txt.replace(/```json|```/g,'').trim();
+          const m = txt.match(/\{[\s\S]*\}/);
+          if(m){ try { const part = JSON.parse(m[0]); if(part.periode && !periode) periode=part.periode; if(Array.isArray(part.mouvements)) allMouv.push(...part.mouvements); } catch(e){ err='JSON invalide'; } }
+          break; // tranche lue (ou échec définitif) → on passe à la suivante
+        }
       }
+      if(allMouv.length) data = { periode, mouvements:allMouv };
     } catch(e){ err=(e&&e.message)||'erreur'; }
     // 3) Enregistre mouvements + doc
     if(data && Array.isArray(data.mouvements)){
