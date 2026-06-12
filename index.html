@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 21h49
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 21h55
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -1336,8 +1336,10 @@ function renderVue(b){
   const an = v => (v!=null && !isNaN(v)) ? Number(v) : 0;
   const loyerMensuel = an(b.bail && b.bail.loyer_mensuel);
   const loyerAnnuel = loyerMensuel * 12;
+  // Coût du prêt = (mensualité + assurance emprunteur) × 12 pour chaque prêt
   const mensPret = (b.prets||[]).reduce((s,p)=>s+an(p.mensualite),0);
-  const pretAnnuel = mensPret * 12;
+  const assurEmprMens = (b.prets||[]).reduce((s,p)=>s+an(p.assurance),0);
+  const pretAnnuel = (mensPret + assurEmprMens) * 12;
   const taxes = (b.taxes||[]).slice().sort((x,y)=>an(y.annee)-an(x.annee));
   const derniereTaxe = taxes[0];
   const taxeMontant = derniereTaxe ? an(derniereTaxe.montant) : 0;
@@ -1379,17 +1381,123 @@ function renderVue(b){
       <thead><tr><th>Poste annuel</th><th class="r">Montant</th></tr></thead>
       <tbody>
         ${ligne('Loyer encaissé (HC)', loyerAnnuel, false, loyerMensuel?eurB(loyerMensuel)+' /mois × 12':'à compléter dans Bail')}
-        ${ligne('Remboursement prêt(s)', pretAnnuel, true, mensPret?eurB(mensPret)+' /mois × 12':'aucun prêt')}
+        ${ligne('Remboursement prêt(s)', pretAnnuel, true, mensPret?(eurB(mensPret+assurEmprMens)+' /mois × 12'+(assurEmprMens?' (dont '+eurB(assurEmprMens)+' assurance emprunteur)':'')):'aucun prêt')}
         ${ligne('Taxe foncière (à ta charge)', taxeACharge, true, derniereTaxe?('année '+(derniereTaxe.annee||'?')+(taxeRefac?' · refacturée au locataire':'')):'à compléter')}
         ${ligne('Syndic (à ta charge)', syndicACharge, true, syndicAnneeMax?('année '+syndicAnneeMax+' · total toutes années '+eurB(syndicTotalToutes)):'à compléter')}
-        ${ligne('Assurance (prime)', assurPrime, true, assurPrime?'prime annuelle lue':'à compléter dans Assurances')}
+        ${ligne('Assurance PNO du bâtiment', assurPrime, true, assurPrime?'prime annuelle (à ta charge, propriétaire)':'à compléter dans Assurances')}
         <tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;">${positif?'Bénéfice':'Déficit'} annuel</td><td class="r" style="font-weight:700;color:${positif?'var(--success)':'var(--danger)'};">${positif?'+':'−'}${eurB(Math.abs(solde))}</td></tr>
       </tbody>
     </table>
     ${manques.length?`<div class="alert a-w" style="margin-top:12px;"><span>⚠</span><div>Pour un calcul complet, il manque : <strong>${manques.join(', ')}</strong>. Dépose les documents dans les onglets correspondants, ils seront lus automatiquement.</div></div>`:`<div class="alert a-g" style="margin-top:12px;"><span>✓</span><div>Tous les postes principaux sont renseignés.</div></div>`}
-    <div style="margin-top:10px;font-size:12px;color:var(--text3);">Note : les charges et la taxe foncière refacturées au locataire sont neutres (encaissées puis reversées) et n'entrent pas dans le coût à ta charge. Le remboursement de prêt inclut capital + intérêts.</div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text3);">Note : les charges et la taxe foncière refacturées au locataire sont neutres (encaissées puis reversées) et n'entrent pas dans le coût à ta charge. Le remboursement de prêt inclut capital + intérêts + assurance emprunteur. L'assurance PNO du bâtiment (à ta charge en tant que propriétaire) est comptée à part.</div>
   </div>
-  ${batDocsRecap(b)}`;
+  ${batAlerts(b)}
+  ${batEvolution(b)}`;
+}
+
+// Alertes du bâtiment : assurance expirée/bientôt, taxe à payer, loyers en attente,
+// prêt bientôt soldé, documents manquants. Affiche des pastilles colorées.
+function batAlerts(b){
+  const al = [];
+  const today = new Date();
+  const parseFr = s => { const m=String(s||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m?new Date(+m[3], +m[2]-1, +m[1]):null; };
+  const days = d => d ? Math.round((d - today)/86400000) : null;
+
+  // 1) Assurances : date de fin proche ou dépassée
+  (b.docs||[]).filter(d=>d.cat==='assur' && d.extrait).forEach(d=>{
+    const fin = parseFr(d.extrait.date_fin);
+    const n = days(fin);
+    const nom = d.extrait.type_assurance || d.titre || 'Assurance';
+    if(n!=null){
+      if(n<0) al.push(['danger','☂', `${nom} : contrat expiré depuis ${Math.abs(n)} j (${d.extrait.date_fin}). À renouveler.`]);
+      else if(n<=60) al.push(['warn','☂', `${nom} : se termine dans ${n} j (${d.extrait.date_fin}).`]);
+    }
+  });
+
+  // 2) Taxe foncière : avis le plus récent avec date limite proche/dépassée
+  (b.taxes||[]).forEach(t=>{
+    const lim = parseFr(t.echeance);
+    const n = days(lim);
+    if(n!=null){
+      if(n<0 && n>-120) al.push(['warn','🏛', `Taxe foncière ${t.annee||''} : date limite dépassée (${t.echeance}). Vérifie le paiement.`]);
+      else if(n>=0 && n<=30) al.push(['warn','🏛', `Taxe foncière ${t.annee||''} : à payer avant le ${t.echeance} (${n} j).`]);
+    }
+  });
+
+  // 3) Loyers en attente de paiement
+  const enAttente = (b.loyers||[]).filter(f=>!f.paye);
+  if(enAttente.length){
+    al.push(['warn','🧾', `${enAttente.length} facture(s) de loyer en attente de règlement.`]);
+  }
+
+  // 4) Bail : fin proche
+  const finBail = parseFr(b.bail && b.bail.fin);
+  const nb = days(finBail);
+  if(nb!=null && nb>=0 && nb<=365) al.push(['warn','📄', `Le bail se termine le ${b.bail.fin} (dans ${nb} j). Pense au renouvellement.`]);
+
+  // 5) Prêt bientôt soldé
+  (b.prets||[]).forEach(p=>{
+    const finP = parseFr(p.fin);
+    const np = days(finP);
+    if(np!=null && np>=0 && np<=365) al.push(['ok','🏦', `Prêt ${p.banque||''} bientôt soldé (${p.fin}, dans ${np} j) : ce coût disparaîtra.`]);
+  });
+
+  if(!al.length){
+    return `<div class="card"><div class="card-title">🔔 Alertes</div><div class="alert a-g"><span>✓</span><div>Rien à signaler pour ce bâtiment.</div></div></div>`;
+  }
+  const order = {danger:0, warn:1, ok:2};
+  al.sort((x,y)=>order[x[0]]-order[y[0]]);
+  const rows = al.map(([lvl,ic,txt])=>{
+    const cls = lvl==='danger'?'a-r':(lvl==='warn'?'a-w':'a-g');
+    return `<div class="alert ${cls}" style="margin-bottom:6px;"><span>${ic}</span><div>${txt}</div></div>`;
+  }).join('');
+  return `<div class="card"><div class="card-title">🔔 Alertes</div>${rows}</div>`;
+}
+
+// Évolution pluriannuelle : par année, ce que le bâtiment a rapporté (loyers encaissés
+// ou facturés) vs coûté (taxe à charge + syndic à charge de l'année). Récent en haut.
+function batEvolution(b){
+  const an = v => (v!=null && !isNaN(v)) ? Number(v) : 0;
+  const yearOf = (txt) => { const m=String(txt||'').match(/(20\d{2})/); return m?m[1]:null; };
+  const data = {}; // année -> {loyer, taxe, syndic}
+  const ensure = y => { if(!data[y]) data[y]={loyer:0, taxe:0, syndic:0}; return data[y]; };
+
+  // Loyers facturés par année (loyer HC = ton revenu)
+  (b.loyers||[]).forEach(f=>{
+    const y = yearOf(f.periode) || yearOf(f.date); if(!y) return;
+    ensure(y).loyer += an(f.loyer_hc!=null?f.loyer_hc:(f.hc!=null?f.hc:f.montant));
+  });
+  // Taxe foncière à ta charge par année
+  (b.taxes||[]).forEach(t=>{
+    const y = t.annee!=null?String(t.annee):null; if(!y) return;
+    if(!t.refacturee) ensure(y).taxe += an(t.montant);
+  });
+  // Syndic à ta charge par année
+  ((b.syndic&&b.syndic.appels)||[]).forEach(a=>{
+    let y=a.annee; if(y==null) y=yearOf(a.periode||a.echeance||a.date); if(!y) return;
+    if(!a.refacture) ensure(String(y)).syndic += an(a.montant);
+  });
+
+  const annees = Object.keys(data).sort((x,y)=>String(y).localeCompare(String(x)));
+  if(!annees.length){
+    return `<div class="card"><div class="card-title">📈 Évolution par année</div><div style="color:var(--text3);font-size:13px;padding:8px;">Dépose des factures de loyer, taxes et appels de syndic : l'évolution année par année s'affichera ici.</div></div>`;
+  }
+  const rows = annees.map(y=>{
+    const d = data[y];
+    const cout = d.taxe + d.syndic;
+    const solde = d.loyer - cout;
+    const col = solde>=0?'var(--success)':'var(--danger)';
+    return `<tr>
+      <td><strong>${y}</strong></td>
+      <td class="r" style="color:var(--success);">+${eurB(d.loyer)}</td>
+      <td class="r" style="color:var(--danger);">−${eurB(cout)}</td>
+      <td class="r" style="font-weight:700;color:${col};">${solde>=0?'+':'−'}${eurB(Math.abs(solde))}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="card"><div class="card-title">📈 Évolution par année</div>
+    <div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Ce que le bâtiment t'a <strong>rapporté</strong> (loyer encaissé, hors charges/taxe refacturées) vs ce qu'il t'a <strong>coûté à ta charge</strong> (taxe + syndic non refacturés), année par année. Le remboursement du prêt n'est pas réparti ici (il est dans le bloc du haut).</div></div>
+    <table class="tbl"><thead><tr><th>Année</th><th class="r">Rapporté</th><th class="r">Coûté</th><th class="r">Solde</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>`;
 }
 
 // Récap de TOUS les documents reçus du bâtiment, toutes catégories (trace centralisée).
