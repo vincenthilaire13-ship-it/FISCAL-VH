@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 21h29
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 21h43
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -1019,6 +1019,7 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 // syndic{appels:[]}, docs[].
 let batiments = [];
 let currentBat = null;        // id du bâtiment ouvert
+let syndicYearSel = null;     // année sélectionnée dans l'analyse du syndic
 const eurB = n => (n||n===0) ? Math.round(n).toLocaleString('fr-FR')+'€' : '—';
 const numOrNull = s => { const n = parseFloat((''+s).replace(',','.')); return isNaN(n)?null:n; };
 
@@ -1262,6 +1263,7 @@ function getBat(id) { return batiments.find(b=>b.id===id) || (currentBat!=null &
 
 function openBatDetail(id) {
   currentBat = id;
+  syndicYearSel = null; // réinitialise l'année syndic (re-défaut sur l'année en cours)
   const b = batiments.find(x=>x.id===id);
   if(!b) return;
   document.getElementById('bat-list-view').style.display='none';
@@ -1511,8 +1513,22 @@ async function saveBail() {
 
 // ===== FACTURATION LOYERS (quittances) =====
 function renderFactu(b) {
-  const rows = (b.loyers||[]).map((f,i)=>`
-    <tr class="${f.paye?'ok':''}"><td>${f.periode||'—'}</td><td class="r">${eurB(f.montant)}</td><td class="r">${f.date_emission||'—'}</td><td class="r">${f.paye?'<span class="tag tag-g">Payé</span>':'<span class="tag tag-w">En attente</span>'}</td><td class="r"><span style="cursor:pointer;color:var(--accent);" onclick="togFactu(${i})">↻</span> <span style="cursor:pointer;color:var(--danger);" onclick="delFactu(${i})">×</span></td></tr>`).join('');
+  // Clé de tri : on déduit année+mois depuis la période ou la date, pour classer
+  // la plus récente en haut. Les mois français sont reconnus.
+  const MOIS = {janvier:1,février:2,fevrier:2,mars:3,avril:4,mai:5,juin:6,juillet:7,août:8,aout:8,septembre:9,octobre:10,novembre:11,décembre:12,decembre:12};
+  const factuKey = f => {
+    const txt = ((f.periode||'')+' '+(f.date||f.date_emission||'')).toLowerCase();
+    const ym = txt.match(/(\d{2})\/(\d{4})/); // 01/2026
+    if(ym) return parseInt(ym[2])*100 + parseInt(ym[1]);
+    const y = (txt.match(/(20\d{2})/)||[])[1];
+    let mo = 0; for(const k in MOIS){ if(txt.indexOf(k)>=0){ mo=MOIS[k]; break; } }
+    const dm = txt.match(/(\d{1,2})\/(\d{1,2})\/(20\d{2})/); // 04/01/2026
+    if(dm) return parseInt(dm[3])*100 + parseInt(dm[2]);
+    return (y?parseInt(y)*100:0) + mo;
+  };
+  const loyersIdx = (b.loyers||[]).map((f,i)=>({f,i})).sort((a,c)=>factuKey(c.f)-factuKey(a.f));
+  const rows = loyersIdx.map(({f,i})=>`
+    <tr class="${f.paye?'ok':''}"><td>${f.periode||'—'}</td><td class="r">${eurB(f.montant)}</td><td class="r">${f.date||f.date_emission||'—'}</td><td class="r">${f.paye?'<span class="tag tag-g">Payé</span>':'<span class="tag tag-w">En attente</span>'}</td><td class="r"><span style="cursor:pointer;color:var(--accent);" onclick="togFactu(${i})">↻</span> <span style="cursor:pointer;color:var(--danger);" onclick="delFactu(${i})">×</span></td></tr>`).join('');
   const total = (b.loyers||[]).reduce((s,f)=>s+(f.montant||0),0);
   const encaisse = (b.loyers||[]).filter(f=>f.paye).reduce((s,f)=>s+(f.montant||0),0);
   document.getElementById('bat-sub-factu').innerHTML = batDocZone(b,'factu') + `
@@ -1596,16 +1612,25 @@ function renderSyndic(b) {
   const s = b.syndic;
   const appels = s.appels||[];
   const docs = (b.docs||[]).filter(d=>(d.cat||'')==='syndic');
-  // Totaux globaux
-  const total = appels.reduce((x,a)=>x+(Number(a.montant)||0),0);
-  const refac = appels.filter(a=>a.refacture).reduce((x,a)=>x+(Number(a.montant)||0),0);
-  const aTaCharge = total - refac;
 
   // Regroupe appels ET documents par année
   const annees = new Set();
   appels.forEach(a=>annees.add(syndicYear(a)));
   docs.forEach(d=>annees.add(syndicYear(d)));
   const anneesTri = Array.from(annees).sort((x,y)=>String(y).localeCompare(String(x))); // récent en haut
+
+  // Année analysée : sélection courante, sinon année en cours, sinon la plus récente connue
+  const anneeCourante = String(new Date().getFullYear());
+  if(syndicYearSel==null){
+    syndicYearSel = anneesTri.includes(anneeCourante) ? anneeCourante : (anneesTri[0] || anneeCourante);
+  }
+  const ySel = syndicYearSel;
+
+  // KPIs sur l'ANNÉE SÉLECTIONNÉE uniquement
+  const appelsAnnee = appels.filter(a=>syndicYear(a)===ySel);
+  const totalSel = appelsAnnee.reduce((x,a)=>x+(Number(a.montant)||0),0);
+  const refacSel = appelsAnnee.filter(a=>a.refacture).reduce((x,a)=>x+(Number(a.montant)||0),0);
+  const aTaChargeSel = totalSel - refacSel;
 
   // Construit un bloc par année : documents (PDF) + appels de fonds de cette année
   const blocs = anneesTri.map(y=>{
@@ -1656,11 +1681,19 @@ function renderSyndic(b) {
 
   document.getElementById('bat-sub-syndic').innerHTML = dropZone + `
   <div class="card">
-    <div class="card-title">👥 Syndic — analyse des coûts</div>
-    <div class="g4" style="margin-bottom:12px;">
-      <div class="kpi acc"><div class="kl">Total appels de fonds</div><div class="kv">${eurB(total)}</div><div class="ks">${appels.length} appel${appels.length>1?'s':''}</div></div>
-      <div class="kpi war"><div class="kl">À ta charge</div><div class="kv">${eurB(aTaCharge)}</div><div class="ks">non refacturé</div></div>
-      <div class="kpi suc"><div class="kl">Refacturé locataire</div><div class="kv">${eurB(refac)}</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div class="card-title" style="margin:0;">👥 Syndic — analyse des coûts</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--text2);">Année analysée :</span>
+        <select onchange="setSyndicYear(this.value)" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;">
+          ${(anneesTri.length?anneesTri:[anneeCourante]).map(y=>`<option value="${y}"${y===ySel?' selected':''}>${y}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="g4" style="margin:12px 0;">
+      <div class="kpi acc"><div class="kl">Appels de fonds ${ySel}</div><div class="kv">${eurB(totalSel)}</div><div class="ks">${appelsAnnee.length} appel${appelsAnnee.length>1?'s':''}</div></div>
+      <div class="kpi war"><div class="kl">À ta charge ${ySel}</div><div class="kv">${eurB(aTaChargeSel)}</div><div class="ks">non refacturé</div></div>
+      <div class="kpi suc"><div class="kl">Refacturé locataire ${ySel}</div><div class="kv">${eurB(refacSel)}</div></div>
       <div class="kpi"><div class="kl">Quote-part</div><div class="kv" style="font-size:15px;">${s.tantiemes||'—'}</div><div class="ks">millièmes</div></div>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:12px;">
@@ -1692,13 +1725,17 @@ async function addSyndicAppel() {
   const b = batiments.find(x=>x.id===currentBat); if(!b) return;
   const v=id=>document.getElementById(id).value;
   if(!v('sa-periode') && !v('sa-montant')) { alert('Renseigne la période ou le montant.'); return; }
-  b.syndic.appels.push({ periode:v('sa-periode'), montant:numOrNull(v('sa-montant')), echeance:v('sa-date'), refacture:false });
+  b.syndic.appels.push({ periode:v('sa-periode'), montant:numOrNull(v('sa-montant')), echeance:v('sa-date'), refacture:true });
   await saveBatToDb(b); renderSyndic(b);
 }
 async function togSyndicRefac(i){
   const b = batiments.find(x=>x.id===currentBat); if(!b) return;
   b.syndic.appels[i].refacture = !b.syndic.appels[i].refacture;
   await saveBatToDb(b); renderSyndic(b);
+}
+function setSyndicYear(y){
+  syndicYearSel = y;
+  const b = batiments.find(x=>x.id===currentBat); if(b) renderSyndic(b);
 }
 async function delSyndicAppel(i) {
   const b = batiments.find(x=>x.id===currentBat); if(!b) return;
@@ -2089,7 +2126,8 @@ async function batExtractDoc(cat, file, batNom){
 // Construit la zone « documents de cette catégorie » : liste cliquable + dépôt.
 // Affichée en haut de chaque sous-onglet du bâtiment. Plusieurs docs par catégorie.
 function batDocZone(b, cat){
-  const docs = (b.docs||[]).filter(d => (d.cat||'autre')===cat);
+  const docs = (b.docs||[]).filter(d => (d.cat||'autre')===cat)
+    .slice().sort((a,c)=> String(c.date_doc||c.created_at||'').localeCompare(String(a.date_doc||a.created_at||'')));
   const rows = docs.map((d)=>{
     const gIdx = (b.docs||[]).indexOf(d); // index réel dans b.docs
     const titre = d.titre || d.nom || 'Document';
@@ -2245,7 +2283,7 @@ function batApplyExtract(b, cat, d){
     setIf(b.syndic,'nom', d.syndic);
     if(d.montant_appel!=null || d.periode){
       b.syndic.appels.push({ periode:d.periode||'', montant:(d.montant_appel!=null?d.montant_appel:null),
-        annee:(d.annee!=null?d.annee:null), nature:d.nature||'', echeance:d.date_echeance||'' });
+        annee:(d.annee!=null?d.annee:null), nature:d.nature||'', echeance:d.date_echeance||'', refacture:true });
     }
   } else if(cat==='factu'){
     b.loyers = b.loyers || [];
