@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 13h24
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 15h37
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -252,11 +252,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     </div>
     <div id="opt-body" style="display:none;" class="opt-body">
       <div class="lev"><div class="lev-tog" data-key="lev1" onclick="togLev(this)"></div><div class="lev-n nr">1</div><div class="lev-body"><div class="lev-title">PER — Aucun versement depuis 3 ans (priorité absolue)</div><div class="lev-desc">Plafond disponible Vincent : <strong>115 761 €</strong>. À TMI 41%, économie immédiate 41 cts/€. Cases 6OS (TNS). Reports 5 ans (LFI 2026).</div></div><div class="lev-gain g">12k→47k€</div></div>
-      <div class="lev"><div class="lev-tog" data-key="lev2" onclick="togLev(this)"></div><div class="lev-n nr">2</div><div class="lev-body"><div class="lev-title">⚠ Dividendes SARL — Cotisations TNS sur l'excédent</div><div class="lev-desc">Seuil 10% = capital (305k€) + CC associé (305k€) = <strong>60 999 €</strong>. Sur ~200k€ de dividendes, ~139k€ potentiellement soumis aux cotisations TNS (~45%). Vérifier d'urgence avec l'expert-comptable.</div></div><div class="lev-gain r">Impact majeur</div></div>
-      <div class="lev"><div class="lev-tog" data-key="lev3" onclick="togLev(this)"></div><div class="lev-n nw">3</div><div class="lev-body"><div class="lev-title">Compte courant associé — Levier sur le seuil dividendes</div><div class="lev-desc">CC Vincent : 304 987 € (+140k€ cet exercice). Plus le CC est élevé, plus le seuil 10% monte. Intérêts versés au CC déductibles de l'IS de VH Company.</div></div><div class="lev-gain w">Structurel</div></div>
+      <div class="lev"><div class="lev-tog" data-key="lev2" onclick="togLev(this)"></div><div class="lev-n nr">2</div><div class="lev-body"><div class="lev-title">⚠ Dividendes SARL — Cotisations TNS sur l'excédent</div><div class="lev-desc" id="lev2-desc">En attente du bilan VH Company.</div></div><div class="lev-gain r">Impact majeur</div></div>
+      <div class="lev"><div class="lev-tog" data-key="lev3" onclick="togLev(this)"></div><div class="lev-n nw">3</div><div class="lev-body"><div class="lev-title">Compte courant associé — Levier sur le seuil dividendes</div><div class="lev-desc" id="lev3-desc">En attente du bilan VH Company.</div></div><div class="lev-gain w">Structurel</div></div>
       <div class="lev"><div class="lev-tog" data-key="lev4" onclick="togLev(this)"></div><div class="lev-n nw">4</div><div class="lev-body"><div class="lev-title">CEHR — Surveiller le seuil 500k€ RFR</div><div class="lev-desc">RFR 2024 : 494 792 € (juste −5 208 € sous le seuil couple). Les versements PER réduisent le RFR. En 2022 : CEHR 13 534 € payé.</div></div><div class="lev-gain g">Évite 13k€+</div></div>
       <div class="lev"><div class="lev-tog" data-key="lev5" onclick="togLev(this)"></div><div class="lev-n nw">5</div><div class="lev-body"><div class="lev-title">Emploi à domicile — Optimiser jusqu'au plafond</div><div class="lev-desc">Mme Renault Sophie : 10 222 € en 2024 → crédit 5 111 €. Plafond couple avec enfant : 12 000 € → 6 000 € max. Marge : +1 778 € = +889 € de crédit.</div></div><div class="lev-gain g">+889€ possible</div></div>
-      <div class="lev"><div class="lev-tog" data-key="lev6" onclick="togLev(this)"></div><div class="lev-n nb">6</div><div class="lev-body"><div class="lev-title">Holding — Accumuler dans VH ou distribuer ?</div><div class="lev-desc">VH reçoit 700k€ dividendes filiales, quasi IS nul (mère-fille). Trésorerie VH quasi nulle (11k€), tout en CC inter-sociétés (2 025k€). Étude patrimoniale à conduire.</div></div><div class="lev-gain w">Étude</div></div>
+      <div class="lev"><div class="lev-tog" data-key="lev6" onclick="togLev(this)"></div><div class="lev-n nb">6</div><div class="lev-body"><div class="lev-title">Holding — Accumuler dans VH ou distribuer ?</div><div class="lev-desc" id="lev6-desc">En attente du bilan VH Company.</div></div><div class="lev-gain w">Étude</div></div>
     </div>
   </div>
 
@@ -281,74 +281,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     </div>
     <div class="card">
       <div class="card-title">Groupe VH — consolidé</div>
-      <div class="row"><span class="rl">Résultat VH Company</span><span class="rv">674 285€</span></div>
-      <div class="row"><span class="rl">Dividendes reçus des filiales</span><span class="rv g">700 241€</span></div>
-      <div class="row"><span class="rl">CC associé Vincent dans VH</span><span class="rv">304 987€</span></div>
-      <div class="row"><span class="rl">CC inter-sociétés (actif VH)</span><span class="rv">2 025 773€</span></div>
-      <div class="row"><span class="rl">Capitaux propres VH</span><span class="rv">1 507 111€</span></div>
-      <div class="row"><span class="rl">IS payé VH (régime mère-fille)</span><span class="rv g">≈ 0€</span></div>
+      <div id="dash-conso"><div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">En attente du bilan VH Company.</div></div>
     </div>
   </div>
 
-  <div class="alert a-r"><span>🚨</span><div><strong>Point critique SARL :</strong> Seuil cotisations TNS = 10% × (305k€ capital + 305k€ CC) = <strong>60 999€</strong>. Sur ~200k€ de dividendes, ~139k€ potentiellement soumis aux cotisations TNS (~45%). À clarifier d'urgence avec l'expert-comptable.</div></div>
+  <div id="dash-sarl-alert"></div>
 
   <div class="card-title">Sociétés du groupe</div>
-  <div class="soc-grid">
-    <div class="soc-card imp" onclick="sw('soc-vh',null)">
-      <div class="soc-hdr"><div><div class="soc-name">VH Company</div><div class="soc-type">SARL Holding · APE 6420Z</div></div><span class="tag tag-g">✓ Importé</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">Résultat</div><div class="nv">674 285€</div></div>
-        <div class="soc-num"><div class="nl">IS payé</div><div class="nv" style="color:var(--success)">≈ 0€</div></div>
-        <div class="soc-num"><div class="nl">Dividendes reçus</div><div class="nv">700k€</div></div>
-        <div class="soc-num"><div class="nl">CC Vincent</div><div class="nv">305k€</div></div>
-      </div>
-    </div>
-    <div class="soc-card imp" onclick="sw('import',null)" id="card-ba">
-      <div class="soc-hdr"><div><div class="soc-name">Burger Avenue SARL</div><div class="soc-type">SARL · Restauration · Montpellier</div></div><span class="tag tag-g" id="tag-ba">✓ Données connues</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">CA estimé</div><div class="nv">4 455 906€</div></div>
-        <div class="soc-num"><div class="nl">Résultat</div><div class="nv">27 787€</div></div>
-        <div class="soc-num"><div class="nl">Div. versés VH</div><div class="nv">27 787€</div></div>
-        <div class="soc-num"><div class="nl">Bilan</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
-      </div>
-    </div>
-    <div class="soc-card imp" onclick="sw('import',null)" id="card-bka">
-      <div class="soc-hdr"><div><div class="soc-name">BK Avenue SARL</div><div class="soc-type">SARL · Restauration · St-Clément-de-Rivière</div></div><span class="tag tag-g" id="tag-bka">✓ Données connues</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">CA estimé</div><div class="nv">6 438 159€</div></div>
-        <div class="soc-num"><div class="nl">Résultat</div><div class="nv">435 901€</div></div>
-        <div class="soc-num"><div class="nl">Div. versés VH</div><div class="nv">435 901€</div></div>
-        <div class="soc-num"><div class="nl">Bilan</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
-      </div>
-    </div>
-    <div class="soc-card imp" onclick="sw('import',null)" id="card-bksj">
-      <div class="soc-hdr"><div><div class="soc-name">BK Saint-Jean SARL</div><div class="soc-type">SARL · Restauration · St-Jean-de-Védas</div></div><span class="tag tag-g" id="tag-bksj">✓ Données connues</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">CA estimé</div><div class="nv">5 071 734€</div></div>
-        <div class="soc-num"><div class="nl">Résultat</div><div class="nv">236 553€</div></div>
-        <div class="soc-num"><div class="nl">Div. versés VH</div><div class="nv">236 553€</div></div>
-        <div class="soc-num"><div class="nl">Bilan</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
-      </div>
-    </div>
-    <div class="soc-card miss" onclick="sw('import',null)" id="card-fvh">
-      <div class="soc-hdr"><div><div class="soc-name">FVH SARL</div><div class="soc-type">SARL · 100% VH Company</div></div><span class="tag tag-r" id="tag-fvh">Déficitaire</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">Résultat</div><div class="nv" style="color:var(--danger)">−2 104€</div></div>
-        <div class="soc-num"><div class="nl">Div. versés VH</div><div class="nv">0€</div></div>
-        <div class="soc-num"><div class="nl">CC VH (débiteur)</div><div class="nv">101 000€</div></div>
-        <div class="soc-num"><div class="nl">Bilan</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
-      </div>
-    </div>
-    <div class="soc-card imp" onclick="sw('import',null)" id="card-sci">
-      <div class="soc-hdr"><div><div class="soc-name">SCI VH Immo</div><div class="soc-type">SCI · 10% VH Company</div></div><span class="tag tag-g" id="tag-sci">✓ Données connues</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">% VH Company</div><div class="nv">10%</div></div>
-        <div class="soc-num"><div class="nl">CC VH (actif)</div><div class="nv">1 379 169€</div></div>
-        <div class="soc-num"><div class="nl">Loyers estimés</div><div class="nv">14 400€/an</div></div>
-        <div class="soc-num"><div class="nl">Bilan</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
-      </div>
-    </div>
-  </div>
+  <div class="soc-grid" id="dash-soc-grid"></div>
 </div>
 
 <!-- OPTIMISATIONS -->
@@ -366,18 +306,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     </div>
     <div class="card">
       <div class="card-title">🚨 Dividendes SARL — Seuil TNS</div>
-      <table class="tbl">
-        <thead><tr><th>Élément</th><th class="r">Montant</th></tr></thead>
-        <tbody>
-          <tr><td>Capital social</td><td class="r">305 000€</td></tr>
-          <tr><td>CC associé Vincent</td><td class="r">304 987€</td></tr>
-          <tr class="tot"><td>Base 10%</td><td class="r">609 987€</td></tr>
-          <tr class="tot"><td>Seuil exonération cot. TNS</td><td class="r"><strong>60 999€</strong></td></tr>
-          <tr><td>Dividendes perçus ~2024</td><td class="r">200 000€</td></tr>
-          <tr class="hl"><td>Fraction soumise cot. TNS</td><td class="r" style="color:var(--danger)"><strong>≈ 139 001€</strong></td></tr>
-          <tr class="hl"><td>Cotisations TNS estimées (~45%)</td><td class="r" style="color:var(--danger)">≈ 62 550€</td></tr>
-        </tbody>
-      </table>
+      <div id="optim-tns"><div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">En attente du bilan VH Company (capital, compte courant, dividendes).</div></div>
     </div>
   </div>
   <div class="g2">
@@ -431,66 +360,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
 <!-- VH COMPANY -->
 <div id="tab-soc-vh" class="panel">
-  <div class="alert a-g"><span>✓</span><div><strong>VH Company</strong> — SARL Holding · SIRET 80203462900021 · APE 6420Z · Capital 305 000€ · Vincent Hilaire 100%. <strong>Bilan clos le 30/06/2025</strong> (exercice 12 mois) analysé. Société mère du groupe.</div></div>
-  <div class="g4">
-    <div class="kpi acc"><div class="kl">Résultat net</div><div class="kv">674 285€</div><div class="ks">vs 697 326€ N-1</div></div>
-    <div class="kpi"><div class="kl">Résultat fiscal</div><div class="kv">9 056€</div><div class="ks">après déficits antérieurs</div></div>
-    <div class="kpi"><div class="kl">Capitaux propres</div><div class="kv">1 507 111€</div><div class="ks">+474 285€ vs N-1</div></div>
-    <div class="kpi war"><div class="kl">Trésorerie banque</div><div class="kv">11 628€</div><div class="ks">tout est en comptes courants</div></div>
-  </div>
-  <div class="g2">
-    <div class="card">
-      <div class="card-title">Compte de résultat 2025</div>
-      <div class="row"><span class="rl">Charges d'exploitation</span><span class="rv r">−39 585€</span></div>
-      <div class="row"><span class="rl">Résultat d'exploitation</span><span class="rv r">−39 585€</span></div>
-      <div class="row"><span class="rl">Dividendes filiales (titres particip.)</span><span class="rv g">+700 241€</span></div>
-      <div class="row"><span class="rl">Autres produits financiers</span><span class="rv g">+20 058€</span></div>
-      <div class="row"><span class="rl">Intérêts CC (charges fin.)</span><span class="rv r">−6 429€</span></div>
-      <div class="row"><span class="rl">Résultat financier</span><span class="rv g">+713 870€</span></div>
-      <div class="row"><span class="rl"><strong>Résultat net</strong></span><span class="rv"><strong>674 285€</strong></span></div>
-    </div>
-    <div class="card">
-      <div class="card-title">Capitaux propres au 30/06/2025</div>
-      <div class="row"><span class="rl">Capital social</span><span class="rv">305 000€</span></div>
-      <div class="row"><span class="rl">Réserve légale</span><span class="rv">30 500€</span></div>
-      <div class="row"><span class="rl">Report à nouveau</span><span class="rv">497 326€</span></div>
-      <div class="row"><span class="rl">Résultat de l'exercice</span><span class="rv g">674 285€</span></div>
-      <div class="row"><span class="rl"><strong>Total capitaux propres</strong></span><span class="rv"><strong>1 507 111€</strong></span></div>
-      <div class="row" style="margin-top:6px;"><span class="rl">Dividendes votés sur résultat N-1</span><span class="rv">200 000€</span></div>
-    </div>
-  </div>
+  <div class="alert a-b"><span>▣</span><div><strong>VH Company</strong> — SARL Holding · SIRET 80203462900021 · APE 6420Z · Capital 305 000€ · Vincent Hilaire 100%. Société mère du groupe. <span id="vh-bilan-statut">Les chiffres ci-dessous sont lus dans le bilan importé.</span></div></div>
+  <div class="cc-zone" data-soc="vh"></div>
+  <div class="fin-zone" data-soc="vh"><div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div></div>
 
-  <div class="card">
-    <div class="card-title">🔄 Comptes courants mère ↔ filles au 30/06/2025 — qui doit à qui</div>
-    <div class="alert a-b" style="margin-bottom:12px;"><span>💡</span><div><strong>Lecture du bilan VH.</strong> À l'actif (compte 451 « groupe ») = ce que les filiales <strong>doivent à VH</strong>. Au passif (compte « associés ») = ce que <strong>VH doit aux filiales</strong>. Position nette du groupe : VH est globalement créancière de <strong>+1 376 441€</strong> vis-à-vis de ses filiales (hors ton CC perso).</div></div>
-    <table class="tbl">
-      <thead><tr><th>Filiale</th><th>Sens</th><th class="r">Montant 30/06/2025</th><th class="r">N-1 (30/06/2024)</th></tr></thead>
-      <tbody>
-        <tr><td><strong>SCI VH Immo</strong></td><td><span class="tag tag-g">Fille → Mère (doit à VH)</span></td><td class="r g">1 379 169€</td><td class="r">975 993€</td></tr>
-        <tr><td><strong>BK Saint-Jean</strong></td><td><span class="tag tag-g">Fille → Mère (doit à VH)</span></td><td class="r g">545 605€</td><td class="r">303 650€</td></tr>
-        <tr><td><strong>FVH</strong></td><td><span class="tag tag-g">Fille → Mère (doit à VH)</span></td><td class="r g">101 000€</td><td class="r">171 514€</td></tr>
-        <tr style="border-top:1px solid var(--border);"><td colspan="2" style="font-weight:600;">Total créances VH (actif)</td><td class="r"><strong>2 025 773€</strong></td><td class="r">1 451 156€</td></tr>
-        <tr><td><strong>BK Avenue</strong></td><td><span class="tag tag-w">Mère → Fille (VH doit)</span></td><td class="r r">480 029€</td><td class="r">501 656€</td></tr>
-        <tr><td><strong>Burger Avenue</strong></td><td><span class="tag tag-w">Mère → Fille (VH doit)</span></td><td class="r r">169 303€</td><td class="r">195 414€</td></tr>
-        <tr style="border-top:1px solid var(--border);"><td colspan="2" style="font-weight:600;">Total dettes VH envers filiales</td><td class="r"><strong>649 332€</strong></td><td class="r">697 070€</td></tr>
-        <tr style="border-top:2px solid var(--border2);"><td colspan="2" style="font-weight:600;">Position nette VH (créance)</td><td class="r g"><strong>+1 376 441€</strong></td><td class="r">+754 086€</td></tr>
-        <tr><td>+ Ton CC perso (Vincent)</td><td><span class="tag tag-b">Vincent → VH (tu prêtes à VH)</span></td><td class="r">304 987€</td><td class="r">164 987€</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card">
+  <div class="card" id="vh-vir-card" style="display:none;">
     <div class="card-title">📒 Cahier de bord — dividendes remontés des filiales vers VH (réellement encaissés)</div>
-    <div class="alert a-w" style="margin-bottom:12px;"><span>⚠</span><div><strong>Dividende décidé ≠ argent reçu.</strong> Le bilan VH montre 700 241€ de dividendes reçus des filiales en produits. Trace ici les virements réels (date, montant, n° / banque) pour vérifier que l'argent est bien rentré. Les dividendes décidés se préciseront avec les PV d'AG de chaque filiale.</div></div>
+    <div class="alert a-w" style="margin-bottom:12px;"><span>⚠</span><div><strong>Dividende décidé ≠ argent reçu.</strong> Les montants ci-dessous sont lus dans le bilan de chaque filiale (dividendes versés à VH). Trace ici les virements réels (date, montant, n° / banque) pour vérifier que l'argent est bien rentré.</div></div>
     <table class="tbl">
-      <thead><tr><th>Filiale</th><th class="r">Dividende reçu (bilan)</th><th class="r">Viré (réel)</th><th class="r">Écart</th><th class="r"></th></tr></thead>
-      <tbody id="vir-tbody">
-        <tr data-fil="bka"><td><strong>BK Avenue</strong> SARL</td><td class="r g" id="vdiv-bka">435 901€</td><td class="r" id="vsum-bka">—</td><td class="r" id="vrest-bka">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('bka')">📒 Suivi</button></td></tr>
-        <tr data-fil="bksj"><td><strong>BK Saint-Jean</strong> SARL</td><td class="r g" id="vdiv-bksj">236 553€</td><td class="r" id="vsum-bksj">—</td><td class="r" id="vrest-bksj">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('bksj')">📒 Suivi</button></td></tr>
-        <tr data-fil="ba"><td><strong>Burger Avenue</strong> SARL</td><td class="r g" id="vdiv-ba">27 787€</td><td class="r" id="vsum-ba">—</td><td class="r" id="vrest-ba">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('ba')">📒 Suivi</button></td></tr>
-        <tr data-fil="fvh"><td><strong>FVH</strong> SARL</td><td class="r r" id="vdiv-fvh">−2 104€ (déficit)</td><td class="r" id="vsum-fvh">—</td><td class="r">—</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('fvh')">📒 Suivi</button></td></tr>
-        <tr style="border-top:2px solid var(--border2);"><td style="font-weight:600;">Total dividendes filiales</td><td class="r g"><strong>700 241€</strong></td><td class="r"></td><td class="r"></td><td class="r"></td></tr>
-      </tbody>
+      <thead><tr><th>Filiale</th><th class="r">Dividende (bilan)</th><th class="r">Viré (réel)</th><th class="r">Écart</th><th class="r"></th></tr></thead>
+      <tbody id="vir-tbody"></tbody>
     </table>
   </div>
   <div class="socimp" data-soc="vh"></div>
@@ -2913,6 +2792,7 @@ async function socImpHandle(box, files) {
   delete SOC_FIN_CACHE[soc];
   try { await renderSocFinances(soc); } catch(e){}
   try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
+  try { renderDashboardGroupe(); } catch(e){}
 }
 
 // Ligne visuelle dans un bloc société
@@ -3076,6 +2956,7 @@ async function socImpDelete(btn, id, dropbox_path, soc, exercice, doctype) {
     delete SOC_FIN_CACHE[soc];
     try { await renderSocFinances(soc); } catch(e){}
     try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
+  try { renderDashboardGroupe(); } catch(e){}
   }
   const box = btn.closest('.socimp'); if(box) socImpRender(box);
 }
@@ -3101,12 +2982,26 @@ async function socPurge(soc){
   const box = document.querySelector('.socimp[data-soc="'+soc+'"]'); if(box) socImpRender(box);
   try { await renderSocFinances(soc); } catch(e){}
   try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
+  try { renderDashboardGroupe(); } catch(e){}
   alert('✓ '+(IS_SOC_LABEL[soc]||soc)+' : tout a été effacé. Tu peux redéposer les bilans proprement.');
 }
 
 // ── CAHIER DE BORD : JOURNAL DES VIREMENTS DIVIDENDES (mère ↔ filles) ──
-const VIR_DIV = {bka:435901, bksj:236553, ba:27787, fvh:0};
+// Dividendes versés par chaque filiale à VH — LUS dans le bilan de chaque filiale
+// (societe_finances.donnees.dividendes_verses). Rien en dur : rempli par virLoadDiv().
+const VIR_DIV = {bka:null, bksj:null, ba:null, fvh:null};
 const VIR_NOM = {bka:'BK Avenue', bksj:'BK Saint-Jean', ba:'Burger Avenue', fvh:'FVH'};
+// Va lire, pour chaque filiale, le dividende versé du dernier exercice connu.
+async function virLoadDiv(){
+  for(const fil of Object.keys(VIR_DIV)){
+    let v = null;
+    try {
+      const {data} = await sb.from('societe_finances').select('donnees,exercice').eq('societe',fil).order('exercice',{ascending:false}).limit(1);
+      if(data && data.length){ const dv = (data[0].donnees||{}).dividendes_verses; if(dv!=null && !isNaN(Number(dv))) v = Number(dv); else v = 0; }
+    } catch(e){}
+    VIR_DIV[fil] = v; // null = pas de bilan ; 0 = bilan sans dividende
+  }
+}
 let _virCur = null;
 const eurV = n => (n||n===0) ? Math.round(n).toLocaleString('fr-FR')+'€' : '—';
 
@@ -3178,20 +3073,32 @@ async function virRenderList() {
   });
 }
 
-// Met à jour les colonnes "Viré / Reste dû" du tableau récap
+// Reconstruit ENTIÈREMENT le tableau du cahier de bord dividendes à partir des bilans
+// des filiales (rien en dur). Masque la carte si aucune filiale n'a de bilan exploité.
 async function virRefreshAll() {
-  for(const fil of Object.keys(VIR_DIV)) {
+  await virLoadDiv();
+  const tbody = document.getElementById('vir-tbody');
+  const card = document.getElementById('vh-vir-card');
+  if(!tbody) return;
+  const fils = Object.keys(VIR_DIV);
+  const avecBilan = fils.filter(f => VIR_DIV[f] != null);
+  if(card) card.style.display = avecBilan.length ? '' : 'none';
+  if(!avecBilan.length){ tbody.innerHTML = ''; return; }
+  let totalDiv = 0, html = '';
+  for(const fil of fils){
+    const div = VIR_DIV[fil];               // null = pas de bilan
+    if(div==null) continue;                 // on n'affiche que les filiales dont le bilan est lu
     const rows = await virFetch(fil);
-    const total = rows.reduce((s,r)=>s+(+r.montant||0),0);
-    const div = VIR_DIV[fil]||0;
-    const sumEl = document.getElementById('vsum-'+fil);
-    const restEl = document.getElementById('vrest-'+fil);
-    if(sumEl) sumEl.innerHTML = total>0 ? `<span class="g">${eurV(total)}</span>` : '<span style="color:var(--text3);">0€</span>';
-    if(restEl && div>0) {
-      const reste = div - total;
-      restEl.innerHTML = reste<=0 ? '<span class="tag tag-g">Soldé ✓</span>' : `<span class="tag tag-w">${eurV(reste)}</span>`;
-    }
+    const totalVir = rows.reduce((s,r)=>s+(+r.montant||0),0);
+    if(div>0) totalDiv += div;
+    let divCell, restCell;
+    if(div>0){ divCell = `<span class="g">${eurV(div)}</span>`; const reste = div-totalVir; restCell = reste<=0 ? '<span class="tag tag-g">Soldé ✓</span>' : `<span class="tag tag-w">${eurV(reste)}</span>`; }
+    else { divCell = '<span style="color:var(--text3);">0€ (aucun dividende)</span>'; restCell = '—'; }
+    const sumCell = totalVir>0 ? `<span class="g">${eurV(totalVir)}</span>` : '<span style="color:var(--text3);">0€</span>';
+    html += `<tr data-fil="${fil}"><td><strong>${VIR_NOM[fil]||fil}</strong> SARL</td><td class="r">${divCell}</td><td class="r">${sumCell}</td><td class="r">${restCell}</td><td class="r"><button class="btn" style="font-size:11px;padding:4px 10px;" onclick="virOpen('${fil}')">📒 Suivi</button></td></tr>`;
   }
+  html += `<tr style="border-top:2px solid var(--border2);"><td style="font-weight:600;">Total dividendes filiales</td><td class="r g"><strong>${eurV(totalDiv)}</strong></td><td class="r"></td><td class="r"></td><td class="r"></td></tr>`;
+  tbody.innerHTML = html;
 }
 
 // ── EXTRACTION AUTOMATIQUE DES BILANS VIA IA (gardien /api/ia) ──
@@ -3410,6 +3317,7 @@ Règle pour comptes_courants_detail : "actif" = la société liée DOIT de l'arg
     delete SOC_FIN_CACHE[soc];
     await renderSocFinances(soc);
     try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
+  try { renderDashboardGroupe(); } catch(e){}
   } catch(e) {
     // Repli : l'IA n'a pas pu lire le bilan. On tente de deviner l'année à partir
     // du nom du fichier (ex. « bilan2022.pdf ») pour au moins ranger correctement.
@@ -3650,11 +3558,51 @@ async function renderCoutVincent() {
   body.innerHTML = html;
 }
 
+// Vue consolidée mère ↔ filles pour l'onglet VH Company, construite UNIQUEMENT à partir
+// du bilan VH lu (comptes_courants_detail). Rien en dur : si le bilan ne contient pas le
+// détail, on retombe sur les totaux agrégés ; si rien n'est lu, on n'affiche pas la carte.
+function renderVHConsolide(d, exercice){
+  if(!d) return '';
+  const det = Array.isArray(d.comptes_courants_detail) ? d.comptes_courants_detail : [];
+  if(!det.length) return ''; // pas de détail lu → pas de carte fantôme
+  const dc = d.date_cloture || ('exercice '+exercice);
+  // Sépare créances (actif = la filiale doit à VH) et dettes (passif = VH doit à la filiale).
+  // Le CC perso du dirigeant (Vincent) est isolé à part.
+  let actifs=[], passifs=[], perso=null, totActif=0, totPassif=0;
+  det.forEach(cc=>{
+    const m = Number(cc.montant); if(isNaN(m)) return;
+    const nom = (cc.nom||'').trim();
+    const estDirigeant = /vincent|hilaire|dirigeant|g[ée]rant/i.test(nom);
+    const passif = (cc.sens||'').toLowerCase().startsWith('p');
+    const item = {nom: nom||'—', montant: Math.abs(m), passif};
+    if(estDirigeant){ perso = item; return; }
+    if(passif){ passifs.push(item); totPassif+=item.montant; }
+    else { actifs.push(item); totActif+=item.montant; }
+  });
+  const net = totActif - totPassif;
+  let rows = '';
+  actifs.forEach(l=>{ rows += `<tr><td><strong>${l.nom}</strong></td><td><span class="tag tag-g">Fille → Mère (doit à VH)</span></td><td class="r g">${eurF(l.montant)}</td></tr>`; });
+  if(actifs.length) rows += `<tr style="border-top:1px solid var(--border);"><td colspan="2" style="font-weight:600;">Total créances VH (actif)</td><td class="r"><strong>${eurF(totActif)}</strong></td></tr>`;
+  passifs.forEach(l=>{ rows += `<tr><td><strong>${l.nom}</strong></td><td><span class="tag tag-w">Mère → Fille (VH doit)</span></td><td class="r r">${eurF(l.montant)}</td></tr>`; });
+  if(passifs.length) rows += `<tr style="border-top:1px solid var(--border);"><td colspan="2" style="font-weight:600;">Total dettes VH envers filiales</td><td class="r"><strong>${eurF(totPassif)}</strong></td></tr>`;
+  if(actifs.length || passifs.length) rows += `<tr style="border-top:2px solid var(--border2);"><td colspan="2" style="font-weight:600;">Position nette VH</td><td class="r ${net>=0?'g':'r'}"><strong>${net>=0?'+':''}${eurF(net)}</strong></td></tr>`;
+  if(perso) rows += `<tr><td>+ CC perso (Vincent)</td><td><span class="tag tag-b">Vincent → VH (tu prêtes à VH)</span></td><td class="r">${eurF(perso.montant)}</td></tr>`;
+  if(!rows) return '';
+  return `<div class="card">
+    <div class="card-title">🔄 Comptes courants mère ↔ filles au ${dc} — qui doit à qui</div>
+    <div class="alert a-b" style="margin-bottom:12px;"><span>💡</span><div><strong>Lu dans le bilan VH.</strong> Actif (compte « groupe ») = ce que les filiales <strong>doivent à VH</strong>. Passif (compte « associés ») = ce que <strong>VH doit aux filiales</strong>.</div></div>
+    <table class="tbl">
+      <thead><tr><th>Relation</th><th>Sens</th><th class="r">Montant ${dc}</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
 // Construit la carte « Compte courant avec VH Company » À PARTIR DU BILAN lu.
 // Cherche dans le détail des comptes courants la/les ligne(s) liée(s) à VH Company,
 // sinon retombe sur les totaux. Renvoie '' si rien n'est connu (aucune carte fantôme).
 function renderCCavecVH(soc, d, exercice){
-  if(soc==='vh') return ''; // la holding a déjà sa propre vue
+  if(soc==='vh') return renderVHConsolide(d, exercice); // vue mère ↔ filles, lue dans le bilan VH
   if(!d) return '';
   const det = Array.isArray(d.comptes_courants_detail)? d.comptes_courants_detail : [];
   // Lignes mentionnant VH / la holding / groupe
@@ -3704,11 +3652,17 @@ async function renderSocFinances(soc) {
     delete SOC_FIN_CACHE[soc];
     if(ccZone) ccZone.innerHTML = ''; // efface aussi le compte courant affiché
     zone.innerHTML = '<div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l\'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div>';
+    if(soc==='vh'){ const st=document.getElementById('vh-bilan-statut'); if(st) st.innerHTML='Aucun bilan importé pour le moment — dépose-le ci-dessous.'; }
     return;
   }
   const last = rows[0];
   const d = last.donnees || {};
   SOC_FIN_CACHE[soc] = rows; // pour la pop-up « coût du dirigeant »
+  if(soc==='vh'){
+    const st=document.getElementById('vh-bilan-statut');
+    if(st) st.innerHTML='Chiffres lus dans le bilan <strong>'+(d.date_cloture||('exercice '+last.exercice))+'</strong>.';
+    try { await virRefreshAll(); } catch(e){} // le cahier de bord dividendes dépend des filiales
+  }
   // Compte courant avec VH Company — DYNAMIQUE (lu dans le bilan), plus rien en dur
   if(ccZone) ccZone.innerHTML = renderCCavecVH(soc, d, last.exercice);
   // KPI principaux du dernier exercice
@@ -3779,10 +3733,158 @@ async function renderSocFinances(soc) {
   zone.innerHTML = html;
 }
 
+// ── VUE D'ENSEMBLE : bloc « Groupe VH consolidé » + grille sociétés + alerte SARL ──
+// 100% dynamique depuis societe_finances. Aucun chiffre en dur : une société sans bilan
+// affiche « → Importer ». Si on retire le bilan VH, le consolidé et l'alerte disparaissent.
+const DASH_SOC_META = {
+  vh:  {nom:'VH Company',     type:'SARL Holding · APE 6420Z',                 tab:'soc-vh'},
+  ba:  {nom:'Burger Avenue',  type:'SARL · Restauration · Montpellier',        tab:'soc-ba'},
+  bka: {nom:'BK Avenue',      type:'SARL · Restauration · St-Clément',         tab:'soc-bka'},
+  bksj:{nom:'BK Saint-Jean',  type:'SARL · Restauration · St-Jean-de-Védas',   tab:'soc-bksj'},
+  fvh: {nom:'FVH SARL',       type:'SARL · 100% VH Company',                   tab:'soc-fvh'},
+  sci: {nom:'SCI VH Immo',    type:'SCI · 10% VH Company',                     tab:'soc-sci'}
+};
+async function renderDashboardGroupe(){
+  // Récupère le dernier exercice connu de chaque société
+  const last = {};
+  for(const soc of Object.keys(DASH_SOC_META)){
+    let rows = SOC_FIN_CACHE[soc];
+    if(!rows){
+      try { const {data}=await sb.from('societe_finances').select('*').eq('societe',soc).order('exercice',{ascending:false}); rows=(data||[]).map(r=>({...r, donnees: completerCC(r.donnees||{})})); } catch(e){ rows=[]; }
+    }
+    if(rows && rows.length) last[soc] = rows[0];
+  }
+  // 1) Carte « Groupe VH consolidé » — uniquement si le bilan VH est lu
+  const conso = document.getElementById('dash-conso');
+  if(conso){
+    if(last.vh){
+      const d = last.vh.donnees || {};
+      const r = (lab,val,cls)=> (val!=null) ? `<div class="row"><span class="rl">${lab}</span><span class="rv ${cls||''}">${eurF(val)}</span></div>` : '';
+      let h = '';
+      h += r('Résultat VH Company', d.resultat_net, '');
+      h += r('Dividendes reçus des filiales', d.dividendes_recus_filiales!=null?d.dividendes_recus_filiales:d.dividendes_verses, 'g');
+      if(d.cc_associe_dirigeant!=null) h += r('CC associé Vincent dans VH', d.cc_associe_dirigeant, '');
+      if(d.cc_groupe_actif_total!=null) h += r('CC inter-sociétés (actif VH)', d.cc_groupe_actif_total, '');
+      h += r('Capitaux propres VH', d.capitaux_propres, '');
+      conso.innerHTML = h || '<div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">Bilan VH lu, mais aucun montant exploitable.</div>';
+    } else {
+      conso.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">En attente du bilan VH Company. Dépose-le dans l\'onglet VH Company.</div>';
+    }
+  }
+  // 2) Alerte « Point critique SARL » — calculée depuis le bilan VH (capital + CC dirigeant)
+  const alertZone = document.getElementById('dash-sarl-alert');
+  if(alertZone){
+    const d = last.vh ? (last.vh.donnees||{}) : null;
+    const cap = d ? Number(d.capital_social) : NaN;
+    const cc  = d ? Number(d.cc_associe_dirigeant) : NaN;
+    const div = d ? Number(d.dividendes_verses!=null?d.dividendes_verses:d.dividendes_recus_filiales) : NaN;
+    if(d && !isNaN(cap) && !isNaN(cc)){
+      const base = cap + cc;
+      const seuil = base * 0.10;
+      let txt = `<strong>Point critique SARL :</strong> Seuil cotisations TNS = 10% × (${eurF(cap)} capital + ${eurF(cc)} CC) = <strong>${eurF(seuil)}</strong>.`;
+      if(!isNaN(div) && div>0){
+        const exc = Math.max(0, div - seuil);
+        txt += ` Sur ${eurF(div)} de dividendes, ${eurF(exc)} potentiellement soumis aux cotisations TNS (~45%). À clarifier avec l'expert-comptable.`;
+      } else {
+        txt += ` À surveiller dès qu'un dividende est distribué.`;
+      }
+      alertZone.innerHTML = `<div class="alert a-r"><span>🚨</span><div>${txt}</div></div>`;
+    } else {
+      alertZone.innerHTML = '';
+    }
+  }
+  // 3) Grille des sociétés
+  const grid = document.getElementById('dash-soc-grid');
+  if(grid){
+    let g = '';
+    for(const soc of Object.keys(DASH_SOC_META)){
+      const meta = DASH_SOC_META[soc];
+      const has = !!last[soc];
+      const d = has ? (last[soc].donnees||{}) : {};
+      const cls = has ? 'soc-card imp' : 'soc-card miss';
+      const onclick = has ? `sw('${meta.tab}',null)` : `sw('import',null)`;
+      const tag = has ? `<span class="tag tag-g">✓ Bilan ${last[soc].exercice}</span>` : `<span class="tag tag-w">→ Importer</span>`;
+      // Choix des 4 chiffres affichés selon ce qui est lu
+      const num = (l,v,col)=>`<div class="soc-num"><div class="nl">${l}</div><div class="nv"${col?` style="color:${col}"`:''}>${v}</div></div>`;
+      let nums = '';
+      if(has){
+        const res = d.resultat_net;
+        const resCol = (res!=null && res<0) ? 'var(--danger)' : '';
+        nums += num('Résultat', eurF(res), resCol);
+        if(d.chiffre_affaires!=null) nums += num('CA', eurF(d.chiffre_affaires));
+        if(d.dividendes_verses!=null) nums += num('Div. versés VH', eurF(d.dividendes_verses));
+        else if(d.dividendes_recus_filiales!=null) nums += num('Div. reçus', eurF(d.dividendes_recus_filiales));
+        if(d.capitaux_propres!=null) nums += num('Capitaux propres', eurF(d.capitaux_propres));
+        else if(d.cc_associe_dirigeant!=null) nums += num('CC Vincent', eurF(d.cc_associe_dirigeant));
+      } else {
+        nums += num('Bilan', '→ Importer', 'var(--warn)');
+      }
+      g += `<div class="${cls}" onclick="${onclick}">
+        <div class="soc-hdr"><div><div class="soc-name">${meta.nom}</div><div class="soc-type">${meta.type}</div></div>${tag}</div>
+        <div class="soc-nums">${nums}</div>
+      </div>`;
+    }
+    grid.innerHTML = g;
+  }
+  // 4) Onglet Optimisations : table « Seuil TNS » + leviers lev2/lev3/lev6 (dérivés du bilan VH)
+  const dvh = last.vh ? (last.vh.donnees||{}) : null;
+  const optimZone = document.getElementById('optim-tns');
+  if(optimZone){
+    if(dvh && Number(dvh.capital_social)>=0 && dvh.cc_associe_dirigeant!=null){
+      const cap = Number(dvh.capital_social)||0;
+      const cc  = Number(dvh.cc_associe_dirigeant)||0;
+      const base = cap + cc, seuil = base*0.10;
+      const div = Number(dvh.dividendes_verses!=null?dvh.dividendes_verses:dvh.dividendes_recus_filiales);
+      let extra = '';
+      if(!isNaN(div) && div>0){
+        const frac = Math.max(0, div - seuil);
+        const cot = frac*0.45;
+        extra = `<tr><td>Dividendes (dernier exercice)</td><td class="r">${eurF(div)}</td></tr>
+          <tr class="hl"><td>Fraction soumise cot. TNS</td><td class="r" style="color:var(--danger)"><strong>≈ ${eurF(frac)}</strong></td></tr>
+          <tr class="hl"><td>Cotisations TNS estimées (~45%)</td><td class="r" style="color:var(--danger)">≈ ${eurF(cot)}</td></tr>`;
+      }
+      optimZone.innerHTML = `<table class="tbl"><thead><tr><th>Élément</th><th class="r">Montant</th></tr></thead><tbody>
+        <tr><td>Capital social</td><td class="r">${eurF(cap)}</td></tr>
+        <tr><td>CC associé Vincent</td><td class="r">${eurF(cc)}</td></tr>
+        <tr class="tot"><td>Base 10%</td><td class="r">${eurF(base)}</td></tr>
+        <tr class="tot"><td>Seuil exonération cot. TNS</td><td class="r"><strong>${eurF(seuil)}</strong></td></tr>
+        ${extra}
+      </tbody></table>`;
+    } else {
+      optimZone.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">En attente du bilan VH Company (capital, compte courant, dividendes).</div>';
+    }
+  }
+  // Leviers descriptifs
+  const setLev = (id, txt)=>{ const el=document.getElementById(id); if(el) el.innerHTML = txt; };
+  if(dvh){
+    const cap = Number(dvh.capital_social), cc = Number(dvh.cc_associe_dirigeant);
+    const div = Number(dvh.dividendes_verses!=null?dvh.dividendes_verses:dvh.dividendes_recus_filiales);
+    if(!isNaN(cap) && !isNaN(cc)){
+      const seuil=(cap+cc)*0.10;
+      let t=`Seuil 10% = capital (${eurF(cap)}) + CC associé (${eurF(cc)}) = <strong>${eurF(seuil)}</strong>.`;
+      if(!isNaN(div)&&div>0){ t+=` Sur ${eurF(div)} de dividendes, ${eurF(Math.max(0,div-seuil))} potentiellement soumis aux cotisations TNS (~45%).`; }
+      setLev('lev2-desc', t);
+    }
+    if(!isNaN(cc)) setLev('lev3-desc', `CC Vincent : <strong>${eurF(cc)}</strong>. Plus le CC est élevé, plus le seuil 10% monte. Intérêts versés au CC déductibles de l'IS de VH Company.`);
+    const drf=Number(dvh.dividendes_recus_filiales), tres=Number(dvh.tresorerie), ccg=Number(dvh.cc_groupe_actif_total);
+    let t6='VH centralise les remontées de dividendes des filiales (régime mère-fille, IS quasi nul).';
+    if(!isNaN(drf)&&drf>0) t6=`VH reçoit ${eurF(drf)} de dividendes filiales, quasi IS nul (mère-fille).`;
+    if(!isNaN(tres)) t6+=` Trésorerie VH : ${eurF(tres)}.`;
+    if(!isNaN(ccg)) t6+=` CC inter-sociétés (actif) : ${eurF(ccg)}.`;
+    t6+=' Étude patrimoniale à conduire.';
+    setLev('lev6-desc', t6);
+  } else {
+    setLev('lev2-desc','En attente du bilan VH Company.');
+    setLev('lev3-desc','En attente du bilan VH Company.');
+    setLev('lev6-desc','En attente du bilan VH Company.');
+  }
+}
+
 // ── START ──
 virRefreshAll();
 buildSocImports();
 ['vh','ba','bka','bksj','fvh','sci'].forEach(s=>renderSocFinances(s));
+renderDashboardGroupe();
 init();
 </script>
 </body>
