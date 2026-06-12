@@ -171,6 +171,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .status-bar{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);padding:6px 0;}
 .bat-sub{font-size:12px;padding:6px 12px;}
 .bat-sub.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.treso-sub{font-size:12px;padding:6px 12px;}
+.treso-sub.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--success);}
 .status-dot.off{background:var(--danger);}
 </style>
@@ -197,6 +199,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-item" onclick="sw('soc-sci',this)"><span class="sb-ico">▣</span>SCI VH Immo<span class="sb-badge g" id="b-sci">✓</span></div>
   <div class="sb-section">Patrimoine</div>
   <div class="sb-item" onclick="sw('batiments',this)"><span class="sb-ico">🏛</span>Bâtiments<span class="sb-badge" id="b-bat">0</span></div>
+  <div class="sb-section">Trésorerie</div>
+  <div class="sb-item" onclick="sw('tresorerie',this)"><span class="sb-ico">💰</span>Trésorerie<span class="sb-badge" id="b-treso">0</span></div>
   <div class="sb-section">Le dirigeant</div>
   <div class="sb-item" onclick="sw('cout-vincent',this)"><span class="sb-ico">👤</span>Coût Vincent</div>
   <div class="sb-section">Impôts</div>
@@ -232,7 +236,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 22h18
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 22h41
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -946,6 +950,51 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     </div>
   </div>
 </div>
+
+<!-- TRESORERIE (moteur transversal : lit les extraits bancaires, classe les mouvements,
+     confronte attendu vs payé, et irrigue bâtiments / sociétés / dirigeant / assurances) -->
+<div id="tab-tresorerie" class="panel">
+  <div class="alert a-b"><span>💰</span><div><strong>Trésorerie — la réalité de tes comptes.</strong> Importe les extraits bancaires de chaque société : l'app lit chaque mouvement, le classe (loyer, charges, assurance, rémunération, impôt…), et vérifie que tout ce qui est attendu est bien payé. Ces résultats remontent ensuite dans les bâtiments, les sociétés, le dirigeant et les assurances.</div></div>
+
+  <!-- Sélecteur de périmètre -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+    <span style="font-size:12px;color:var(--text2);">Périmètre :</span>
+    <select id="treso-soc" onchange="renderTreso()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;">
+      <option value="all">🏦 Groupe (toutes sociétés)</option>
+      <option value="vh">VH Company</option>
+      <option value="ba">Burger Avenue 500</option>
+      <option value="bka">BK Avenue 526</option>
+      <option value="bksj">BK Saint-Jean 509</option>
+      <option value="fvh">FVH</option>
+      <option value="sci">SCI VH Immo</option>
+    </select>
+    <select id="treso-annee" onchange="renderTreso()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;">
+      <option value="all">Toutes les années</option>
+    </select>
+  </div>
+
+  <!-- KPIs -->
+  <div class="g4" id="treso-kpis" style="margin-bottom:14px;"></div>
+
+  <!-- Sous-onglets -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px;">
+    <button class="btn treso-sub active" data-sub="apercu" onclick="tresoSub('apercu')">📊 Aperçu</button>
+    <button class="btn treso-sub" data-sub="mouvements" onclick="tresoSub('mouvements')">📋 Mouvements</button>
+    <button class="btn treso-sub" data-sub="loyers" onclick="tresoSub('loyers')">🏠 Suivi loyers</button>
+    <button class="btn treso-sub" data-sub="controles" onclick="tresoSub('controles')">✓ Contrôles (assur./retraite/dirigeant)</button>
+    <button class="btn treso-sub" data-sub="evolution" onclick="tresoSub('evolution')">📈 Évolution</button>
+    <button class="btn treso-sub" data-sub="import" onclick="tresoSub('import')">📥 Importer un extrait</button>
+  </div>
+
+  <div id="treso-sub-apercu" class="treso-pane"></div>
+  <div id="treso-sub-mouvements" class="treso-pane" style="display:none;"></div>
+  <div id="treso-sub-loyers" class="treso-pane" style="display:none;"></div>
+  <div id="treso-sub-controles" class="treso-pane" style="display:none;"></div>
+  <div id="treso-sub-evolution" class="treso-pane" style="display:none;"></div>
+  <div id="treso-sub-import" class="treso-pane" style="display:none;"></div>
+</div>
+
+
 
 <!-- CHECKLIST -->
 <div id="tab-checklist" class="panel">
@@ -2671,7 +2720,7 @@ async function setupTables() {
 }
 
 // ── NAVIGATION ──
-const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',batiments:'Bâtiments','cout-vincent':'Coût Vincent',declaration:'Ma déclaration 2026',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents',import:'Import fichiers'};
+const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',batiments:'Bâtiments',tresorerie:'Trésorerie','cout-vincent':'Coût Vincent',declaration:'Ma déclaration 2026',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents',import:'Import fichiers'};
 function sw(id, btn) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -2682,6 +2731,7 @@ function sw(id, btn) {
   var pt = document.getElementById('perso-tags');
   if (pt) pt.style.display = (id === 'dashboard') ? 'flex' : 'none';
   if (id === 'cout-vincent') { try { renderCoutVincent(); } catch(e){} }
+  if (id === 'tresorerie') { try { renderTreso(); } catch(e){} }
 }
 
 // ── OPTIMISATION ──
@@ -5102,11 +5152,348 @@ async function renderDashboardGroupe(){
   }
 }
 
+// ── TRÉSORERIE (moteur transversal) ──
+// Lit les extraits bancaires (PDF) via /api/ia, classe chaque mouvement, confronte
+// l'attendu (loyers des bâtiments, rémunération, assurances…) au réel, et expose des
+// résultats réutilisés par les bâtiments / sociétés / dirigeant / assurances.
+//
+// Stockage Supabase :
+//   - tresorerie_mouvements : 1 ligne par mouvement bancaire classé
+//     {id, societe, date, libelle, montant, sens('credit'|'debit'), categorie, tiers, annee, mois, dropbox_path, source_doc, created_at}
+//   - tresorerie_docs : 1 ligne par extrait importé (trace Lire/Relire/Supprimer)
+//     {id, societe, nom, periode, dropbox_path, url, nb_mouvements, created_at}
+// Tout est lu à la demande ; rien en dur.
+
+const TRESO_SOCS = {vh:'VH Company', ba:'Burger Avenue 500', bka:'BK Avenue 526', bksj:'BK Saint-Jean 509', fvh:'FVH', sci:'SCI VH Immo'};
+// Catégories de classement d'un mouvement
+const TRESO_CATS = {
+  loyer:'Loyer reçu', charges:'Charges / provisions', taxe:'Taxe foncière', syndic:'Syndic',
+  assurance:'Assurance', retraite:'Retraite / prévoyance', vehicule:'Véhicule', carburant:'Carburant',
+  remuneration:'Rémunération dirigeant', salaire:'Salaires', impot:'Impôt / taxe', tva:'TVA',
+  pret:'Échéance de prêt', banque:'Frais bancaires', fournisseur:'Fournisseur', dividende:'Dividende',
+  virement_interne:'Virement interne', autre:'Autre'
+};
+let tresoMouvements = [];   // tous les mouvements chargés
+let tresoDocs = [];         // extraits importés
+let tresoSubCur = 'apercu';
+
+const eurT = n => (n||n===0) ? Math.round(n).toLocaleString('fr-FR')+' €' : '—';
+const tresoSocLabel = s => TRESO_SOCS[s] || s;
+
+async function loadTreso(){
+  try {
+    const {data} = await sb.from('tresorerie_mouvements').select('*').order('date',{ascending:false});
+    tresoMouvements = data || [];
+  } catch(e){ tresoMouvements = []; }
+  try {
+    const {data} = await sb.from('tresorerie_docs').select('*').order('created_at',{ascending:false});
+    tresoDocs = data || [];
+  } catch(e){ tresoDocs = []; }
+  const badge = document.getElementById('b-treso');
+  if(badge) badge.textContent = tresoDocs.length || 0;
+}
+
+// Classement automatique d'un mouvement à partir de son libellé + sens.
+function tresoClassify(libelle, sens, montant){
+  const t = (libelle||'').toLowerCase();
+  const has = (...ks)=>ks.some(k=>t.indexOf(k)>=0);
+  if(has('loyer','quittance')) return 'loyer';
+  if(has('syndic','copropriété','copropriete','appel de fonds')) return 'syndic';
+  if(has('taxe foncière','taxe fonciere','tresor public','trésor public','dgfip','impot foncier')) return 'taxe';
+  if(has('assurance','assur','mma','axa','allianz','generali','maaf','gan','swisslife','pno')) return 'assurance';
+  if(has('retraite','prévoyance','prevoyance','madelin','malakoff','agirc','arrco','cipav','urssaf retraite')) return 'retraite';
+  if(has('carburant','essence','total','bp ','station')) return 'carburant';
+  if(has('véhicule','vehicule','leasing','loa','garage','norauto','feu vert','contrôle technique')) return 'vehicule';
+  if(has('rémunération','remuneration','gérance','gerance','rémun gérant','remun gerant')) return 'remuneration';
+  if(has('salaire','paie','paye','net à payer')) return 'salaire';
+  if(has('tva')) return 'tva';
+  if(has('impôt','impot','is ','acompte is','cfe','cvae','urssaf')) return 'impot';
+  if(has('prêt','pret','echeance','échéance','crédit','credit','amortissement','banque populaire','bpsud')) return 'pret';
+  if(has('frais','commission','cotisation carte','agios')) return 'banque';
+  if(has('dividende')) return 'dividende';
+  if(has('virement interne','vir interne','compte courant','c/c')) return 'virement_interne';
+  if(sens==='credit') return 'autre';
+  return 'fournisseur';
+}
+
+// Filtre les mouvements selon le périmètre (société + année) choisi.
+function tresoFiltered(){
+  const soc = document.getElementById('treso-soc') ? document.getElementById('treso-soc').value : 'all';
+  const an = document.getElementById('treso-annee') ? document.getElementById('treso-annee').value : 'all';
+  return tresoMouvements.filter(m=>{
+    if(soc!=='all' && m.societe!==soc) return false;
+    if(an!=='all' && String(m.annee)!==String(an)) return false;
+    return true;
+  });
+}
+
+// Remplit le sélecteur d'années à partir des mouvements présents.
+function tresoFillYears(){
+  const sel = document.getElementById('treso-annee'); if(!sel) return;
+  const cur = sel.value;
+  const annees = Array.from(new Set(tresoMouvements.map(m=>m.annee).filter(Boolean))).sort((a,b)=>b-a);
+  sel.innerHTML = '<option value="all">Toutes les années</option>' + annees.map(y=>`<option value="${y}">${y}</option>`).join('');
+  if(annees.map(String).includes(cur)) sel.value = cur;
+}
+
+function renderTreso(){
+  tresoFillYears();
+  // KPIs
+  const mv = tresoFiltered();
+  const credits = mv.filter(m=>m.sens==='credit').reduce((s,m)=>s+(Number(m.montant)||0),0);
+  const debits = mv.filter(m=>m.sens==='debit').reduce((s,m)=>s+Math.abs(Number(m.montant)||0),0);
+  const solde = credits - debits;
+  const kpis = document.getElementById('treso-kpis');
+  if(kpis) kpis.innerHTML = `
+    <div class="kpi suc"><div class="kl">Entrées</div><div class="kv">${eurT(credits)}</div><div class="ks">crédits</div></div>
+    <div class="kpi war"><div class="kl">Sorties</div><div class="kv">${eurT(debits)}</div><div class="ks">débits</div></div>
+    <div class="kpi ${solde>=0?'suc':'acc'}"><div class="kl">Solde net</div><div class="kv" style="color:${solde>=0?'var(--success)':'var(--danger)'};">${solde>=0?'+':'−'}${eurT(Math.abs(solde))}</div></div>
+    <div class="kpi"><div class="kl">Mouvements</div><div class="kv">${mv.length}</div><div class="ks">${tresoDocs.length} extrait(s)</div></div>`;
+  tresoSub(tresoSubCur);
+}
+
+function tresoSub(key){
+  tresoSubCur = key;
+  document.querySelectorAll('.treso-pane').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.treso-sub').forEach(b=>b.classList.remove('active'));
+  const pane = document.getElementById('treso-sub-'+key); if(pane) pane.style.display='block';
+  const btn = document.querySelector('.treso-sub[data-sub="'+key+'"]'); if(btn) btn.classList.add('active');
+  ({apercu:tresoApercu, mouvements:tresoMouv, loyers:tresoLoyers, controles:tresoControles, evolution:tresoEvolution, import:tresoImport}[key]||(()=>{}))();
+}
+
+// ===== APERÇU : répartition par catégorie =====
+function tresoApercu(){
+  const mv = tresoFiltered();
+  const parCat = {};
+  mv.forEach(m=>{ const c=m.categorie||'autre'; if(!parCat[c]) parCat[c]={credit:0,debit:0}; if(m.sens==='credit') parCat[c].credit+=Number(m.montant)||0; else parCat[c].debit+=Math.abs(Number(m.montant)||0); });
+  const cats = Object.keys(parCat).sort((a,b)=>(parCat[b].credit+parCat[b].debit)-(parCat[a].credit+parCat[a].debit));
+  const rows = cats.map(c=>`<tr><td>${TRESO_CATS[c]||c}</td><td class="r" style="color:var(--success);">${parCat[c].credit?'+'+eurT(parCat[c].credit):'—'}</td><td class="r" style="color:var(--danger);">${parCat[c].debit?'−'+eurT(parCat[c].debit):'—'}</td></tr>`).join('');
+  const el = document.getElementById('treso-sub-apercu');
+  if(!mv.length){ el.innerHTML = `<div class="card" style="text-align:center;color:var(--text3);padding:20px;">Aucun mouvement. Va dans « 📥 Importer un extrait » pour déposer un extrait bancaire.</div>`; return; }
+  el.innerHTML = `<div class="card"><div class="card-title">Répartition par catégorie</div>
+    <table class="tbl"><thead><tr><th>Catégorie</th><th class="r">Entrées</th><th class="r">Sorties</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>`;
+}
+
+// ===== MOUVEMENTS : liste détaillée =====
+function tresoMouv(){
+  const mv = tresoFiltered();
+  const rows = mv.map(m=>`<tr>
+    <td>${m.date||'—'}</td>
+    <td>${m.libelle||'—'}${m.tiers?`<div style="font-size:11px;color:var(--text3);">${m.tiers}</div>`:''}</td>
+    <td><span class="tag tag-b" style="font-size:10px;">${TRESO_CATS[m.categorie]||m.categorie||'?'}</span></td>
+    <td class="r" style="color:${m.sens==='credit'?'var(--success)':'var(--danger)'};font-weight:600;">${m.sens==='credit'?'+':'−'}${eurT(Math.abs(Number(m.montant)||0))}</td>
+    <td class="r">${tresoSocLabel(m.societe)}</td>
+    <td class="r"><span style="cursor:pointer;color:var(--danger);" onclick="tresoDelMouv('${m.id}')">×</span></td>
+  </tr>`).join('');
+  const el = document.getElementById('treso-sub-mouvements');
+  el.innerHTML = `<div class="card"><div class="card-title">Mouvements (${mv.length})</div>
+    <table class="tbl"><thead><tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th class="r">Montant</th><th class="r">Société</th><th></th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:12px;">Aucun mouvement.</td></tr>'}</tbody></table>
+  </div>`;
+}
+
+// ===== SUIVI LOYERS : attendu (bâtiments) vs reçu (trésorerie) =====
+function tresoLoyers(){
+  const el = document.getElementById('treso-sub-loyers');
+  const mv = tresoFiltered().filter(m=>m.categorie==='loyer' && m.sens==='credit');
+  // Loyers attendus = somme des loyers mensuels des baux des bâtiments
+  const bats = (typeof batiments!=='undefined' ? batiments : []).filter(b=>b.bail && b.bail.loyer_mensuel);
+  const recuTotal = mv.reduce((s,m)=>s+(Number(m.montant)||0),0);
+  const rows = bats.map(b=>{
+    const loyerM = Number(b.bail.loyer_mensuel)||0;
+    const loc = b.bail.locataire||'';
+    // Reçus rattachés à ce locataire (match approximatif sur le tiers/libellé)
+    const recus = mv.filter(m=>(m.tiers||m.libelle||'').toLowerCase().includes((loc||'###').toLowerCase().split(' ')[0]));
+    const recu = recus.reduce((s,m)=>s+(Number(m.montant)||0),0);
+    const nbMois = loyerM? Math.round(recu/loyerM):0;
+    const statut = recu>=loyerM ? '<span class="tag tag-g">À jour</span>' : (recu>0?'<span class="tag tag-w">Partiel</span>':'<span class="tag tag-r">Aucun paiement</span>');
+    return `<tr><td><strong>${b.nom}</strong><div style="font-size:11px;color:var(--text3);">${loc||'locataire ?'}</div></td>
+      <td class="r">${eurT(loyerM)}/mois</td><td class="r">${eurT(recu)}</td><td class="r">${nbMois} mois</td><td class="r">${statut}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div class="card">
+    <div class="card-title">Suivi des loyers — attendu (baux) vs reçu (banque)</div>
+    <div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>L'app rapproche les loyers attendus (lus dans les baux des bâtiments) des virements de loyer reçus sur les extraits. Un locataire est « à jour », « partiel » ou « aucun paiement ». Total loyers reçus sur le périmètre : <strong>${eurT(recuTotal)}</strong>.</div></div>
+    <table class="tbl"><thead><tr><th>Bâtiment / locataire</th><th class="r">Loyer attendu</th><th class="r">Reçu</th><th class="r">Équiv.</th><th class="r">Statut</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:12px;">Aucun bâtiment avec loyer renseigné, ou aucun loyer reçu détecté.</td></tr>'}</tbody></table>
+  </div>`;
+}
+
+// ===== CONTRÔLES : assurances / retraites / dirigeant / impôts payés ? =====
+function tresoControles(){
+  const el = document.getElementById('treso-sub-controles');
+  const mv = tresoFiltered();
+  const somme = cat => mv.filter(m=>m.categorie===cat).reduce((s,m)=>s+Math.abs(Number(m.montant)||0),0);
+  const blocs = [
+    ['assurance','☂ Assurances', somme('assurance')],
+    ['retraite','🛡 Retraite / prévoyance', somme('retraite')],
+    ['remuneration','👤 Rémunération dirigeant', somme('remuneration')],
+    ['vehicule','🚗 Véhicules', somme('vehicule')+somme('carburant')],
+    ['impot','🏛 Impôts / taxes', somme('impot')+somme('taxe')+somme('tva')],
+    ['pret','🏦 Échéances de prêt', somme('pret')]
+  ];
+  const cards = blocs.map(([cat,lab,montant])=>{
+    const n = mv.filter(m=>m.categorie===cat).length;
+    const ok = montant>0;
+    return `<div class="kpi ${ok?'suc':''}"><div class="kl">${lab}</div><div class="kv">${eurT(montant)}</div><div class="ks">${ok?n+' paiement(s) détecté(s)':'aucun paiement détecté'}</div></div>`;
+  }).join('');
+  el.innerHTML = `<div class="card">
+    <div class="card-title">Contrôles transversaux — qu'est-ce qui est bien payé ?</div>
+    <div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Sur le périmètre choisi, voici ce qui a été réellement réglé d'après les extraits. Si un poste affiche « aucun paiement détecté » alors qu'il devrait y en avoir, c'est un signal à vérifier.</div></div>
+    <div class="g3">${cards}</div>
+  </div>`;
+}
+
+// ===== ÉVOLUTION : solde par année =====
+function tresoEvolution(){
+  const el = document.getElementById('treso-sub-evolution');
+  const soc = document.getElementById('treso-soc').value;
+  const mv = tresoMouvements.filter(m=>soc==='all'||m.societe===soc);
+  const parAn = {};
+  mv.forEach(m=>{ const y=m.annee||'?'; if(!parAn[y]) parAn[y]={c:0,d:0}; if(m.sens==='credit') parAn[y].c+=Number(m.montant)||0; else parAn[y].d+=Math.abs(Number(m.montant)||0); });
+  const annees = Object.keys(parAn).filter(y=>y!=='?').sort((a,b)=>b-a);
+  const rows = annees.map(y=>{ const s=parAn[y].c-parAn[y].d; return `<tr><td><strong>${y}</strong></td><td class="r" style="color:var(--success);">+${eurT(parAn[y].c)}</td><td class="r" style="color:var(--danger);">−${eurT(parAn[y].d)}</td><td class="r" style="font-weight:700;color:${s>=0?'var(--success)':'var(--danger)'};">${s>=0?'+':'−'}${eurT(Math.abs(s))}</td></tr>`; }).join('');
+  el.innerHTML = `<div class="card"><div class="card-title">Évolution de la trésorerie par année</div>
+    <div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Où va la trésorerie année par année : entrées, sorties et solde net. Permet de voir si elle monte ou descend dans le temps.</div></div>
+    <table class="tbl"><thead><tr><th>Année</th><th class="r">Entrées</th><th class="r">Sorties</th><th class="r">Solde net</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px;">Pas encore de données.</td></tr>'}</tbody></table>
+  </div>`;
+}
+
+// ===== IMPORT : dépôt d'un extrait bancaire =====
+function tresoImport(){
+  const el = document.getElementById('treso-sub-import');
+  const docs = tresoDocs.slice().sort((a,c)=>String(c.created_at||'').localeCompare(String(a.created_at||'')));
+  const docRows = docs.map(d=>`<tr>
+    <td><strong>${d.nom||'Extrait'}</strong>${d.periode?`<div style="font-size:11px;color:var(--text3);">${d.periode}</div>`:''}</td>
+    <td>${tresoSocLabel(d.societe)}</td>
+    <td class="r">${d.nb_mouvements||0} mvts</td>
+    <td class="r"><span style="cursor:pointer;color:var(--danger);" onclick="tresoDelDoc('${d.id}','${d.dropbox_path||''}')">×</span></td>
+  </tr>`).join('');
+  el.innerHTML = `<div class="card">
+    <div class="card-title">📥 Importer un extrait bancaire</div>
+    <div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Choisis la société, puis glisse l'extrait bancaire PDF. L'app le lit en entier, sort chaque mouvement, le classe et vérifie les paiements. Le fichier est rangé dans Dropbox <code>/Tresorerie/&lt;Société&gt;/</code>.</div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <select id="treso-imp-soc" style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;">
+        ${Object.keys(TRESO_SOCS).map(s=>`<option value="${s}">${TRESO_SOCS[s]}</option>`).join('')}
+      </select>
+    </div>
+    <div id="treso-drop" style="border:2px dashed var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;color:var(--text3);font-size:13px;"
+      onclick="document.getElementById('treso-file').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--accent)';"
+      ondragleave="this.style.borderColor='var(--border)';"
+      ondrop="event.preventDefault();this.style.borderColor='var(--border)';tresoHandle(event.dataTransfer.files);">
+      📥 Glisse un extrait bancaire PDF ici, ou clique pour choisir
+      <input id="treso-file" type="file" accept="application/pdf" multiple style="display:none;" onchange="tresoHandle(this.files)">
+    </div>
+    <div id="treso-imp-status" style="font-size:12px;margin-top:8px;"></div>
+    <div class="card-title" style="margin-top:18px;">Extraits importés</div>
+    <table class="tbl"><thead><tr><th>Extrait</th><th>Société</th><th class="r">Mouvements</th><th></th></tr></thead>
+    <tbody>${docRows||'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:12px;">Aucun extrait importé.</td></tr>'}</tbody></table>
+  </div>`;
+}
+
+// Prompt d'extraction d'un extrait bancaire
+function tresoPrompt(){
+  return `Tu es un assistant comptable français. Voici un EXTRAIT BANCAIRE (relevé de compte) qui peut comporter PLUSIEURS PAGES : lis-les TOUTES. Extrais CHAQUE mouvement/opération de la période, sans en oublier. Pour chaque ligne, donne : la date (JJ/MM/AAAA), le libellé complet, le montant (nombre positif), et le sens ("credit" si c'est une entrée d'argent, "debit" si c'est une sortie). Indique aussi le tiers (nom du bénéficiaire ou émetteur) si identifiable.
+Réponds UNIQUEMENT par un objet JSON valide, sans texte autour, sans backticks :
+{ "periode": "mois/période du relevé (ex : Janvier 2026)",
+  "mouvements": [ {"date":"JJ/MM/AAAA","libelle":"...","montant":nombre,"sens":"credit|debit","tiers":"..."} ] }`;
+}
+
+async function tresoHandle(files){
+  const status = document.getElementById('treso-imp-status');
+  const soc = document.getElementById('treso-imp-soc').value;
+  for(const file of files){
+    if((file.name.split('.').pop()||'').toLowerCase()!=='pdf'){ if(status) status.innerHTML='<span style="color:var(--danger);">Seuls les PDF sont acceptés.</span>'; continue; }
+    if(status) status.innerHTML = '<span style="color:var(--accent);">📤 Envoi + lecture de '+file.name+'… (peut prendre 30-60s)</span>';
+    // 1) Upload Dropbox /Tresorerie/<Société>/
+    let up = null;
+    try { up = await tresoUpload(soc, file); } catch(e){}
+    // 2) Lecture IA (toutes les pages)
+    let data = null, err = '';
+    try {
+      const paliers = [{maxWidth:1300,quality:0.6},{maxWidth:1050,quality:0.5},{maxWidth:850,quality:0.42}];
+      for(const cfg of paliers){
+        const imgs = await pdfToImages(file, 80, cfg);
+        const content = imgs.map(d=>({type:'image', source:{type:'base64', media_type:'image/jpeg', data:d}}));
+        content.push({type:'text', text: tresoPrompt()});
+        const r = await fetch('/api/ia', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({model:'claude-sonnet-4-5', max_tokens:4000, messages:[{role:'user', content}]})});
+        if(!r.ok){ if(r.status===413||r.status===400){ err='trop volumineux'; continue; } err='HTTP '+r.status; break; }
+        const j = await r.json();
+        let txt = Array.isArray(j.content) ? j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n') : '';
+        txt = txt.replace(/```json|```/g,'').trim();
+        const m = txt.match(/\{[\s\S]*\}/);
+        if(m){ try { data = JSON.parse(m[0]); break; } catch(e){ err='JSON invalide'; } }
+      }
+    } catch(e){ err=(e&&e.message)||'erreur'; }
+    // 3) Enregistre mouvements + doc
+    if(data && Array.isArray(data.mouvements)){
+      const docRow = { societe:soc, nom:file.name.replace(/\.[^.]+$/,''), periode:data.periode||'', dropbox_path:up?up.dropbox_path:null, url:up?up.url:null, nb_mouvements:data.mouvements.length, created_at:new Date().toISOString() };
+      let docId = null;
+      try { const ins = await sb.from('tresorerie_docs').insert(docRow).select().single(); if(ins.data){ docId=ins.data.id; tresoDocs.unshift(ins.data);} } catch(e){}
+      const rows = data.mouvements.map(mo=>{
+        const d = mo.date||''; const ym = d.match(/(\d{4})/); const my = d.match(/\/(\d{2})\/(\d{4})/);
+        return {
+          societe:soc, date:d, libelle:mo.libelle||'', tiers:mo.tiers||'',
+          montant:Math.abs(Number(mo.montant)||0), sens:(mo.sens==='credit'?'credit':'debit'),
+          categorie:tresoClassify(mo.libelle, mo.sens, mo.montant),
+          annee: ym?parseInt(ym[1]):null, mois: my?parseInt(my[1]):null,
+          dropbox_path: up?up.dropbox_path:null, source_doc: docId, created_at:new Date().toISOString()
+        };
+      });
+      try { const ins = await sb.from('tresorerie_mouvements').insert(rows).select(); if(ins.data) tresoMouvements = ins.data.concat(tresoMouvements); } catch(e){}
+      if(status) status.innerHTML = '<span style="color:var(--success);">✓ '+file.name+' : '+rows.length+' mouvement(s) importé(s) et classé(s).</span>';
+    } else {
+      if(status) status.innerHTML = '<span style="color:var(--danger);">Lecture impossible'+(err?(' ('+err+')'):'')+'. Réessaie ou vérifie le PDF.</span>';
+    }
+  }
+  await loadTreso();
+  renderTreso();
+}
+
+// Upload extrait vers Dropbox /Tresorerie/<Société>/
+async function tresoUpload(soc, file){
+  const tok = await dbxToken();
+  const safe = (TRESO_SOCS[soc]||soc).replace(/[\/\\:*?"<>|]/g,'_');
+  const today = new Date().toISOString().slice(0,10);
+  const clean = file.name.replace(/[^a-zA-Z0-9._-]/g,'_').replace(/\.pdf$/i,'');
+  const path = `/Tresorerie/${safe}/${clean}_${today}.pdf`;
+  const buf = await file.arrayBuffer();
+  const r = await fetch('https://content.dropboxapi.com/2/files/upload', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+tok,'Dropbox-API-Arg':JSON.stringify({path, mode:'add', autorename:true, mute:true}),'Content-Type':'application/octet-stream'},
+    body: buf
+  });
+  if(!r.ok) throw new Error('upload Dropbox');
+  const meta = await r.json();
+  let url = null;
+  try { url = await dbxShareLink(tok, meta.path_display); } catch(e){}
+  return { dropbox_path: meta.path_display, url };
+}
+
+async function tresoDelMouv(id){
+  if(!confirm('Supprimer ce mouvement ?')) return;
+  try { await sb.from('tresorerie_mouvements').delete().eq('id', id); } catch(e){}
+  tresoMouvements = tresoMouvements.filter(m=>String(m.id)!==String(id));
+  renderTreso();
+}
+async function tresoDelDoc(id, dropbox_path){
+  if(!confirm('Supprimer cet extrait et tous ses mouvements ?\n\nLe fichier sera retiré de l\'app et de Dropbox.')) return;
+  try { if(dropbox_path){ const tok=await dbxToken(); await fetch('https://api.dropboxapi.com/2/files/delete_v2',{method:'POST',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({path:dropbox_path})}); } } catch(e){}
+  try { await sb.from('tresorerie_mouvements').delete().eq('source_doc', id); } catch(e){}
+  try { await sb.from('tresorerie_docs').delete().eq('id', id); } catch(e){}
+  await loadTreso();
+  tresoMouvements = tresoMouvements.filter(m=>String(m.source_doc)!==String(id));
+  renderTreso();
+}
+
 // ── START ──
 virRefreshAll();
 buildSocImports();
 ['vh','ba','bka','bksj','fvh','sci'].forEach(s=>renderSocFinances(s));
 renderDashboardGroupe();
+loadTreso();
 init();
 </script>
 </body>
