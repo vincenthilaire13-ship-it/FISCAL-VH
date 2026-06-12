@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 16h26
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 16h37
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -3624,38 +3624,87 @@ async function renderCoutVincent() {
     kpiZone.lastElementChild.querySelector('.kv').textContent = socsAvecData.length + ' / ' + CV_SOCS.length;
   }
   let html = '';
-  // Tableau par poste
-  html += `<div class="card"><div class="card-title">Détail par poste — toutes sociétés (dernier exercice de chacune)</div>`;
-  html += `<div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>« — » = poste non trouvé dans les bilans (pas forcément nul). Pour le compléter, ouvre la société concernée et clique « 🔄 Relire » sur son bilan, ou envoie-moi le compte de résultat détaillé.</div></div>`;
-  html += `<table class="tbl"><thead><tr><th>Poste</th><th class="r">Total groupe</th></tr></thead><tbody>`;
+
+  // ── TABLEAU CROISÉ : poste (lignes) × société (colonnes), toutes années cumulées ──
+  // Pour chaque société, on additionne TOUS les exercices connus. 0 affiché explicitement.
+  const socsAffich = CV_SOCS.filter(s=>allRows[s]); // sociétés ayant au moins un bilan
+  // posteParSoc[poste][soc] = somme sur toutes les années ; null si la société n'a JAMAIS de valeur lue
+  const posteParSoc = {}, autresParSoc = {}, totColSoc = {};
+  DIR_POSTES.forEach(([k])=>{ posteParSoc[k]={}; });
+  socsAffich.forEach(soc=>{ totColSoc[soc]=0; autresParSoc[soc]=0; });
+  socsAffich.forEach(soc=>{
+    (allRows[soc]||[]).forEach(r=>{
+      const d = r.donnees || {};
+      DIR_POSTES.forEach(([k])=>{
+        const v = Number(d[k]);
+        if(d[k]!=null && !isNaN(v)){
+          posteParSoc[k][soc] = (posteParSoc[k][soc]||0) + v;
+          totColSoc[soc] += v;
+        }
+      });
+      if(Array.isArray(d.cout_dirigeant_detail)){
+        d.cout_dirigeant_detail.forEach(it=>{
+          const v = Number(it&&it.montant);
+          if(!isNaN(v) && it.montant!=null){ autresParSoc[soc] += v; totColSoc[soc] += v; }
+        });
+      }
+    });
+  });
+  const anyAutres = socsAffich.some(s=>autresParSoc[s]>0);
+
+  html += `<div class="card"><div class="card-title">💶 Ce que Vincent coûte, poste par poste et par établissement (toutes années cumulées)</div>`;
+  html += `<div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Chaque colonne = une société, chaque ligne = un poste de coût. Les montants additionnent <strong>tous les exercices</strong> dont le bilan a été lu. <strong>0 €</strong> = poste réellement à zéro (ou absent du bilan) ; clique « Relire le bilan » dans le contrôle ci-dessus si tu penses qu'un montant manque.</div></div>`;
+  html += `<div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>Poste</th>${socsAffich.map(s=>'<th class="r">'+(IS_SOC_LABEL[s]||s)+'</th>').join('')}<th class="r">Total groupe</th></tr></thead><tbody>`;
   DIR_POSTES.forEach(([k,lab])=>{
-    const v = totauxPoste[k];
-    html += `<tr><td>${lab}</td><td class="r">${v!=null?eurF(v):'<span style="color:var(--text3);">—</span>'}</td></tr>`;
+    let totLigne = 0;
+    const cells = socsAffich.map(s=>{
+      const v = posteParSoc[k][s];
+      if(v!=null) totLigne += v;
+      return '<td class="r">'+eurF(v!=null?v:0)+'</td>';
+    }).join('');
+    html += `<tr><td>${lab}</td>${cells}<td class="r" style="font-weight:600;">${eurF(totLigne)}</td></tr>`;
   });
-  if(autresTot!=null){
-    html += `<tr><td>Autres frais du gérant (compte de résultat détaillé)</td><td class="r">${eurF(autresTot)}</td></tr>`;
+  if(anyAutres){
+    let totAutres = 0;
+    const cells = socsAffich.map(s=>{ const v=autresParSoc[s]||0; totAutres+=v; return '<td class="r">'+eurF(v)+'</td>'; }).join('');
+    html += `<tr><td>Autres frais du gérant (détail compte de résultat)</td>${cells}<td class="r" style="font-weight:600;">${eurF(totAutres)}</td></tr>`;
   }
-  html += `<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;">Coût total du dirigeant</td><td class="r" style="font-weight:700;">${grandVu?eurF(grandTotal):'—'}</td></tr>`;
-  html += `</tbody></table>`;
-  // Détail des lignes libres repérées dans le compte de résultat détaillé
-  if(autresLignes.length){
-    html += `<div style="margin-top:10px;font-size:12px;color:var(--text2);"><strong>Détail des « autres frais » lus dans le compte de résultat détaillé :</strong><ul style="margin:6px 0 0;padding-left:18px;">`;
-    autresLignes.forEach(it=>{ html += `<li>${it.libelle} <span style="color:var(--text3);">(${IS_SOC_LABEL[it.soc]||it.soc})</span> — ${eurF(it.montant)}</li>`; });
-    html += `</ul></div>`;
-  }
-  html += `</div>`;
-  // Tableau par société
-  html += `<div class="card"><div class="card-title">Coût du dirigeant par société</div>`;
-  html += `<table class="tbl"><thead><tr><th>Société</th><th>Exercice</th><th class="r">Rémunération</th><th class="r">Coût total</th></tr></thead><tbody>`;
-  socsAvecData.forEach(soc=>{
-    const d = last[soc].donnees || {};
-    const rem = d.remuneration_dirigeant;
-    html += `<tr><td><strong>${IS_SOC_LABEL[soc]||soc}</strong></td><td>${d.date_cloture||last[soc].exercice}</td><td class="r">${rem!=null?eurF(rem):'—'}</td><td class="r">${totalParSoc[soc]!=null?eurF(totalParSoc[soc]):'—'}</td></tr>`;
-  });
-  html += `<tr style="border-top:2px solid var(--border2);"><td colspan="3" style="font-weight:700;">Total groupe</td><td class="r" style="font-weight:700;">${grandVu?eurF(grandTotal):'—'}</td></tr>`;
+  // Ligne total par société
+  let grandTotalCroise = 0;
+  const totCells = socsAffich.map(s=>{ grandTotalCroise += (totColSoc[s]||0); return '<td class="r" style="font-weight:700;">'+eurF(totColSoc[s]||0)+'</td>'; }).join('');
+  html += `<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;">Coût total par établissement</td>${totCells}<td class="r" style="font-weight:700;">${eurF(grandTotalCroise)}</td></tr>`;
   html += `</tbody></table></div>`;
+  // Note nombre d'exercices pris en compte par société
+  const nbExo = socsAffich.map(s=>`${IS_SOC_LABEL[s]||s} : ${(allRows[s]||[]).length} exercice${(allRows[s]||[]).length>1?'s':''}`).join(' · ');
+  html += `<div style="margin-top:8px;font-size:11px;color:var(--text3);">Exercices cumulés — ${nbExo}.</div>`;
+  html += `</div>`;
+
+  // ── DIVIDENDES PRIS EN VRAI (versés par VH Company) ──
+  // Source : bilan VH, champ dividendes_verses (dividendes distribués par la holding).
+  // Le montant exact arrivé sur le compte perso se confirmera avec l'avis d'impôt (2DC).
+  {
+    let divRows = '';
+    let totDiv = 0, vu = false;
+    (allRows['vh']||[]).slice().sort((a,b)=>b.exercice-a.exercice).forEach(r=>{
+      const dv = Number((r.donnees||{}).dividendes_verses);
+      if(!isNaN(dv) && (r.donnees||{}).dividendes_verses!=null){
+        vu = true; totDiv += dv;
+        divRows += `<tr><td>Exercice ${r.exercice}</td><td class="r">${eurF(dv)}</td></tr>`;
+      }
+    });
+    html += `<div class="card"><div class="card-title">💸 Dividendes que VH Company a distribués (ce que tu as pris en vrai)</div>`;
+    html += `<div class="alert a-w" style="margin-bottom:10px;"><span>⚠</span><div>Montants lus dans le bilan de VH Company (dividendes distribués par la holding). Le montant <strong>exact</strong> arrivé sur ton compte personnel se confirmera avec ton <strong>avis d'impôt (case 2DC)</strong> — module impôts à venir.</div></div>`;
+    if(vu){
+      html += `<table class="tbl"><thead><tr><th>Exercice</th><th class="r">Dividendes distribués</th></tr></thead><tbody>${divRows}`;
+      html += `<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;">Total cumulé</td><td class="r" style="font-weight:700;">${eurF(totDiv)}</td></tr></tbody></table>`;
+    } else {
+      html += `<div style="color:var(--text3);font-size:13px;padding:10px;text-align:center;">Aucun dividende distribué lu dans les bilans VH pour l'instant. Importe / relis le bilan de VH Company.</div>`;
+    }
+    html += `</div>`;
+  }
+
   // Note méthodo + idée "coût de remplacement"
-  html += `<div class="alert a-w"><span>🧭</span><div><strong>Lecture.</strong> Ce total représente ce que Vincent coûte aujourd'hui aux sociétés (charges déjà déduites des résultats). Pour raisonner « combien coûterait son remplacement », il faudrait comparer cette rémunération + avantages au salaire d'un directeur salarié équivalent — dis-le moi si tu veux que j'ajoute ce comparatif.</div></div>`;
+  html += `<div class="alert a-w"><span>🧭</span><div><strong>Lecture.</strong> Ce total représente ce que Vincent coûte aux sociétés (charges déjà déduites des résultats). Pour raisonner « combien coûterait son remplacement », il faudrait comparer cette rémunération + avantages au salaire d'un directeur salarié équivalent — dis-le moi si tu veux que j'ajoute ce comparatif.</div></div>`;
 
   // ── ÉVOLUTION ANNÉE PAR ANNÉE (toutes sociétés × tous exercices) ──
   // Construit une matrice société × année à partir de TOUS les exercices connus.
