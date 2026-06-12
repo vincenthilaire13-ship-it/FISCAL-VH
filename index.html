@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 17h56
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 21h29
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -876,7 +876,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <div style="display:flex;align-items:center;gap:12px;">
         <button class="btn btn-p" onclick="openBat()">+ Nouveau bâtiment</button>
         <button class="btn" onclick="forceSeedBats()">⟳ Créer les 7 bâtiments</button>
-        <span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="resyncAuchan()">Resynchroniser Auchan</span>
+        <span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="resetBatFigures()">Vider les chiffres (garder nom/adresse)</span>
         <span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="restoreHidden()">Restaurer les supprimés</span>
       </div>
     </div>
@@ -1046,28 +1046,25 @@ async function loadBats() {
 
 // Remet à jour le dossier AUCHAN avec les valeurs vérifiées sur les documents
 // (acte notarié, tableau d'amortissement, bail, factures). Ne touche qu'AUCHAN.
-async function resyncAuchan() {
-  const ref = {
-    adresse:'Route de Carnon, CC Méditerranée, Pérols (34470)',
-    type_local:'Local commercial (galerie Auchan) · lots 77-82',
-    acq:{ date:'25/06/2019', prix:234500, notaire:'Notaires Foch (Me Capela-Laborde)', etude:'Montpellier', ref:'Acte du 13/06/2019', valeur:215000, notes:'Prix de vente 215 000€ ; programme financé 234 500€ (apport 3 000€). Lots 77 à 82, résidence Plein Sud.' },
-    bail:{ locataire:'MFK VAP (ex-Happe SW)', loyer_mensuel:2200, surface:86.1, depot:7500, charges:7234, indexation:'ILC (base T4 2018 : 114,06)', effet:'25/06/2019', fin:'24/06/2028', revision:'25/06', notes:'Bail 9 ans. Transfert Happe SW → MFK VAP au 01/09/2023. Caution MVM 270 000€.' },
-    pret:{ banque:'Banque Populaire du Sud', capital:231500, mensualite:1434.94, taux:1.48, fin:'12/06/2034', crd:null }
-  };
-  let bat = batiments.find(b => (b.nom||'').toUpperCase().includes('AUCHAN'));
-  if(!bat) { alert('Aucun bâtiment « Auchan » trouvé dans la liste.'); return; }
-  if(!confirm('Mettre à jour le dossier « '+bat.nom+' » avec les valeurs des documents (notaire, prêt, bail) ?\n\nCela écrase les champs concernés mais conserve loyers, taxes, syndic et documents déjà saisis.')) return;
-  bat.adresse = ref.adresse;
-  bat.type_local = ref.type_local;
-  bat.acq = Object.assign({}, bat.acq, ref.acq);
-  bat.bail = Object.assign({}, bat.bail, ref.bail);
-  // Met à jour le 1er prêt s'il existe, sinon l'ajoute
-  bat.prets = bat.prets || [];
-  if(bat.prets.length) bat.prets[0] = Object.assign({}, bat.prets[0], ref.pret);
-  else bat.prets = [ref.pret];
-  await saveBatToDb(bat);
+// Vide TOUS les chiffres des bâtiments (acquisition, bail, prêts, loyers, taxes,
+// syndic) en conservant nom / adresse / type ET les documents déjà déposés.
+// Permet de repartir proprement : tout se re-remplira depuis les PDF.
+async function resetBatFigures() {
+  if(!confirm('Vider les chiffres de TOUS les bâtiments ?\n\nOn garde le nom, l\'adresse, le type ET les documents déjà déposés.\nOn efface : acquisition, bail, prêts, loyers, taxes, appels de syndic saisis.\n\nLes valeurs se re-rempliront depuis les PDF que tu déposeras.')) return;
+  let n = 0;
+  for(const bat of batiments){
+    bat.acq = { date:'', prix:null, notaire:null, etude:'', ref:'', valeur:null, notes:'' };
+    bat.bail = { locataire:'', loyer_mensuel:null, surface:null, depot:null, charges:null, indexation:'', effet:'', fin:'', revision:'', notes:'' };
+    bat.prets = [];
+    bat.loyers = [];
+    bat.taxes = [];
+    bat.syndic = { nom:(bat.syndic&&bat.syndic.nom)||'', contact:(bat.syndic&&bat.syndic.contact)||'', tantiemes:(bat.syndic&&bat.syndic.tantiemes)||'', appels:[] };
+    // bat.docs CONSERVÉS
+    await saveBatToDb(bat);
+    n++;
+  }
   renderBatList();
-  alert('Dossier « '+bat.nom+' » resynchronisé avec les documents. ✓');
+  alert('Chiffres vidés pour '+n+' bâtiment(s). Les documents déposés sont conservés. ✓');
 }
 
 // Drapeau d'amorçage stocké dans la table "coches"
@@ -1078,33 +1075,36 @@ async function batsAlreadySeeded() {
   } catch(e) { return false; }
 }
 
-// Convertit les 7 bâtiments historiques (BIENS_SEED) vers la structure détaillée
+// Convertit les 7 bâtiments historiques (BIENS_SEED) vers la structure détaillée.
+// Ne crée QUE les bâtiments dont le nom n'existe pas déjà en base (anti-doublon),
+// pour ne jamais dupliquer un bâtiment qu'on a déjà persisté (ex. après un upload).
 async function seedBatsFromBiens() {
-  let ok=0;
+  let existingNoms = new Set();
+  try {
+    const {data} = await sb.from('batiments').select('nom');
+    (data||[]).forEach(d=>existingNoms.add((d.nom||'').trim().toUpperCase()));
+  } catch(e){}
+  let ok=0, aCreer=0;
   for(const s of BIENS_SEED) {
+    if(existingNoms.has((s.nom||'').trim().toUpperCase())) continue; // déjà en base
+    aCreer++;
     try { const {error}=await sb.from('batiments').insert(batPayloadFromSeed(s)); if(!error) ok++; }
     catch(e) {}
   }
-  // On ne mémorise l'amorçage que s'il a vraiment fonctionné, sinon il pourra
-  // se relancer au prochain démarrage (ou via le bouton « Créer les 7 bâtiments »).
-  if(ok === BIENS_SEED.length) {
+  if(aCreer===0 || ok===aCreer) {
     try { await sb.from('coches').upsert({cle:'bats_seeded', valeur:true, updated_at:new Date().toISOString()}, {onConflict:'cle'}); } catch(e){}
   }
 }
 
 // Construit le payload détaillé d'un bâtiment à partir d'une entrée BIENS_SEED
+// Bâtiment d'amorçage : uniquement nom/adresse/type, tout le reste VIDE.
+// Les chiffres et documents viennent ensuite des PDF déposés dans l'application.
 function batPayloadFromSeed(s) {
-  const pret = (s.montant_pret || s.mensualite) ? [{
-    banque: (s.banque && s.banque!=='—') ? s.banque : '',
-    capital: s.montant_pret || null, mensualite: s.mensualite || null,
-    taux: null, fin: (s.fin_pret && s.fin_pret!=='—') ? s.fin_pret : '', crd: null
-  }] : [];
-  const loyers = (s.hist||[]).map(h => ({ periode:'Année '+h.annee, montant:h.montant, date_emission:'', paye:true }));
   return {
     nom: s.nom, adresse: s.adresse, type_local: s.type_local,
-    acq: { date: s.date_achat||'', prix: s.cout_achat||null, notaire:null, etude:'', ref:'', valeur:null, notes:'' },
-    bail: { locataire: (s.locataire && s.locataire!=='—') ? s.locataire : '', loyer_mensuel: s.loyer_mensuel||null, surface:s.surface||null, depot:s.depot_garantie||null, charges:s.charges||null, indexation:s.indexation||'', effet:'', fin: s.bail_echeance||'', revision:s.revision||'', notes:'' },
-    prets: pret, loyers: loyers, taxes: [], syndic:{appels:[]}, docs: []
+    acq: { date:'', prix:null, notaire:null, etude:'', ref:'', valeur:null, notes:'' },
+    bail: { locataire:'', loyer_mensuel:null, surface:null, depot:null, charges:null, indexation:'', effet:'', fin:'', revision:'', notes:'' },
+    prets: [], loyers: [], taxes: [], syndic:{appels:[]}, docs: []
   };
 }
 
@@ -1145,18 +1145,34 @@ function normalizeBat(b) {
   return b;
 }
 
-// Persiste un bâtiment (update si id, insert sinon)
+// Persiste un bâtiment (update si vrai id Supabase, insert si nouveau ou seed local).
+// IMPORTANT : un id commençant par "seed_" est un bâtiment d'amorçage local qui
+// n'existe PAS encore dans Supabase → il faut l'INSÉRER (sinon update sur 0 ligne =
+// les données, notamment les documents, ne sont jamais sauvegardées et disparaissent).
 async function saveBatToDb(b) {
   const payload = {
     nom:b.nom, adresse:b.adresse, type_local:b.type_local,
     acq:b.acq, bail:b.bail, prets:b.prets, loyers:b.loyers,
     taxes:b.taxes, syndic:b.syndic, docs:b.docs
   };
+  const isSeed = typeof b.id === 'string' && b.id.indexOf('seed_') === 0;
   try {
-    if(b.id) { await sb.from('batiments').update(payload).eq('id', b.id); }
-    else {
-      const {data} = await sb.from('batiments').insert(payload).select().single();
-      if(data) b.id = data.id;
+    if(b.id && !isSeed) {
+      // Vrai enregistrement Supabase → update, et on vérifie qu'une ligne a bien été touchée
+      const { data, error } = await sb.from('batiments').update(payload).eq('id', b.id).select();
+      if((error || !data || !data.length)) {
+        // La ligne n'existe pas (supprimée ailleurs) → on réinsère pour ne rien perdre
+        const ins = await sb.from('batiments').insert(payload).select().single();
+        if(ins && ins.data) b.id = ins.data.id;
+      }
+    } else {
+      // Nouveau bâtiment OU seed local jamais persisté → INSERT et on récupère le vrai id
+      const oldSeedId = b.id;
+      const { data } = await sb.from('batiments').insert(payload).select().single();
+      if(data) {
+        b.id = data.id;
+        if(currentBat === oldSeedId) currentBat = data.id; // garde le bâtiment ouvert
+      }
     }
   } catch(e) {}
 }
@@ -1394,7 +1410,7 @@ function batDocsRecap(b){
   }).join('');
   return `<div class="card">
     <div class="card-title">📎 Tous les documents reçus (${docs.length})</div>
-    <div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Trace de tout ce que tu as déposé pour ce bâtiment. Tu peux ouvrir, relire (relancer la lecture automatique) ou supprimer chaque document. La suppression retire le document de l'app ; le fichier reste sauvegardé dans Dropbox.</div></div>
+    <div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Trace de tout ce que tu as déposé pour ce bâtiment. Tu peux ouvrir, relire (relancer la lecture automatique) ou supprimer chaque document. La suppression retire le document de l'app <strong>et de Dropbox</strong>.</div></div>
     <table class="tbl"><thead><tr><th>Catégorie</th><th>Document</th><th class="r">Actions</th></tr></thead><tbody>${rows}</tbody></table>
   </div>`;
 }
@@ -2120,7 +2136,8 @@ function batDocZone(b, cat){
 // Dépôt + lecture + pré-remplissage pour une catégorie du bâtiment courant.
 async function batDocHandle(cat, files){
   const b = batiments.find(x=>x.id===currentBat); if(!b){ alert('Ouvre un bâtiment d\'abord.'); return; }
-  if(!b.id){ await saveBatToDb(b); }
+  const isSeed = typeof b.id === 'string' && b.id.indexOf('seed_') === 0;
+  if(!b.id || isSeed){ await saveBatToDb(b); } // crée la vraie ligne Supabase avant d'attacher des docs
   const statusEl = document.getElementById('batdrop-status-'+cat);
   for(const f of Array.from(files||[])){
     if(statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">📤 Envoi de '+f.name+' vers Dropbox…</span>';
@@ -2240,12 +2257,23 @@ function batApplyExtract(b, cat, d){
   // dans le document lui-même (b.docs[].extrait) et sont affichées par batDocZone.
 }
 
-// Retire un document de la liste (le fichier reste dans Dropbox).
+// Supprime un document : retire l'entrée de l'app ET le fichier dans Dropbox.
 async function batDocDelete(globalIdx){
   const b = batiments.find(x=>x.id===currentBat); if(!b) return;
   const d = (b.docs||[])[globalIdx]; if(!d) return;
-  if(!confirm('Retirer « '+(d.titre||d.nom||'ce document')+' » de la liste ?\n\nLe fichier reste sauvegardé dans Dropbox.')) return;
+  if(!confirm('Supprimer « '+(d.titre||d.nom||'ce document')+' » ?\n\nLe fichier sera supprimé de l\'application ET de Dropbox.')) return;
   const cat = d.cat || 'autre';
+  // 1) Supprime le fichier dans Dropbox (comme pour les bilans des sociétés)
+  try {
+    if(d.dropbox_path){
+      const tok = await dbxToken();
+      await fetch('https://api.dropboxapi.com/2/files/delete_v2',{
+        method:'POST', headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({path:d.dropbox_path})
+      });
+    }
+  } catch(e){}
+  // 2) Retire l'entrée de l'index et persiste
   b.docs.splice(globalIdx,1);
   await saveBatToDb(b);
   batSub(cat);
@@ -2880,28 +2908,24 @@ function recomputeImmo() {
 }
 
 // Bâtiments réels de la SCI (données du fichier Excel) — affichés en dur
+// Bâtiments : on ne garde QUE le nom, l'adresse et le type de local (dossiers prêts).
+// AUCUN chiffre en dur (prix, loyer, prêt, mensualité, locataire, historique) :
+// tout se remplit uniquement depuis les PDF déposés dans l'application.
 const BIENS_SEED = [
-  {id:-1, nom:'AUCHAN Galerie', adresse:'Route de Carnon, CC Méditerranée, Pérols (34470)', type_local:'Local commercial (galerie Auchan) · lots 77-82', date_achat:'25/06/2019', cout_achat:234500, locataire:'MFK VAP (ex-Happe SW)', loyer_mensuel:2200, bail_echeance:'24/06/2028', surface:86.1, depot_garantie:7500, charges:7234, indexation:'ILC (base T4 2018 : 114,06)', revision:'25/06', banque:'Banque Populaire du Sud (1,48%)', montant_pret:231500, mensualite:1434.94, fin_pret:'12/06/2034', assureur:'—', prime_assurance:null,
-    hist:[{annee:2023,montant:26400},{annee:2024,montant:26400},{annee:2025,montant:26400}]},
-  {id:-2, nom:'FUNÉRAIRE (OGF)', adresse:'Pamiers / Ariège', type_local:'Local funéraire', date_achat:'2021', cout_achat:961400, locataire:'OGF', loyer_mensuel:6133, bail_echeance:'31/12/2029', banque:'—', montant_pret:700000, mensualite:4128, fin_pret:'180 mois', assureur:'—', prime_assurance:null,
-    hist:[{annee:2022,montant:63707},{annee:2023,montant:73596},{annee:2024,montant:73596},{annee:2025,montant:73596}]},
-  {id:-3, nom:'AUDIKA', adresse:'Dinan', type_local:'Local commercial', date_achat:'2019', cout_achat:540762, locataire:'Audika', loyer_mensuel:1075, bail_echeance:'30/06/2028', banque:'—', montant_pret:450000, mensualite:2808, fin_pret:'180 mois', assureur:'—', prime_assurance:null,
-    hist:[{annee:2024,montant:12290},{annee:2025,montant:12901}]},
-  {id:-4, nom:'GUY HOQUET', adresse:'Dinan', type_local:'Local commercial', date_achat:'2021', cout_achat:540762, locataire:'Guy Hoquet', loyer_mensuel:2379, bail_echeance:'31/12/2030', banque:'—', montant_pret:450000, mensualite:null, fin_pret:'—', assureur:'—', prime_assurance:null,
-    hist:[{annee:2024,montant:27704},{annee:2025,montant:28543}]},
-  {id:-5, nom:'BOULANGER', adresse:'Digne-les-Bains', type_local:'Magasin', date_achat:'2019', cout_achat:1613461, locataire:'Boulanger', loyer_mensuel:8596, bail_echeance:'31/12/2028', banque:'Caution banque', montant_pret:1250000, mensualite:7799, fin_pret:'—', assureur:'MMA', prime_assurance:null,
-    hist:[{annee:2024,montant:103157},{annee:2025,montant:103157}]},
-  {id:-6, nom:'NORAUTO', adresse:'Sarrebourg', type_local:'Centre auto', date_achat:'2017', cout_achat:985900, locataire:'Norauto', loyer_mensuel:5949, bail_echeance:'31/05/2026', banque:'Caution banque', montant_pret:750000, mensualite:5636, fin_pret:'—', assureur:'MMA', prime_assurance:null,
-    hist:[{annee:2024,montant:68972},{annee:2025,montant:71388}]},
-  {id:-7, nom:'POISSONNERIE', adresse:'Laverune', type_local:'Local commercial', date_achat:'2023', cout_achat:150000, locataire:'—', loyer_mensuel:1125, bail_echeance:'31/12/2031', banque:'—', montant_pret:0, mensualite:null, fin_pret:'—', assureur:'MMA', prime_assurance:null,
-    hist:[{annee:2024,montant:7875},{annee:2025,montant:13500}]}
+  {id:-1, nom:'AUCHAN Galerie', adresse:'Route de Carnon, CC Méditerranée, Pérols (34470)', type_local:'Local commercial (galerie Auchan)'},
+  {id:-2, nom:'FUNÉRAIRE (OGF)', adresse:'Pamiers / Ariège', type_local:'Local funéraire'},
+  {id:-3, nom:'AUDIKA', adresse:'Dinan', type_local:'Local commercial'},
+  {id:-4, nom:'GUY HOQUET', adresse:'Dinan', type_local:'Local commercial'},
+  {id:-5, nom:'BOULANGER', adresse:'Digne-les-Bains', type_local:'Magasin'},
+  {id:-6, nom:'NORAUTO', adresse:'Sarrebourg', type_local:'Centre auto'},
+  {id:-7, nom:'POISSONNERIE', adresse:'Laverune', type_local:'Local commercial'}
 ];
 
 async function loadBiens() {
   try {
-    // 1) bâtiments réels (toujours affichés)
-    BIENS_SEED.forEach(b => { immoBiens.push(b); renderBien(b, b.hist||[]); });
-    // 2) bâtiments ajoutés via le bouton (Supabase)
+    // Les 7 bâtiments « historiques » vivent désormais dans la section Bâtiments
+    // (dossiers détaillés). Cette ancienne vue ne charge QUE les biens ajoutés
+    // manuellement dans la table biens_immo, pour éviter des doublons vides.
     const {data} = await sb.from('biens_immo').select('*').order('created_at',{ascending:true});
     if(data){
       immoBiens = immoBiens.concat(data);
