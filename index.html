@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 21h55
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 22h06
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -2118,10 +2118,24 @@ async function batUploadDoc(batNom, cat, file){
 // Prompts d'extraction IA par catégorie de document bâtiment.
 // Chaque prompt renvoie un JSON ciblé sur la catégorie.
 function batPromptFor(cat, batNom){
-  const head = `Tu es un assistant immobilier français. Voici un document concernant le bien immobilier « ${batNom||'(bâtiment)'} ». Lis-le attentivement. Réponds UNIQUEMENT par un objet JSON valide, sans texte autour, sans backticks. Mets null si une valeur est introuvable. Montants en euros (nombres entiers, sans espaces ni symboles). Dates au format JJ/MM/AAAA.`;
-  if(cat==='pret') return head + `
-Type de document : offre / contrat / tableau d'amortissement de PRÊT BANCAIRE.
-JSON attendu :
+  const head = `Tu es un assistant immobilier français. Voici un document concernant le bien immobilier « ${batNom||'(bâtiment)'} ». Ce document peut contenir PLUSIEURS PAGES : lis-les TOUTES, page par page, attentivement, avant de répondre (les informations utiles — surface, dépôt de garantie, montants des charges, capital restant dû, etc. — sont souvent réparties sur des pages au milieu ou à la fin du document, pas seulement la première). Réponds UNIQUEMENT par un objet JSON valide, sans texte autour, sans backticks. Mets null UNIQUEMENT si la valeur est réellement absente après avoir lu toutes les pages. Montants en euros (nombres entiers, sans espaces ni symboles). Dates au format JJ/MM/AAAA.`;
+  if(cat==='pret'){
+    const auj = new Date();
+    const ajStr = String(auj.getDate()).padStart(2,'0')+'/'+String(auj.getMonth()+1).padStart(2,'0')+'/'+auj.getFullYear();
+    return head + `
+Type de document : offre / contrat / TABLEAU D'AMORTISSEMENT de PRÊT BANCAIRE.
+La date d'aujourd'hui est le ${ajStr}. Lis le document avec soin et DÉDUIS les valeurs qui ne sont pas écrites explicitement :
+- "capital" : le capital emprunté au départ (montant initial du prêt).
+- "mensualite" : l'échéance mensuelle (capital + intérêts), HORS assurance si l'assurance est sur une colonne séparée.
+- "assurance_mensuelle" : la cotisation d'assurance emprunteur par mois (colonne « assurance » du tableau, ou ligne dédiée). Si elle est incluse dans l'échéance globale, indique l'échéance totale dans "mensualite" et mets "assurance_mensuelle" à null.
+- "taux" : le taux d'intérêt nominal annuel (%).
+- "date_debut" : la date de la PREMIÈRE échéance du tableau (1ʳᵉ ligne).
+- "date_fin" : la date de la DERNIÈRE échéance du tableau (dernière ligne).
+- "duree_mois" : le NOMBRE de mensualités. Si non écrit, DÉDUIS-le (nombre de lignes du tableau, ou écart en mois entre date_debut et date_fin).
+- "crd" : le CAPITAL RESTANT DÛ à la date d'AUJOURD'HUI (${ajStr}). Dans un tableau d'amortissement, repère la ligne de la dernière échéance DÉJÀ PASSÉE (la plus récente avant ou égale à ${ajStr}) et lis la colonne « capital restant dû » / « solde » / « capital restant » de cette ligne. Ne prends NI le capital initial, NI la dernière ligne du tableau. Si tu ne peux pas localiser la date, prends la ligne dont le capital restant est cohérent avec le temps écoulé depuis date_debut.
+- "garantie" : type de garantie (hypothèque, caution, nantissement, PPD…) si mentionné, sinon null.
+- "numero_pret" : référence/numéro du prêt si présent.
+JSON attendu (mets null si vraiment introuvable, mais EFFORCE-toi de déduire) :
 { "type_doc":"pret",
   "banque": "nom de la banque",
   "capital": nombre,
@@ -2134,7 +2148,8 @@ JSON attendu :
   "crd": nombre,
   "numero_pret": "référence du prêt",
   "garantie": "hypothèque / caution / nantissement…",
-  "titre": "intitulé court lisible du document (ex : Prêt BNP 380 000€)" }`;
+  "titre": "intitulé court lisible (ex : Prêt BNP 380 000€)" }`;
+  }
   if(cat==='bail') return head + `
 Type de document : BAIL commercial OU AVENANT à un bail. DÉTERMINE lequel.
 ATTENTION au loyer : certains baux prévoient un loyer MODÉRÉ la première année puis un loyer de base ensuite. Dans "loyer_mensuel", mets le loyer de BASE (plein, hors réduction de 1ʳᵉ année).
@@ -2261,11 +2276,16 @@ JSON attendu :
 // Réutilise /api/ia comme pour les bilans (conversion PDF → images via pdf.js).
 async function batExtractDoc(cat, file, batNom){
   if((file.name.split('.').pop()||'').toLowerCase()!=='pdf'){ return {error:'Pas un PDF — lecture auto impossible.'}; }
-  // Paliers : on tente lisible/lourd d'abord, puis on compresse si /api/ia refuse (413/trop gros).
+  // On lit TOUTES les pages du document (jamais de troncature) : un bail détaille la
+  // surface/dépôt/charges en pages 4-6, un tableau d'amortissement étale le capital
+  // restant dû sur de nombreuses pages. Si le lot est trop lourd pour /api/ia, on baisse
+  // la RÉSOLUTION (pas le nombre de pages) jusqu'à ce que ça passe.
+  const ALL = 80; // lit toutes les pages (plafond haut de sécurité pour ne pas figer le navigateur)
   const paliers = [
-    {pages:10, maxWidth:1500, quality:0.72},
-    {pages:8,  maxWidth:1200, quality:0.60},
-    {pages:6,  maxWidth:1000, quality:0.50}
+    {pages:ALL, maxWidth:1400, quality:0.68},
+    {pages:ALL, maxWidth:1150, quality:0.55},
+    {pages:ALL, maxWidth:950,  quality:0.45},
+    {pages:ALL, maxWidth:800,  quality:0.38}
   ];
   let lastErr = '';
   for(let i=0;i<paliers.length;i++){
@@ -2279,7 +2299,7 @@ async function batExtractDoc(cat, file, batNom){
       const r = await fetch('/api/ia', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload });
       if(!r.ok){
         lastErr = 'Serveur IA : HTTP '+r.status;
-        // 413 = trop gros → on tente le palier suivant (plus compressé)
+        // 413/400 = trop gros → palier suivant (résolution plus basse, mêmes pages)
         if(r.status===413 || r.status===400){ continue; }
         return {error:lastErr};
       }
