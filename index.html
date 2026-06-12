@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 22h06
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 22h15
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -2391,7 +2391,7 @@ async function batDocHandle(cat, files){
     };
     b.docs = b.docs || [];
     b.docs.push(doc);
-    if(data) batApplyExtract(b, cat, data);
+    if(data) batApplyExtract(b, cat, data, {srcPath:up.dropbox_path});
     await saveBatToDb(b);
     recomputeBat();
     if(statusEl){
@@ -2423,7 +2423,7 @@ async function batDocRelire(globalIdx, cat){
       d.titre = res.titre || d.titre;
       d.sous_type = res.type_doc || d.sous_type;
       d.date_doc = res.date_effet||res.date_achat||res.date_facture||res.date_echeance||res.date_limite_paiement||d.date_doc;
-      batApplyExtract(b, cat, res);
+      batApplyExtract(b, cat, res, {force:true, srcPath:d.dropbox_path});
       await saveBatToDb(b);
       if(statusEl) statusEl.innerHTML = '<span style="color:var(--success);">✓ Relu. Champs mis à jour.</span>';
     } else {
@@ -2435,83 +2435,84 @@ async function batDocRelire(globalIdx, cat){
   batSub(cat);
 }
 
-// Applique les données extraites par l'IA aux champs de la catégorie (complète sans écraser).
-function batApplyExtract(b, cat, d){
-  const setIf = (obj,key,val)=>{ if(val!=null && val!=='' && (obj[key]==null||obj[key]==='')) obj[key]=val; };
+// Applique les données extraites par l'IA aux champs de la catégorie.
+// opts.force (relire) : ÉCRASE les champs avec la nouvelle lecture (corrige les valeurs
+//   fausses/partielles), au lieu de seulement compléter les cases vides.
+// opts.srcPath : chemin Dropbox du document source, pour taguer les entrées de liste
+//   (prêt, taxe, syndic, loyer) et pouvoir les remplacer proprement à la relecture.
+function batApplyExtract(b, cat, d, opts){
+  opts = opts || {};
+  const force = !!opts.force;
+  const src = opts.srcPath || null;
+  // set : en mode force on écrase (si nouvelle valeur non vide), sinon on ne remplit que le vide
+  const set = (obj,key,val)=>{
+    if(val==null || val==='') return;
+    if(force || obj[key]==null || obj[key]==='') obj[key]=val;
+  };
   if(cat==='acq'){
     b.acq = b.acq || {};
-    setIf(b.acq,'date', d.date_achat); setIf(b.acq,'prix', d.prix_achat);
-    setIf(b.acq,'notaire', d.frais_notaire); setIf(b.acq,'etude', d.etude_notariale);
-    setIf(b.acq,'ref', d.reference_acte);
+    set(b.acq,'date', d.date_achat); set(b.acq,'prix', d.prix_achat);
+    set(b.acq,'notaire', d.frais_notaire); set(b.acq,'etude', d.etude_notariale);
+    set(b.acq,'ref', d.reference_acte); set(b.acq,'vendeur', d.vendeur);
   } else if(cat==='bail'){
     b.bail = b.bail || {};
     if(d.type_doc==='avenant'){
       if(d.loyer_mensuel!=null) b.bail.loyer_mensuel = d.loyer_mensuel;
-      setIf(b.bail,'indexation', d.indexation);
+      set(b.bail,'indexation', d.indexation);
     } else {
-      setIf(b.bail,'locataire', d.locataire); setIf(b.bail,'loyer_mensuel', d.loyer_mensuel);
-      setIf(b.bail,'surface', d.surface); setIf(b.bail,'depot', d.depot_garantie);
-      setIf(b.bail,'charges', d.charges); setIf(b.bail,'indexation', d.indexation);
-      setIf(b.bail,'effet', d.date_effet); setIf(b.bail,'fin', d.date_fin);
-      setIf(b.bail,'revision', d.date_revision);
+      set(b.bail,'locataire', d.locataire); set(b.bail,'loyer_mensuel', d.loyer_mensuel);
+      set(b.bail,'surface', d.surface); set(b.bail,'depot', d.depot_garantie);
+      set(b.bail,'charges', d.charges); set(b.bail,'indexation', d.indexation);
+      set(b.bail,'effet', d.date_effet); set(b.bail,'fin', d.date_fin);
+      set(b.bail,'revision', d.date_revision);
     }
   } else if(cat==='pret'){
     b.prets = b.prets || [];
-    const exists = b.prets.some(p => (p.banque||'')===(d.banque||'') && Number(p.capital)===Number(d.capital) && d.banque);
-    if(!exists){
-      b.prets.push({
-        banque: d.banque||'',
-        capital: (d.capital!=null?d.capital:null),
-        mensualite: (d.mensualite!=null?d.mensualite:null),
-        taux: (d.taux!=null?d.taux:null),
-        duree_mois: (d.duree_mois!=null?d.duree_mois:null),
-        debut: d.date_debut||'',
-        fin: d.date_fin||'',
-        crd: (d.crd!=null?d.crd:null),
-        numero: d.numero_pret||'',
-        assurance: (d.assurance_mensuelle!=null?d.assurance_mensuelle:null),
-        garantie: d.garantie||''
-      });
-    }
+    const neuf = {
+      banque: d.banque||'', capital:(d.capital!=null?d.capital:null), mensualite:(d.mensualite!=null?d.mensualite:null),
+      taux:(d.taux!=null?d.taux:null), duree_mois:(d.duree_mois!=null?d.duree_mois:null), debut:d.date_debut||'',
+      fin:d.date_fin||'', crd:(d.crd!=null?d.crd:null), numero:d.numero_pret||'',
+      assurance:(d.assurance_mensuelle!=null?d.assurance_mensuelle:null), garantie:d.garantie||'', _src:src
+    };
+    // En relecture : on remplace l'entrée issue du même document. Sinon anti-doublon banque+capital.
+    let idx = src ? b.prets.findIndex(p=>p._src===src) : -1;
+    if(idx<0) idx = b.prets.findIndex(p=>(p.banque||'')===(neuf.banque||'') && Number(p.capital)===Number(neuf.capital) && neuf.banque);
+    if(idx>=0) b.prets[idx] = neuf; else b.prets.push(neuf);
   } else if(cat==='taxe'){
     b.taxes = b.taxes || [];
-    const an = d.annee!=null?String(d.annee):'';
-    const exists = b.taxes.some(t => String(t.annee)===an && an);
-    if(!exists && (d.annee!=null||d.montant!=null)){
-      b.taxes.push({ annee:(d.annee!=null?d.annee:null), montant:(d.montant!=null?d.montant:null), base:(d.base_imposition!=null?d.base_imposition:null),
-        commune:d.commune||'', echeance:d.date_limite_paiement||'' });
+    if(d.annee!=null||d.montant!=null){
+      const neuf = { annee:(d.annee!=null?d.annee:null), montant:(d.montant!=null?d.montant:null), base:(d.base_imposition!=null?d.base_imposition:null),
+        commune:d.commune||'', echeance:d.date_limite_paiement||'', refacturee:false, _src:src };
+      let idx = src ? b.taxes.findIndex(t=>t._src===src) : -1;
+      if(idx<0) idx = b.taxes.findIndex(t=>String(t.annee)===String(neuf.annee) && neuf.annee!=null);
+      if(idx>=0){ neuf.refacturee = b.taxes[idx].refacturee; b.taxes[idx]=neuf; } else b.taxes.push(neuf);
     }
   } else if(cat==='syndic'){
     b.syndic = b.syndic || {appels:[]};
     if(!b.syndic.appels) b.syndic.appels = [];
-    setIf(b.syndic,'nom', d.syndic);
+    set(b.syndic,'nom', d.syndic);
     if(d.montant_appel!=null || d.periode){
-      b.syndic.appels.push({ periode:d.periode||'', montant:(d.montant_appel!=null?d.montant_appel:null),
-        annee:(d.annee!=null?d.annee:null), nature:d.nature||'', echeance:d.date_echeance||'', refacture:true });
+      const neuf = { periode:d.periode||'', montant:(d.montant_appel!=null?d.montant_appel:null),
+        annee:(d.annee!=null?d.annee:null), nature:d.nature||'', echeance:d.date_echeance||'', refacture:true, _src:src };
+      let idx = src ? b.syndic.appels.findIndex(a=>a._src===src) : -1;
+      if(idx<0) idx = b.syndic.appels.findIndex(a=>(a.periode||'')===neuf.periode && Number(a.montant)===Number(neuf.montant) && neuf.periode);
+      if(idx>=0){ neuf.refacture = b.syndic.appels[idx].refacture; b.syndic.appels[idx]=neuf; } else b.syndic.appels.push(neuf);
     }
   } else if(cat==='factu'){
     b.loyers = b.loyers || [];
-    const per = d.periode||'';
-    // anti-doublon : même période + même total → on ne ré-ajoute pas
-    const exists = b.loyers.some(f => (f.periode||'')===per && Number(f.total_ttc||f.montant)===Number(d.total_ttc!=null?d.total_ttc:d.total_ht));
-    if(!exists){
-      b.loyers.push({
-        periode: per,
-        loyer_hc: (d.loyer_hc!=null?d.loyer_hc:null),
-        provision_charges: (d.provision_charges!=null?d.provision_charges:null),
-        provision_taxe: (d.provision_taxe_fonciere!=null?d.provision_taxe_fonciere:null),
-        autres: Array.isArray(d.autres_lignes)?d.autres_lignes:[],
-        total_ht: (d.total_ht!=null?d.total_ht:null),
-        tva: (d.tva!=null?d.tva:null),
-        total_ttc: (d.total_ttc!=null?d.total_ttc:null),
-        // "montant" = le LOYER réel pour toi (ce qui te revient), pas le total
-        montant: (d.loyer_hc!=null?d.loyer_hc:(d.total_ht!=null?d.total_ht:null)),
-        date: d.date_facture||'',
-        numero: d.numero||'',
-        locataire: d.locataire||'',
-        paye: false
-      });
-    }
+    const neuf = {
+      periode:d.periode||'', loyer_hc:(d.loyer_hc!=null?d.loyer_hc:null),
+      provision_charges:(d.provision_charges!=null?d.provision_charges:null),
+      provision_taxe:(d.provision_taxe_fonciere!=null?d.provision_taxe_fonciere:null),
+      autres:Array.isArray(d.autres_lignes)?d.autres_lignes:[],
+      total_ht:(d.total_ht!=null?d.total_ht:null), tva:(d.tva!=null?d.tva:null),
+      total_ttc:(d.total_ttc!=null?d.total_ttc:null),
+      montant:(d.loyer_hc!=null?d.loyer_hc:(d.total_ht!=null?d.total_ht:null)),
+      date:d.date_facture||'', numero:d.numero||'', locataire:d.locataire||'', paye:false, _src:src
+    };
+    let idx = src ? b.loyers.findIndex(f=>f._src===src) : -1;
+    if(idx<0) idx = b.loyers.findIndex(f=>(f.periode||'')===neuf.periode && Number(f.total_ttc||f.montant)===Number(neuf.total_ttc!=null?neuf.total_ttc:neuf.total_ht));
+    if(idx>=0){ neuf.paye = b.loyers[idx].paye; b.loyers[idx]=neuf; } else b.loyers.push(neuf);
   }
   // caution / edl / diag / assur : pas de champs dédiés — les données extraites restent
   // dans le document lui-même (b.docs[].extrait) et sont affichées par batDocZone.
