@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 16h37
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 17h32
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -902,15 +902,23 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <button class="btn bat-sub active" data-sub="acq" onclick="batSub('acq')">🏠 Acquisition & notaire</button>
       <button class="btn bat-sub" data-sub="pret" onclick="batSub('pret')">🏦 Prêt bancaire</button>
       <button class="btn bat-sub" data-sub="bail" onclick="batSub('bail')">📄 Locataire & bail</button>
+      <button class="btn bat-sub" data-sub="caution" onclick="batSub('caution')">🛡 Cautionnement</button>
+      <button class="btn bat-sub" data-sub="edl" onclick="batSub('edl')">📋 État des lieux</button>
+      <button class="btn bat-sub" data-sub="diag" onclick="batSub('diag')">🔬 Diagnostics</button>
+      <button class="btn bat-sub" data-sub="assur" onclick="batSub('assur')">☂ Assurances</button>
       <button class="btn bat-sub" data-sub="factu" onclick="batSub('factu')">🧾 Facturation loyers</button>
       <button class="btn bat-sub" data-sub="taxe" onclick="batSub('taxe')">🏛 Taxe foncière</button>
       <button class="btn bat-sub" data-sub="syndic" onclick="batSub('syndic')">👥 Syndic</button>
-      <button class="btn bat-sub" data-sub="docs" onclick="batSub('docs')">📎 Documents</button>
+      <button class="btn bat-sub" data-sub="docs" onclick="batSub('docs')">📎 Autres documents</button>
     </div>
 
     <div id="bat-sub-acq" class="bat-pane"></div>
     <div id="bat-sub-pret" class="bat-pane" style="display:none;"></div>
     <div id="bat-sub-bail" class="bat-pane" style="display:none;"></div>
+    <div id="bat-sub-caution" class="bat-pane" style="display:none;"></div>
+    <div id="bat-sub-edl" class="bat-pane" style="display:none;"></div>
+    <div id="bat-sub-diag" class="bat-pane" style="display:none;"></div>
+    <div id="bat-sub-assur" class="bat-pane" style="display:none;"></div>
     <div id="bat-sub-factu" class="bat-pane" style="display:none;"></div>
     <div id="bat-sub-taxe" class="bat-pane" style="display:none;"></div>
     <div id="bat-sub-syndic" class="bat-pane" style="display:none;"></div>
@@ -1265,7 +1273,7 @@ function batSub(key) {
   const pane = document.getElementById('bat-sub-'+key);
   if(pane) pane.style.display='block';
   const b = batiments.find(x=>x.id===currentBat); if(!b) return;
-  ({acq:renderAcq, pret:renderPret, bail:renderBail, factu:renderFactu, taxe:renderTaxe, syndic:renderSyndic, docs:renderDocs}[key])(b);
+  ({acq:renderAcq, pret:renderPret, bail:renderBail, caution:renderCaution, edl:renderEdl, diag:renderDiag, assur:renderAssur, factu:renderFactu, taxe:renderTaxe, syndic:renderSyndic, docs:renderDocs}[key])(b);
 }
 
 // petit utilitaire de champ formulaire
@@ -1279,7 +1287,7 @@ function field(label, id, val, type, ph) {
 // ===== ACQUISITION & NOTAIRE =====
 function renderAcq(b) {
   const a = b.acq;
-  document.getElementById('bat-sub-acq').innerHTML = `
+  document.getElementById('bat-sub-acq').innerHTML = batDocZone(b,'acq') + `
   <div class="card">
     <div class="card-title">🏠 Acquisition & frais de notaire</div>
     <div style="display:flex;flex-wrap:wrap;gap:12px;">
@@ -1303,11 +1311,40 @@ async function saveAcq() {
   flash('acq');
 }
 
+// ===== CAUTIONNEMENT (documents) =====
+function renderCaution(b){
+  document.getElementById('bat-sub-caution').innerHTML = batDocZone(b,'caution') + `
+  <div class="card"><div class="card-title">🛡 Cautionnement</div>
+    <div style="font-size:13px;color:var(--text2);">Dépose ici les actes de cautionnement qui garantissent le bail (caution solidaire d'une société ou d'une personne). Les infos clés (caution, montant garanti, locataire garanti) sont lues automatiquement et affichées sous chaque document.</div>
+  </div>`;
+}
+// ===== ÉTAT DES LIEUX (documents) =====
+function renderEdl(b){
+  document.getElementById('bat-sub-edl').innerHTML = batDocZone(b,'edl') + `
+  <div class="card"><div class="card-title">📋 État des lieux</div>
+    <div style="font-size:13px;color:var(--text2);">Dépose les états des lieux d'entrée et de sortie. La nature (entrée/sortie), la date et les observations sont lues automatiquement.</div>
+  </div>`;
+}
+// ===== DIAGNOSTICS (documents) =====
+function renderDiag(b){
+  document.getElementById('bat-sub-diag').innerHTML = batDocZone(b,'diag') + `
+  <div class="card"><div class="card-title">🔬 Diagnostics</div>
+    <div style="font-size:13px;color:var(--text2);">Dépose les diagnostics : DPE, amiante, état des risques (ERP), termites, plomb, électricité, gaz… La nature, la date de validité et le résultat sont lus automatiquement.</div>
+  </div>`;
+}
+// ===== ASSURANCES (documents) =====
+function renderAssur(b){
+  document.getElementById('bat-sub-assur').innerHTML = batDocZone(b,'assur') + `
+  <div class="card"><div class="card-title">☂ Assurances</div>
+    <div style="font-size:13px;color:var(--text2);">Dépose les attestations et contrats d'assurance (PNO du propriétaire, multirisque du locataire, RC…). L'assureur, le type, la prime et les dates sont lus automatiquement. Le montant de prime servira au calcul du coût du bâtiment.</div>
+  </div>`;
+}
+
 // ===== PRET BANCAIRE (liste) =====
 function renderPret(b) {
   const rows = (b.prets||[]).map((p,i)=>`
     <tr><td><strong>${p.banque||'—'}</strong></td><td class="r">${eurB(p.capital)}</td><td class="r">${eurB(p.mensualite)}</td><td class="r">${p.taux!=null?p.taux+'%':'—'}</td><td class="r">${p.fin||'—'}</td><td class="r">${eurB(p.crd)}</td><td class="r"><span style="cursor:pointer;color:var(--danger);" onclick="delPret(${i})">×</span></td></tr>`).join('');
-  document.getElementById('bat-sub-pret').innerHTML = `
+  document.getElementById('bat-sub-pret').innerHTML = batDocZone(b,'pret') + `
   <div class="card">
     <div class="card-title">🏦 Prêts bancaires</div>
     <table class="tbl"><thead><tr><th>Banque</th><th class="r">Capital</th><th class="r">Mens.</th><th class="r">Taux</th><th class="r">Fin</th><th class="r">CRD</th><th></th></tr></thead>
@@ -1339,7 +1376,7 @@ async function delPret(i) {
 // ===== LOCATAIRE & BAIL =====
 function renderBail(b) {
   const l = b.bail;
-  document.getElementById('bat-sub-bail').innerHTML = `
+  document.getElementById('bat-sub-bail').innerHTML = batDocZone(b,'bail') + `
   <div class="card">
     <div class="card-title">📄 Locataire & bail commercial</div>
     <div style="display:flex;flex-wrap:wrap;gap:12px;">
@@ -1374,7 +1411,7 @@ function renderFactu(b) {
     <tr class="${f.paye?'ok':''}"><td>${f.periode||'—'}</td><td class="r">${eurB(f.montant)}</td><td class="r">${f.date_emission||'—'}</td><td class="r">${f.paye?'<span class="tag tag-g">Payé</span>':'<span class="tag tag-w">En attente</span>'}</td><td class="r"><span style="cursor:pointer;color:var(--accent);" onclick="togFactu(${i})">↻</span> <span style="cursor:pointer;color:var(--danger);" onclick="delFactu(${i})">×</span></td></tr>`).join('');
   const total = (b.loyers||[]).reduce((s,f)=>s+(f.montant||0),0);
   const encaisse = (b.loyers||[]).filter(f=>f.paye).reduce((s,f)=>s+(f.montant||0),0);
-  document.getElementById('bat-sub-factu').innerHTML = `
+  document.getElementById('bat-sub-factu').innerHTML = batDocZone(b,'factu') + `
   <div class="card">
     <div class="card-title">🧾 Facturation des loyers au locataire</div>
     <div class="g2" style="margin-bottom:10px;">
@@ -1412,7 +1449,7 @@ async function delFactu(i) {
 function renderTaxe(b) {
   const rows = (b.taxes||[]).map((t,i)=>`
     <tr><td>${t.annee||'—'}</td><td class="r">${eurB(t.montant)}</td><td class="r">${t.refacturee?'<span class="tag tag-b">Refacturée locataire</span>':'<span class="tag tag-gr">À ta charge</span>'}</td><td class="r"><span style="cursor:pointer;color:var(--danger);" onclick="delTaxe(${i})">×</span></td></tr>`).join('');
-  document.getElementById('bat-sub-taxe').innerHTML = `
+  document.getElementById('bat-sub-taxe').innerHTML = batDocZone(b,'taxe') + `
   <div class="card">
     <div class="card-title">🏛 Taxe foncière</div>
     <table class="tbl"><thead><tr><th>Année</th><th class="r">Montant</th><th class="r">Prise en charge</th><th></th></tr></thead>
@@ -1444,7 +1481,7 @@ function renderSyndic(b) {
   const rows = (s.appels||[]).map((a,i)=>`
     <tr><td>${a.periode||'—'}</td><td class="r">${eurB(a.montant)}</td><td class="r">${a.date||'—'}</td><td class="r"><span style="cursor:pointer;color:var(--danger);" onclick="delSyndicAppel(${i})">×</span></td></tr>`).join('');
   const total = (s.appels||[]).reduce((x,a)=>x+(a.montant||0),0);
-  document.getElementById('bat-sub-syndic').innerHTML = `
+  document.getElementById('bat-sub-syndic').innerHTML = batDocZone(b,'syndic') + `
   <div class="card">
     <div class="card-title">👥 Syndic de copropriété</div>
     <div style="display:flex;flex-wrap:wrap;gap:12px;">
@@ -1636,6 +1673,361 @@ async function pushDropbox(blob, batNom, cat, fileName) {
     throw new Error(detail || ('HTTP '+res.status));
   }
   return true;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  DOCUMENTS DES BÂTIMENTS — dépôt Dropbox + lien d'aperçu + lecture IA
+//  Rangement identique à Dropbox : /Batiments/<bâtiment>/<Catégorie>/<fichier>
+//  Chaque catégorie est une LISTE (plusieurs baux/avenants, plusieurs prêts, etc.)
+//  Les documents sont stockés dans b.docs[] avec { cat, nom, url, dropbox_path, date, ... }
+// ════════════════════════════════════════════════════════════════════════
+
+// Libellés lisibles des catégories (= dossiers Dropbox)
+const BAT_CATS = {
+  acq:    'Acquisition_Notaire',
+  pret:   'Pret_Bancaire',
+  bail:   'Locataire_Bail',
+  caution:'Cautionnement',
+  edl:    'Etat_des_lieux',
+  diag:   'Diagnostics',
+  assur:  'Assurances',
+  factu:  'Factures_Loyers',
+  taxe:   'Taxe_Fonciere',
+  syndic: 'Syndic',
+  autre:  'Autres'
+};
+const BAT_CAT_LABEL = {
+  acq:'Acquisition & notaire', pret:'Prêt bancaire', bail:'Locataire & bail',
+  caution:'Cautionnement', edl:'État des lieux', diag:'Diagnostics',
+  assur:'Assurances', factu:'Factures / quittances', taxe:'Taxe foncière',
+  syndic:'Syndic', autre:'Autres documents'
+};
+
+// Envoie un fichier dans Dropbox (catégorie du bâtiment) et renvoie {dropbox_path, url}.
+async function batUploadDoc(batNom, cat, file){
+  const tok = await dbxToken();
+  const clean = s => (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim();
+  const catFolder = BAT_CATS[cat] || 'Autres';
+  const dateStr = new Date().toISOString().slice(0,10);
+  const ext = (file.name.split('.').pop()||'pdf').toLowerCase();
+  const baseName = clean(file.name.replace(/\.[^.]+$/,''));
+  const niceName = `${baseName}_${dateStr}.${ext}`;
+  const path = `${DROPBOX_FOLDER}/${clean(batNom)}/${catFolder}/${niceName}`;
+  const up = await fetch('https://content.dropboxapi.com/2/files/upload', {
+    method:'POST',
+    headers:{'Authorization':'Bearer '+tok,'Dropbox-API-Arg':JSON.stringify({path, mode:'add', autorename:true, mute:false}),'Content-Type':'application/octet-stream'},
+    body:file
+  });
+  if(!up.ok){ let d=''; try{ d=(await up.json()).error_summary||''; }catch(e){} throw new Error(d||('HTTP '+up.status)); }
+  const meta = await up.json();
+  const realPath = meta.path_lower || path;
+  const url = await dbxShareLink(tok, realPath);
+  return { dropbox_path: realPath, url, nom: niceName, ext };
+}
+
+// Prompts d'extraction IA par catégorie de document bâtiment.
+// Chaque prompt renvoie un JSON ciblé sur la catégorie.
+function batPromptFor(cat, batNom){
+  const head = `Tu es un assistant immobilier français. Voici un document concernant le bien immobilier « ${batNom||'(bâtiment)'} ». Lis-le attentivement. Réponds UNIQUEMENT par un objet JSON valide, sans texte autour, sans backticks. Mets null si une valeur est introuvable. Montants en euros (nombres entiers, sans espaces ni symboles). Dates au format JJ/MM/AAAA.`;
+  if(cat==='pret') return head + `
+Type de document : offre / contrat / tableau d'amortissement de PRÊT BANCAIRE.
+JSON attendu :
+{ "type_doc":"pret",
+  "banque": "nom de la banque",
+  "capital": nombre,
+  "mensualite": nombre,
+  "taux": nombre,
+  "assurance_mensuelle": nombre,
+  "duree_mois": nombre,
+  "date_debut": "JJ/MM/AAAA",
+  "date_fin": "JJ/MM/AAAA",
+  "crd": nombre,
+  "numero_pret": "référence du prêt",
+  "garantie": "hypothèque / caution / nantissement…",
+  "titre": "intitulé court lisible du document (ex : Prêt BNP 380 000€)" }`;
+  if(cat==='bail') return head + `
+Type de document : BAIL commercial OU AVENANT à un bail. DÉTERMINE lequel.
+ATTENTION au loyer : certains baux prévoient un loyer MODÉRÉ la première année puis un loyer de base ensuite. Dans "loyer_mensuel", mets le loyer de BASE (plein, hors réduction de 1ʳᵉ année).
+JSON attendu :
+{ "type_doc": "bail" ou "avenant",
+  "locataire": "raison sociale du locataire",
+  "bailleur": "raison sociale du bailleur",
+  "loyer_mensuel": nombre,
+  "loyer_annuel": nombre,
+  "surface": nombre,
+  "depot_garantie": nombre,
+  "charges": nombre,
+  "provision_taxe_fonciere": nombre,
+  "indexation": "indice de révision (ILC, ILAT, ICC…) + trimestre/valeur de base si indiqués",
+  "date_effet": "JJ/MM/AAAA",
+  "date_fin": "JJ/MM/AAAA",
+  "duree": "ex : 9 ans (3-6-9)",
+  "date_revision": "périodicité ou date de révision",
+  "objet_avenant": "si c'est un avenant : ce qu'il change (sinon null)",
+  "titre": "intitulé court lisible (ex : Bail HAPPE SW 2019 ou Avenant loyer 2023)" }`;
+  if(cat==='taxe') return head + `
+Type de document : avis de TAXE FONCIÈRE.
+JSON attendu :
+{ "type_doc":"taxe",
+  "annee": nombre,
+  "montant": nombre,
+  "base_imposition": nombre,
+  "commune": "commune",
+  "reference_cadastrale": "référence si présente",
+  "date_limite_paiement": "JJ/MM/AAAA",
+  "titre": "intitulé court (ex : Taxe foncière 2025)" }`;
+  if(cat==='syndic') return head + `
+Type de document : appel de fonds / relevé / PV d'AG de SYNDIC de copropriété.
+JSON attendu :
+{ "type_doc":"syndic",
+  "syndic": "nom du syndic / cabinet",
+  "periode": "trimestre ou année concernée",
+  "montant_appel": nombre,
+  "annee": nombre,
+  "date_echeance": "JJ/MM/AAAA",
+  "nature": "appel de fonds courant / travaux / régularisation…",
+  "titre": "intitulé court (ex : Syndic T1 2025)" }`;
+  if(cat==='factu') return head + `
+Type de document : QUITTANCE ou FACTURE de loyer émise au locataire.
+JSON attendu :
+{ "type_doc":"facture_loyer",
+  "locataire": "locataire",
+  "periode": "mois/période concernée (ex : Janvier 2025)",
+  "montant_loyer_hc": nombre,
+  "montant_charges": nombre,
+  "montant_total": nombre,
+  "date_facture": "JJ/MM/AAAA",
+  "numero": "numéro de facture/quittance",
+  "titre": "intitulé court (ex : Loyer janvier 2025)" }`;
+  if(cat==='caution') return head + `
+Type de document : ACTE DE CAUTIONNEMENT (garantie d'un bail commercial).
+JSON attendu :
+{ "type_doc":"cautionnement",
+  "caution": "nom de la personne ou société qui se porte caution",
+  "caution_representant": "représentant de la caution si société",
+  "locataire_garanti": "le locataire dont les dettes sont garanties (PRENEUR)",
+  "bailleur": "le bailleur bénéficiaire (BAILLEUR)",
+  "montant_cautionne": nombre,
+  "duree": "durée de l'engagement (ex : durée du bail 2019-2028)",
+  "type_caution": "solidaire / simple",
+  "date_acte": "JJ/MM/AAAA",
+  "titre": "intitulé court (ex : Caution MVM 270 000€)" }`;
+  if(cat==='edl') return head + `
+Type de document : ÉTAT DES LIEUX (entrée ou sortie).
+JSON attendu :
+{ "type_doc":"etat_des_lieux",
+  "nature": "entrée" ou "sortie",
+  "date_edl": "JJ/MM/AAAA",
+  "locataire": "locataire concerné",
+  "surface": nombre,
+  "observations": "résumé court de l'état général / réserves notables",
+  "titre": "intitulé court (ex : EDL entrée 2019)" }`;
+  if(cat==='diag') return head + `
+Type de document : DIAGNOSTIC immobilier (DPE, amiante, ERP/état des risques, termites, plomb…).
+JSON attendu :
+{ "type_doc":"diagnostic",
+  "nature_diagnostic": "DPE / Amiante / ERP / Termites / Plomb / Électricité / Gaz…",
+  "date_diagnostic": "JJ/MM/AAAA",
+  "date_validite": "JJ/MM/AAAA ou durée de validité",
+  "resultat": "résultat principal (ex : DPE classe D, présence/absence amiante, zone sismicité…)",
+  "diagnostiqueur": "société ayant réalisé le diagnostic",
+  "titre": "intitulé court (ex : DPE 2019 classe D)" }`;
+  if(cat==='assur') return head + `
+Type de document : ATTESTATION ou CONTRAT d'ASSURANCE (du bailleur ou du locataire).
+JSON attendu :
+{ "type_doc":"assurance",
+  "assureur": "compagnie d'assurance",
+  "souscripteur": "qui a souscrit (bailleur ou locataire + nom)",
+  "type_assurance": "multirisque / PNO (propriétaire non occupant) / RC / dommages-ouvrage…",
+  "numero_police": "numéro de contrat/police",
+  "prime_annuelle": nombre,
+  "date_debut": "JJ/MM/AAAA",
+  "date_fin": "JJ/MM/AAAA",
+  "garanties": "résumé court des garanties",
+  "titre": "intitulé court (ex : Assurance PNO 2025)" }`;
+  // acq (acte notarié / acquisition)
+  return head + `
+Type de document : ACTE NOTARIÉ / document d'ACQUISITION.
+JSON attendu :
+{ "type_doc":"acquisition",
+  "date_achat": "JJ/MM/AAAA",
+  "prix_achat": nombre,
+  "frais_notaire": nombre,
+  "etude_notariale": "nom de l'étude / du notaire",
+  "reference_acte": "référence de l'acte",
+  "reference_cadastrale": "références cadastrales",
+  "vendeur": "vendeur",
+  "titre": "intitulé court (ex : Acte achat 2019)" }`;
+}
+
+// Lance l'extraction IA d'un PDF bâtiment et renvoie l'objet JSON (ou null).
+// Réutilise /api/ia comme pour les bilans (conversion PDF → images via pdf.js).
+async function batExtractDoc(cat, file, batNom){
+  if((file.name.split('.').pop()||'').toLowerCase()!=='pdf') return null; // IA seulement sur PDF
+  try {
+    const imgs = await pdfToImages(file, 8, {maxWidth:1500, quality:0.72}); // même util que les bilans
+    if(!imgs || !imgs.length) return null;
+    const content = imgs.map(d=>({type:'image', source:{type:'base64', media_type:'image/jpeg', data:d}}));
+    content.push({type:'text', text: batPromptFor(cat, batNom)});
+    const r = await fetch('/api/ia', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-5', max_tokens:1500, messages:[{role:'user', content}] })
+    });
+    if(!r.ok) return null;
+    const j = await r.json();
+    let txt = '';
+    if(j && Array.isArray(j.content)) txt = j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
+    else if(j && j.content && j.content[0] && j.content[0].text) txt = j.content[0].text;
+    txt = (txt||'').replace(/```json|```/g,'').trim();
+    const m = txt.match(/\{[\s\S]*\}/);
+    if(!m) return null;
+    return JSON.parse(m[0]);
+  } catch(e){ return null; }
+}
+
+// Construit la zone « documents de cette catégorie » : liste cliquable + dépôt.
+// Affichée en haut de chaque sous-onglet du bâtiment. Plusieurs docs par catégorie.
+function batDocZone(b, cat){
+  const docs = (b.docs||[]).filter(d => (d.cat||'autre')===cat);
+  const rows = docs.map((d)=>{
+    const gIdx = (b.docs||[]).indexOf(d); // index réel dans b.docs
+    const titre = d.titre || d.nom || 'Document';
+    const meta = [d.sous_type, d.date_doc].filter(Boolean).join(' · ');
+    // Résumé des infos extraites (utile pour les catégories sans formulaire dédié)
+    let resume = '';
+    const e = d.extrait;
+    if(e){
+      const bits = [];
+      if(cat==='caution'){ if(e.caution)bits.push('Caution : '+e.caution); if(e.montant_cautionne!=null)bits.push('Montant : '+eurB(e.montant_cautionne)); if(e.locataire_garanti)bits.push('Garantit : '+e.locataire_garanti); }
+      else if(cat==='edl'){ if(e.nature)bits.push('Nature : '+e.nature); if(e.date_edl)bits.push(e.date_edl); if(e.surface!=null)bits.push(e.surface+' m²'); }
+      else if(cat==='diag'){ if(e.nature_diagnostic)bits.push(e.nature_diagnostic); if(e.resultat)bits.push(e.resultat); if(e.date_validite)bits.push('Valide : '+e.date_validite); }
+      else if(cat==='assur'){ if(e.type_assurance)bits.push(e.type_assurance); if(e.assureur)bits.push(e.assureur); if(e.prime_annuelle!=null)bits.push('Prime : '+eurB(e.prime_annuelle)); if(e.date_fin)bits.push('Fin : '+e.date_fin); }
+      if(bits.length) resume = `<div style="font-size:11px;color:var(--text2);margin-top:2px;">${bits.join(' · ')}</div>`;
+    }
+    const ouvrir = d.url
+      ? `<a href="${d.url}" target="_blank" rel="noopener" class="btn" style="font-size:11px;padding:3px 9px;">📄 Ouvrir</a>`
+      : `<span style="font-size:11px;color:var(--text3);">lien indisponible</span>`;
+    const dbxBadge = d.dropbox_path ? `<span class="tag tag-g" style="font-size:10px;">Dropbox ✓</span>` : '';
+    return `<tr>
+      <td><strong>${titre}</strong>${meta?`<div style="font-size:11px;color:var(--text3);">${meta}</div>`:''}${resume}</td>
+      <td class="r" style="white-space:nowrap;">${dbxBadge} ${ouvrir} <span style="cursor:pointer;color:var(--danger);padding:0 4px;" title="Supprimer" onclick="batDocDelete(${gIdx})">×</span></td>
+    </tr>`;
+  }).join('');
+  const zoneId = 'batdrop-'+cat;
+  return `<div class="card" style="margin-bottom:12px;">
+    <div class="card-title">📎 Documents — ${BAT_CAT_LABEL[cat]||cat}</div>
+    <div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Glisse un PDF ici : il est sauvegardé dans Dropbox (<code>/Batiments/${(b.nom||'').replace(/[\/\\:*?"<>|]/g,'_')}/${BAT_CATS[cat]||'Autres'}/</code>), lu automatiquement, et les champs ci-dessous sont pré-remplis. Tu peux en déposer plusieurs (baux, avenants, plusieurs prêts…). Clique « Ouvrir » pour lire le document.</div></div>
+    <table class="tbl"><tbody>${rows||'<tr><td colspan="2" style="text-align:center;color:var(--text3);padding:10px;">Aucun document. Dépose le premier ci-dessous.</td></tr>'}</tbody></table>
+    <div id="${zoneId}" style="margin-top:10px;border:2px dashed var(--border);border-radius:10px;padding:16px;text-align:center;cursor:pointer;color:var(--text3);font-size:13px;"
+      onclick="document.getElementById('${zoneId}-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--accent)';"
+      ondragleave="this.style.borderColor='var(--border)';"
+      ondrop="event.preventDefault();this.style.borderColor='var(--border)';batDocHandle('${cat}', event.dataTransfer.files);">
+      📥 Glisse un PDF ici, ou clique pour choisir un fichier
+      <input id="${zoneId}-input" type="file" accept="application/pdf,image/*" multiple style="display:none;" onchange="batDocHandle('${cat}', this.files)">
+    </div>
+    <div id="batdrop-status-${cat}" style="font-size:12px;margin-top:8px;"></div>
+  </div>`;
+}
+
+// Dépôt + lecture + pré-remplissage pour une catégorie du bâtiment courant.
+async function batDocHandle(cat, files){
+  const b = batiments.find(x=>x.id===currentBat); if(!b){ alert('Ouvre un bâtiment d\'abord.'); return; }
+  if(!b.id){ await saveBatToDb(b); }
+  const statusEl = document.getElementById('batdrop-status-'+cat);
+  for(const f of Array.from(files||[])){
+    if(statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">📤 Envoi de '+f.name+' vers Dropbox…</span>';
+    let up;
+    try { up = await batUploadDoc(b.nom, cat, f); }
+    catch(e){ if(statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">Échec Dropbox : '+((e&&e.message)||'')+'</span>'; continue; }
+    if(statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">🤖 Lecture automatique de '+f.name+'…</span>';
+    let data = null;
+    try { data = await batExtractDoc(cat, f, b.nom); } catch(e){}
+    const doc = {
+      cat, nom: up.nom,
+      titre: (data && data.titre) ? data.titre : f.name.replace(/\.[^.]+$/,''),
+      sous_type: data ? (data.type_doc||'') : '',
+      date_doc: data ? (data.date_effet||data.date_achat||data.date_facture||data.date_echeance||data.date_limite_paiement||'') : '',
+      url: up.url, dropbox_path: up.dropbox_path, extrait: data || null,
+      created_at: new Date().toISOString()
+    };
+    b.docs = b.docs || [];
+    b.docs.push(doc);
+    if(data) batApplyExtract(b, cat, data);
+    await saveBatToDb(b);
+    recomputeBat();
+    if(statusEl){
+      statusEl.innerHTML = data
+        ? '<span style="color:var(--success);">✓ '+f.name+' ajouté et lu. Champs pré-remplis ci-dessous (vérifie et enregistre).</span>'
+        : '<span style="color:var(--warn);">✓ '+f.name+' ajouté et sauvegardé. Lecture auto indisponible — remplis les champs à la main.</span>';
+    }
+  }
+  batSub(cat);
+}
+
+// Applique les données extraites par l'IA aux champs de la catégorie (complète sans écraser).
+function batApplyExtract(b, cat, d){
+  const setIf = (obj,key,val)=>{ if(val!=null && val!=='' && (obj[key]==null||obj[key]==='')) obj[key]=val; };
+  if(cat==='acq'){
+    b.acq = b.acq || {};
+    setIf(b.acq,'date', d.date_achat); setIf(b.acq,'prix', d.prix_achat);
+    setIf(b.acq,'notaire', d.frais_notaire); setIf(b.acq,'etude', d.etude_notariale);
+    setIf(b.acq,'ref', d.reference_acte);
+  } else if(cat==='bail'){
+    b.bail = b.bail || {};
+    if(d.type_doc==='avenant'){
+      if(d.loyer_mensuel!=null) b.bail.loyer_mensuel = d.loyer_mensuel;
+      setIf(b.bail,'indexation', d.indexation);
+    } else {
+      setIf(b.bail,'locataire', d.locataire); setIf(b.bail,'loyer_mensuel', d.loyer_mensuel);
+      setIf(b.bail,'surface', d.surface); setIf(b.bail,'depot', d.depot_garantie);
+      setIf(b.bail,'charges', d.charges); setIf(b.bail,'indexation', d.indexation);
+      setIf(b.bail,'effet', d.date_effet); setIf(b.bail,'fin', d.date_fin);
+      setIf(b.bail,'revision', d.date_revision);
+    }
+  } else if(cat==='pret'){
+    b.prets = b.prets || [];
+    const exists = b.prets.some(p => (p.banque||'')===(d.banque||'') && Number(p.capital)===Number(d.capital) && d.banque);
+    if(!exists){
+      b.prets.push({ banque:d.banque||'', capital:(d.capital!=null?d.capital:null), mensualite:(d.mensualite!=null?d.mensualite:null),
+        taux:(d.taux!=null?d.taux:null), fin:(d.date_fin||(d.duree_mois?d.duree_mois+' mois':'')||''), crd:(d.crd!=null?d.crd:null),
+        numero:d.numero_pret||'', assurance:(d.assurance_mensuelle!=null?d.assurance_mensuelle:null) });
+    }
+  } else if(cat==='taxe'){
+    b.taxes = b.taxes || [];
+    const an = d.annee!=null?String(d.annee):'';
+    const exists = b.taxes.some(t => String(t.annee)===an && an);
+    if(!exists && (d.annee!=null||d.montant!=null)){
+      b.taxes.push({ annee:(d.annee!=null?d.annee:null), montant:(d.montant!=null?d.montant:null), base:(d.base_imposition!=null?d.base_imposition:null),
+        commune:d.commune||'', echeance:d.date_limite_paiement||'' });
+    }
+  } else if(cat==='syndic'){
+    b.syndic = b.syndic || {appels:[]};
+    if(!b.syndic.appels) b.syndic.appels = [];
+    setIf(b.syndic,'nom', d.syndic);
+    if(d.montant_appel!=null || d.periode){
+      b.syndic.appels.push({ periode:d.periode||'', montant:(d.montant_appel!=null?d.montant_appel:null),
+        annee:(d.annee!=null?d.annee:null), nature:d.nature||'', echeance:d.date_echeance||'' });
+    }
+  } else if(cat==='factu'){
+    b.loyers = b.loyers || [];
+    b.loyers.push({ periode:d.periode||'', montant:(d.montant_total!=null?d.montant_total:(d.montant_loyer_hc!=null?d.montant_loyer_hc:null)),
+      hc:(d.montant_loyer_hc!=null?d.montant_loyer_hc:null), charges:(d.montant_charges!=null?d.montant_charges:null), date:d.date_facture||'',
+      numero:d.numero||'', locataire:d.locataire||'' });
+  }
+  // caution / edl / diag / assur : pas de champs dédiés — les données extraites restent
+  // dans le document lui-même (b.docs[].extrait) et sont affichées par batDocZone.
+}
+
+// Retire un document de la liste (le fichier reste dans Dropbox).
+async function batDocDelete(globalIdx){
+  const b = batiments.find(x=>x.id===currentBat); if(!b) return;
+  const d = (b.docs||[])[globalIdx]; if(!d) return;
+  if(!confirm('Retirer « '+(d.titre||d.nom||'ce document')+' » de la liste ?\n\nLe fichier reste sauvegardé dans Dropbox.')) return;
+  const cat = d.cat || 'autre';
+  b.docs.splice(globalIdx,1);
+  await saveBatToDb(b);
+  batSub(cat);
 }
 
 // Bouton « → Dropbox » : re-télécharge le fichier depuis Supabase puis l'envoie à Dropbox.
@@ -3170,7 +3562,7 @@ RÈGLES :
 DEUX MODÈLES DE PRÉSENTATION possibles (la société a changé d'expert-comptable). Adapte-toi : un bilan peut être une liasse fiscale CERFA classique (formulaires 2050/2051/2052/2053 numérotés), OU une plaquette/présentation de cabinet avec des intitulés et une mise en page différents. Les chiffres sont les mêmes, seuls les libellés et l'ordre changent. Détecte la présentation et renseigne "modele_presentation" : "liasse_cerfa" (formulaires numérotés 2050…) ou "plaquette_cabinet" (présentation libre par un cabinet). Indique aussi le nom du cabinet/expert-comptable s'il apparaît (en bas de page, mention « établi par… ») dans "cabinet".
 
 COÛT DU DIRIGEANT — c'est une priorité. Une liasse contient en général un COMPTE DE RÉSULTAT DÉTAILLÉ (souvent en fin de document, parfois intitulé « détail des charges », « charges externes détaillées » ou compte de résultat « développé ») où CHAQUE charge est ventilée par compte du plan comptable. C'est LÀ que se trouvent les frais du gérant. Lis ce compte de résultat détaillé LIGNE PAR LIGNE et additionne tout ce qui relève de la personne du gérant (Vincent Hilaire). Ne te contente pas du compte de résultat synthétique. Repère notamment les comptes 60 à 65 :
-- "remuneration_dirigeant" : rémunération brute du gérant (641 rémunération du personnel si gérant salarié, 6411, ou 644 « rémunération du travail de l'exploitant » / rémunérations de gérance). Inclut les rémunérations exceptionnelles de gérance.
+- "remuneration_dirigeant" : rémunération brute du gérant. Cherche en PRIORITÉ une ligne explicite du compte de résultat détaillé intitulée « Remunerations du gerant », « Rémunération du gérant », « Rémunération de gérance » (compte 641/6411), ou « rémunération du travail de l'exploitant » (644). Inclut les rémunérations exceptionnelles de gérance. C'est un poste IMPORTANT et presque toujours présent dans une SARL : si tu vois une ligne de ce type, mets son montant ICI dans "remuneration_dirigeant", et NE la mets PAS dans "cout_dirigeant_detail". Ne confonds pas avec « Salaires » (compte 641 global du personnel) qui est la masse salariale de TOUS les employés : la rémunération du gérant est une ligne distincte et nominative.
 - "charges_sociales_dirigeant" : cotisations sociales personnelles du dirigeant (646 « cotisations sociales personnelles de l'exploitant », TNS/URSSAF/RSI, charges sociales sur rémunération de gérance, 6411 charges).
 - "vehicule_dirigeant" : tout le coût du/des véhicule(s) (dotation aux amortissements du véhicule, crédit-bail / leasing / LLD 612 ou 6132, locations 6135, entretien et réparations 6155, petit équipement auto). Additionne ces lignes.
 - "vehicule_dirigeant" : tout le coût du/des véhicule(s) du dirigeant. Additionne TOUTES ces lignes si présentes : dotation aux amortissements du véhicule, crédit-bail / leasing / LLD / location longue durée (libellés du type « Credit bail vehicule », « Loc. vehicule », « Leasing auto », « LLD »), locations de véhicule (6135), entretien et réparations du véhicule (« Entretien vehicule », 6155), petit équipement auto. Sur les bilans de cabinet, le crédit-bail véhicule apparaît souvent dans « Autres achats et charges externes » sous un libellé explicite (ex. « Credit bail vehicule range ») — INCLUS-le.
@@ -3180,7 +3572,7 @@ COÛT DU DIRIGEANT — c'est une priorité. Une liasse contient en général un 
 - "deplacements_voyages" : voyages et déplacements, train, avion, hôtels, péages, parkings (6251 « Voyages et deplacements », 6252, 6255, « Frais deplt »).
 - "autres_avantages_dirigeant" : autres frais personnels du dirigeant : téléphone/mobile (626), cotisations facultatives Madelin / retraite / prévoyance / mutuelle du dirigeant payées par la société (libellés « Ass prevoy tns », « Ass complt muta sante », « ret generali », « Organic ret », « Madelin »), cadeaux, frais de représentation, cotisations clubs. Additionne ces lignes TNS de prévoyance/retraite/mutuelle personnelles si elles ne sont pas déjà comptées dans charges_sociales_dirigeant.
 - "cout_dirigeant_total" : la SOMME de tous les postes ci-dessus si tu peux la calculer (sinon null, l'app la recalculera).
-- "cout_dirigeant_detail" : liste libre de TOUTE autre ligne du compte de résultat détaillé qui te semble être un frais du gérant et qui n'entre dans aucune case ci-dessus, sous la forme [{"libelle":"intitulé exact lu","montant":nombre}]. Sers-t'en pour ne RIEN oublier.
+- "cout_dirigeant_detail" : liste libre de TOUTE autre ligne du compte de résultat détaillé qui te semble être un frais du gérant et qui n'entre dans aucune case ci-dessus, sous la forme [{"libelle":"intitulé exact lu","montant":nombre}]. RÈGLE STRICTE : ne mets JAMAIS ici un montant déjà placé dans un champ nommé ci-dessus (rémunération, charges sociales, véhicule, assurance, carburant, restaurants, déplacements, autres avantages) — sinon il serait compté deux fois. "cout_dirigeant_detail" ne sert qu'aux frais du gérant qui ne rentrent dans AUCUNE case.
 IMPORTANT pour le coût du dirigeant : un poste à 0 ou null doit signifier que la ligne est VRAIMENT absente du bilan, pas que tu ne l'as pas cherchée. Parcours le compte de résultat détaillé (souvent intitulé « Détail du Compte de Résultat », pages en milieu/fin de liasse) LIGNE PAR LIGNE avant de conclure qu'un poste est vide.
 Ne mets une valeur que si tu la vois réellement dans le document ; sinon null. N'invente pas, mais sois EXHAUSTIF : parcours tout le compte de résultat détaillé.
 
@@ -3630,6 +4022,7 @@ async function renderCoutVincent() {
   const socsAffich = CV_SOCS.filter(s=>allRows[s]); // sociétés ayant au moins un bilan
   // posteParSoc[poste][soc] = somme sur toutes les années ; null si la société n'a JAMAIS de valeur lue
   const posteParSoc = {}, autresParSoc = {}, totColSoc = {};
+  const autresDetail = []; // { soc, exercice, libelle, montant } pour expliquer « autres frais »
   DIR_POSTES.forEach(([k])=>{ posteParSoc[k]={}; });
   socsAffich.forEach(soc=>{ totColSoc[soc]=0; autresParSoc[soc]=0; });
   socsAffich.forEach(soc=>{
@@ -3645,7 +4038,10 @@ async function renderCoutVincent() {
       if(Array.isArray(d.cout_dirigeant_detail)){
         d.cout_dirigeant_detail.forEach(it=>{
           const v = Number(it&&it.montant);
-          if(!isNaN(v) && it.montant!=null){ autresParSoc[soc] += v; totColSoc[soc] += v; }
+          if(!isNaN(v) && it.montant!=null){
+            autresParSoc[soc] += v; totColSoc[soc] += v;
+            autresDetail.push({soc, exercice:r.exercice, libelle:(it.libelle||'Frais non précisé'), montant:v});
+          }
         });
       }
     });
@@ -3667,7 +4063,7 @@ async function renderCoutVincent() {
   if(anyAutres){
     let totAutres = 0;
     const cells = socsAffich.map(s=>{ const v=autresParSoc[s]||0; totAutres+=v; return '<td class="r">'+eurF(v)+'</td>'; }).join('');
-    html += `<tr><td>Autres frais du gérant (détail compte de résultat)</td>${cells}<td class="r" style="font-weight:600;">${eurF(totAutres)}</td></tr>`;
+    html += `<tr><td>Autres frais du gérant <span style="color:var(--text3);font-size:11px;">(détaillés sous le tableau)</span></td>${cells}<td class="r" style="font-weight:600;">${eurF(totAutres)}</td></tr>`;
   }
   // Ligne total par société
   let grandTotalCroise = 0;
@@ -3677,6 +4073,33 @@ async function renderCoutVincent() {
   // Note nombre d'exercices pris en compte par société
   const nbExo = socsAffich.map(s=>`${IS_SOC_LABEL[s]||s} : ${(allRows[s]||[]).length} exercice${(allRows[s]||[]).length>1?'s':''}`).join(' · ');
   html += `<div style="margin-top:8px;font-size:11px;color:var(--text3);">Exercices cumulés — ${nbExo}.</div>`;
+
+  // Détail de la ligne « Autres frais » : QUOI exactement, et où
+  if(autresDetail.length){
+    autresDetail.sort((a,b)=> b.montant - a.montant);
+    html += `<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);">🔍 Que contient « Autres frais du gérant » ? (${autresDetail.length} ligne${autresDetail.length>1?'s':''})</summary>`;
+    html += `<div class="alert a-w" style="margin:10px 0;"><span>⚠</span><div>Ce sont les lignes du compte de résultat que la lecture automatique a rattachées au gérant <strong>sans pouvoir les ranger dans une case précise</strong>. Vérifie-les : si une <strong>rémunération</strong> apparaît ici alors que la ligne « Rémunération de gérance » est à 0, c'est que la lecture s'est trompée de case → clique « Relire le bilan ». Le libellé est celui lu tel quel dans ton bilan.</div></div>`;
+    html += `<table class="tbl"><thead><tr><th>Libellé lu dans le bilan</th><th>Société</th><th>Exercice</th><th class="r">Montant</th></tr></thead><tbody>`;
+    autresDetail.forEach(it=>{
+      // Repère visuellement si ça ressemble à une rémunération mal classée
+      const suspectRem = /r[ée]mun|g[ée]rance|gerant|salaire/i.test(it.libelle);
+      const flag = suspectRem ? ' <span class="tag tag-r" style="font-size:10px;">⚠ rémunération ?</span>' : '';
+      html += `<tr><td>${it.libelle}${flag}</td><td>${IS_SOC_LABEL[it.soc]||it.soc}</td><td>${it.exercice}</td><td class="r">${eurF(it.montant)}</td></tr>`;
+    });
+    html += `</tbody></table></details>`;
+  }
+
+  // Glossaire : ce que veut dire chaque poste (pour comprendre le tableau)
+  html += `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);">📖 Que veut dire chaque poste ?</summary><div style="font-size:12px;color:var(--text2);line-height:1.6;margin-top:8px;">`;
+  html += `<strong>Rémunération de gérance (brut)</strong> : ton salaire/rémunération de gérant versé par la société (compte 641 « Rémunération du gérant »).<br>`;
+  html += `<strong>Charges sociales / TNS</strong> : tes cotisations sociales personnelles (URSSAF TNS, retraite, prévoyance obligatoire) payées par la société.<br>`;
+  html += `<strong>Véhicule (amortissement / location)</strong> : le coût de ta voiture de fonction — crédit-bail, leasing, LLD, amortissement, entretien.<br>`;
+  html += `<strong>Assurance du véhicule</strong> : la prime d'assurance auto, si le bilan l'isole (sinon elle est noyée dans une assurance globale → 0 ici).<br>`;
+  html += `<strong>Carburant / essence</strong> : le carburant. ⚠ Dans un resto, il peut inclure les véhicules de livraison, pas seulement le tien.<br>`;
+  html += `<strong>Restaurants & réceptions</strong> : repas, réceptions, missions liées à toi.<br>`;
+  html += `<strong>Déplacements & voyages</strong> : train, avion, hôtels, péages, parkings.<br>`;
+  html += `<strong>Autres avantages</strong> : téléphone, mutuelle/prévoyance facultative (Madelin), cadeaux, frais de représentation.<br>`;
+  html += `<strong>Autres frais du gérant</strong> : lignes rattachées à toi que la lecture n'a pas su classer (voir le détail dépliable ci-dessus).</div></details>`;
   html += `</div>`;
 
   // ── DIVIDENDES PRIS EN VRAI (versés par VH Company) ──
