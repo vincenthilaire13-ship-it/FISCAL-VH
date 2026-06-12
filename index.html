@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 13h18
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 13h24
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -520,61 +520,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <!-- AUTRES SOCIETES -->
 <div id="tab-soc-ba" class="panel">
   <div class="alert a-b"><span>▣</span><div><strong>Burger Avenue SARL</strong> — SARL · Restauration · Montpellier (BK 500). Détenue à 100% par VH Company.</div></div>
-  <div class="card">
-    <div class="card-title">🔄 Compte courant avec VH Company au 30/06/2025</div>
-    <div class="alert a-w" style="margin-bottom:12px;"><span>↩</span><div><strong>Burger Avenue doit de l'argent à VH Company.</strong> VH (la mère) a prêté à Burger Avenue (la fille). C'est une dette de Burger Avenue envers la holding, à rembourser un jour.</div></div>
-    <table class="tbl">
-      <thead><tr><th>Relation</th><th>Sens</th><th class="r">30/06/2025</th><th class="r">N-1 (30/06/2024)</th></tr></thead>
-      <tbody>
-        <tr><td><strong>VH Company</strong> (mère)</td><td><span class="tag tag-w">Burger Avenue doit à VH</span></td><td class="r r">169 303€</td><td class="r">195 414€</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <div class="cc-zone" data-soc="ba"></div>
   <div class="fin-zone" data-soc="ba"><div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div></div>
   <div class="socimp" data-soc="ba"></div>
 </div>
 <div id="tab-soc-bka" class="panel">
   <div class="alert a-b"><span>▣</span><div><strong>BK Avenue SARL</strong> — SARL · Restauration · St-Clément-de-Rivière (BK 526). Détenue à 100% par VH Company. TVA : FR30830144242.</div></div>
-  <div class="card">
-    <div class="card-title">🔄 Compte courant avec VH Company au 30/06/2025</div>
-    <div class="alert a-w" style="margin-bottom:12px;"><span>↩</span><div><strong>BK Avenue doit de l'argent à VH Company.</strong> VH (la mère) a prêté à BK Avenue (la fille). C'est une dette de BK Avenue envers la holding, à rembourser un jour.</div></div>
-    <table class="tbl">
-      <thead><tr><th>Relation</th><th>Sens</th><th class="r">30/06/2025</th><th class="r">N-1 (30/06/2024)</th></tr></thead>
-      <tbody>
-        <tr><td><strong>VH Company</strong> (mère)</td><td><span class="tag tag-w">BK Avenue doit à VH</span></td><td class="r r">480 029€</td><td class="r">501 656€</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <div class="cc-zone" data-soc="bka"></div>
   <div class="fin-zone" data-soc="bka"><div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div></div>
   <div class="socimp" data-soc="bka"></div>
 </div>
 <div id="tab-soc-bksj" class="panel">
   <div class="alert a-b"><span>▣</span><div><strong>BK Saint-Jean SARL</strong> — SARL · Restauration · St-Jean-de-Védas (BK 509). Détenue à 100% par VH Company.</div></div>
-  <div class="card">
-    <div class="card-title">🔄 Compte courant avec VH Company au 30/06/2025</div>
-    <div class="alert a-g" style="margin-bottom:12px;"><span>↪</span><div><strong>BK Saint-Jean doit de l'argent à VH Company.</strong> C'est BK Saint-Jean (la fille) qui doit à VH (la mère) : la holding a une créance sur la société. À rembourser un jour à VH.</div></div>
-    <table class="tbl">
-      <thead><tr><th>Relation</th><th>Sens</th><th class="r">30/06/2025</th><th class="r">N-1 (30/06/2024)</th></tr></thead>
-      <tbody>
-        <tr><td><strong>VH Company</strong> (mère)</td><td><span class="tag tag-g">BK Saint-Jean doit à VH</span></td><td class="r g">545 605€</td><td class="r">303 650€</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <div class="cc-zone" data-soc="bksj"></div>
   <div class="fin-zone" data-soc="bksj"><div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div></div>
   <div class="socimp" data-soc="bksj"></div>
 </div>
 <div id="tab-soc-fvh" class="panel">
   <div class="alert a-b"><span>▣</span><div><strong>FVH SARL</strong> — SARL détenue à 100% par VH Company.</div></div>
-  <div class="card">
-    <div class="card-title">🔄 Compte courant avec VH Company au 30/06/2025</div>
-    <div class="alert a-g" style="margin-bottom:12px;"><span>↪</span><div><strong>FVH doit de l'argent à VH Company.</strong> C'est FVH (la fille) qui doit à VH (la mère) : la holding a une créance sur la société. Montant en baisse vs N-1 (171 514€ → 101 000€).</div></div>
-    <table class="tbl">
-      <thead><tr><th>Relation</th><th>Sens</th><th class="r">30/06/2025</th><th class="r">N-1 (30/06/2024)</th></tr></thead>
-      <tbody>
-        <tr><td><strong>VH Company</strong> (mère)</td><td><span class="tag tag-g">FVH doit à VH</span></td><td class="r g">101 000€</td><td class="r">171 514€</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <div class="cc-zone" data-soc="fvh"></div>
   <div class="fin-zone" data-soc="fvh"><div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants…).</div></div></div>
   <div class="socimp" data-soc="fvh"></div>
 </div>
@@ -3686,8 +3650,49 @@ async function renderCoutVincent() {
   body.innerHTML = html;
 }
 
+// Construit la carte « Compte courant avec VH Company » À PARTIR DU BILAN lu.
+// Cherche dans le détail des comptes courants la/les ligne(s) liée(s) à VH Company,
+// sinon retombe sur les totaux. Renvoie '' si rien n'est connu (aucune carte fantôme).
+function renderCCavecVH(soc, d, exercice){
+  if(soc==='vh') return ''; // la holding a déjà sa propre vue
+  if(!d) return '';
+  const det = Array.isArray(d.comptes_courants_detail)? d.comptes_courants_detail : [];
+  // Lignes mentionnant VH / la holding / groupe
+  const liees = det.filter(cc => /vh|holding|groupe|company|associ/i.test((cc&&cc.nom)||''));
+  let lignes = [];
+  if(liees.length){
+    liees.forEach(cc=>{
+      const m = Number(cc.montant); if(isNaN(m)) return;
+      const passif = (cc.sens||'').toLowerCase().startsWith('p');
+      lignes.push({nom: cc.nom||'VH Company', passif, montant: Math.abs(m)});
+    });
+  } else {
+    // Repli sur les totaux agrégés
+    if(d.cc_associes_passif_total!=null) lignes.push({nom:'VH Company / associés', passif:true, montant:Math.abs(Number(d.cc_associes_passif_total))});
+    if(d.cc_groupe_actif_total!=null) lignes.push({nom:'Groupe (créances)', passif:false, montant:Math.abs(Number(d.cc_groupe_actif_total))});
+  }
+  if(!lignes.length) return ''; // rien de lu → pas de carte
+  const dc = d.date_cloture || ('exercice '+exercice);
+  let rows = lignes.map(l=>{
+    // passif = la société DOIT à VH ; actif = VH doit à la société
+    const doitAVH = l.passif;
+    const tag = doitAVH ? `<span class="tag tag-g">${IS_SOC_LABEL[soc]||'la société'} doit à VH</span>` : `<span class="tag tag-w">VH doit à ${IS_SOC_LABEL[soc]||'la société'}</span>`;
+    const cls = doitAVH ? 'g' : 'r';
+    return `<tr><td><strong>${l.nom}</strong></td><td>${tag}</td><td class="r ${cls}">${eurF(l.montant)}</td></tr>`;
+  }).join('');
+  return `<div class="card">
+    <div class="card-title">🔄 Compte courant avec VH Company au ${dc}</div>
+    <div class="alert a-b" style="margin-bottom:12px;"><span>↔</span><div>Lu automatiquement dans le bilan. « Doit à VH » = dette envers la holding ; « VH doit » = créance sur la holding.</div></div>
+    <table class="tbl">
+      <thead><tr><th>Relation</th><th>Sens</th><th class="r">Montant</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
 async function renderSocFinances(soc) {
   const zone = document.querySelector('.fin-zone[data-soc="'+soc+'"]');
+  const ccZone = document.querySelector('.cc-zone[data-soc="'+soc+'"]');
   if(!zone) return;
   let rows = [];
   try { const {data}=await sb.from('societe_finances').select('*').eq('societe',soc).order('exercice',{ascending:false}); rows=data||[]; } catch(e){}
@@ -3697,12 +3702,15 @@ async function renderSocFinances(soc) {
     // Plus aucun chiffre extrait : on remet TOUJOURS le message d'attente (évite tout
     // résidu : KPI, comptes courants, fournisseurs, historique d'un exercice supprimé).
     delete SOC_FIN_CACHE[soc];
+    if(ccZone) ccZone.innerHTML = ''; // efface aussi le compte courant affiché
     zone.innerHTML = '<div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l\'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div>';
     return;
   }
   const last = rows[0];
   const d = last.donnees || {};
   SOC_FIN_CACHE[soc] = rows; // pour la pop-up « coût du dirigeant »
+  // Compte courant avec VH Company — DYNAMIQUE (lu dans le bilan), plus rien en dur
+  if(ccZone) ccZone.innerHTML = renderCCavecVH(soc, d, last.exercice);
   // KPI principaux du dernier exercice
   const kpi = (label,val,cls)=>`<div class="kpi ${cls||''}"><div class="kl">${label}</div><div class="kv">${eurF(val)}</div><div class="ks">exercice ${last.exercice}</div></div>`;
   // Badge modèle de présentation (ancien / nouveau cabinet)
