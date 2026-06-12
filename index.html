@@ -197,6 +197,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-item" onclick="sw('soc-sci',this)"><span class="sb-ico">▣</span>SCI VH Immo<span class="sb-badge g" id="b-sci">✓</span></div>
   <div class="sb-section">Patrimoine</div>
   <div class="sb-item" onclick="sw('batiments',this)"><span class="sb-ico">🏛</span>Bâtiments<span class="sb-badge" id="b-bat">0</span></div>
+  <div class="sb-section">Le dirigeant</div>
+  <div class="sb-item" onclick="sw('cout-vincent',this)"><span class="sb-ico">👤</span>Coût Vincent</div>
   <div class="sb-section">Impôts</div>
   <div class="sb-item" onclick="sw('declaration',this)"><span class="sb-ico">📋</span>Ma déclaration 2026</div>
   <div class="sb-item" onclick="sw('checklist',this)"><span class="sb-ico">☐</span>Checklist documents</div>
@@ -230,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 10h01
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 10h20
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -1003,6 +1005,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <button class="btn btn-p" onclick="openFiche('pro')">+ Ajouter une assurance</button>
     <span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="restoreHidden()">Restaurer les fiches supprimées</span>
   </div>
+</div>
+
+<!-- COUT VINCENT (dirigeant) -->
+<div id="tab-cout-vincent" class="panel">
+  <div class="alert a-b"><span>👤</span><div><strong>Combien coûte Vincent Hilaire au groupe.</strong> Cette page rassemble, société par société, tout ce que le dirigeant coûte : rémunération de gérance, charges sociales / TNS, véhicules, assurances auto, carburant, restaurants & réceptions, déplacements… Les chiffres sont extraits automatiquement de chaque bilan importé (dernier exercice connu de chaque société).</div></div>
+  <div class="g4" id="cv-kpis"></div>
+  <div id="cv-body"></div>
 </div>
 
 <!-- BATIMENTS -->
@@ -1854,7 +1863,7 @@ async function setupTables() {
 }
 
 // ── NAVIGATION ──
-const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',batiments:'Bâtiments',declaration:'Ma déclaration 2026',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents',import:'Import fichiers'};
+const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',batiments:'Bâtiments','cout-vincent':'Coût Vincent',declaration:'Ma déclaration 2026',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents',import:'Import fichiers'};
 function sw(id, btn) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -1864,6 +1873,7 @@ function sw(id, btn) {
   // Tags perso (TMI, parts, TNS) : visibles uniquement sur la vue d'ensemble, pas en société
   var pt = document.getElementById('perso-tags');
   if (pt) pt.style.display = (id === 'dashboard') ? 'flex' : 'none';
+  if (id === 'cout-vincent') { try { renderCoutVincent(); } catch(e){} }
 }
 
 // ── OPTIMISATION ──
@@ -2851,7 +2861,7 @@ function buildSocImports() {
         <div class="alert a-b" style="margin-bottom:12px;"><span>💡</span><div>Dépose ici les documents de <strong>${IS_SOC_LABEL[soc]||'cette société'}</strong> par exercice : <strong>bilan</strong> et <strong>PV d'Assemblée Générale</strong> (+ liasse, FEC…). La frise ci-dessus passe en vert quand le bilan ET le PV d'AG sont reçus pour une année. Rangés dans Dropbox « Fiscal Vincent » en <code>/${IS_SOC_FOLDER[soc]||soc}/Exercice/</code>. Envoie-les aussi dans le chat pour que je les analyse.</div></div>
         <div class="g2" style="margin-bottom:12px;">
           <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;">
-            <label style="width:auto;">Exercice <span style="font-weight:400;color:var(--text3);font-size:11px;">(pour un bilan PDF : l'année est lue dans le document et corrigée automatiquement, même si ce menu est faux)</span></label>
+            <label style="width:auto;">Exercice</label>
             <select class="sim-in si-year" style="width:100%;font-family:var(--font);">${socImpYears()}</select>
           </div>
           <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;">
@@ -3200,11 +3210,11 @@ async function pdfToImages(file, maxPages) {
   const imgs = [];
   for(let p=1; p<=n; p++){
     const page = await pdf.getPage(p);
-    const vp = page.getViewport({scale:1.4});
+    const vp = page.getViewport({scale:2.0}); // plus net : liasses denses en petits caractères
     const canvas = document.createElement('canvas');
     canvas.width = vp.width; canvas.height = vp.height;
     await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
-    imgs.push(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+    imgs.push(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
   }
   return imgs;
 }
@@ -3216,12 +3226,36 @@ async function extraireBilanIA(box, file, soc, year, rowEl, ctx) {
   note.textContent='🤖 Lecture automatique du bilan en cours… (cela peut prendre 10-20 secondes)';
   if(zone) zone.prepend(note);
   try {
-    const imgs = await pdfToImages(file, 10);
+    const imgs = await pdfToImages(file, 18);
     const content = imgs.map(b64 => ({type:'image', source:{type:'base64', media_type:'image/jpeg', data:b64}}));
     content.push({type:'text', text:
-`Tu es expert-comptable. Voici les pages d'un bilan d'une société française (${IS_SOC_LABEL[soc]||soc}, exercice ${year}). Extrais TOUS les chiffres clés et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte autour, sans backticks. Mets null si une valeur est absente. Les nombres sont en euros, entiers, sans espaces ni symboles (un déficit est négatif).
+`Tu es expert-comptable français. Voici les pages d'une liasse fiscale / bilan d'une société française (${IS_SOC_LABEL[soc]||soc}, exercice indicatif ${year}). Lis attentivement TOUTES les pages, y compris l'actif, le passif, le compte de résultat, et les tableaux annexes (soldes intermédiaires de gestion, détail des créances et dettes). Réponds UNIQUEMENT par un objet JSON valide, sans aucun texte autour, sans backticks. Mets null UNIQUEMENT si la valeur est réellement introuvable. Les nombres sont en euros, entiers, sans espaces ni symboles. Un déficit ou une perte est négatif. Prends les montants NETS de la colonne de l'exercice clos (pas la colonne N-1, pas le brut).
+
+OÙ TROUVER CHAQUE POSTE dans une liasse française (formulaires 2050 à 2059) :
+- "ebe" (Excédent Brut d'Exploitation) : cherche-le d'abord dans le tableau des SOLDES INTERMÉDIAIRES DE GESTION (souvent fourni par l'expert-comptable, libellé « EBE » ou « Excédent brut d'exploitation »). S'il n'est PAS donné explicitement, CALCULE-le ainsi : EBE = (Production de l'exercice + Marge commerciale) − Consommations en provenance de tiers − Impôts et taxes (compte 63) − Charges de personnel (comptes 64 : salaires 641 + charges sociales 645). Approximation acceptable : EBE = Résultat d'exploitation + Dotations aux amortissements et provisions d'exploitation (681) − Reprises (781) + Autres charges − Autres produits. Si tu fais un calcul, donne quand même la valeur dans "ebe" (ne mets pas null) et indique-le dans "ebe_calcule": true.
+- "cc_groupe_actif_total" : à l'ACTIF du bilan (2050), ligne « Créances rattachées à des participations » ou, dans les créances, le poste « Groupe et associés » / « Comptes courants débiteurs » (comptes 451/455 débiteurs). C'est l'argent que d'autres sociétés du groupe DOIVENT à celle-ci.
+- "cc_associes_passif_total" : au PASSIF du bilan (2051), poste « Emprunts et dettes financières divers » détaillé en « Associés - comptes courants » / « Groupe et associés » (comptes 455/451 créditeurs, 4551/4558). C'est l'argent que la société DOIT aux associés / au groupe.
+- "cc_associe_dirigeant" : la part des comptes courants au passif appartenant au dirigeant personne physique (ex. VINCENT HILAIRE).
+- "comptes_courants_detail" : liste CHAQUE compte courant trouvé (actif ET passif) avec son nom exact tel qu'écrit (ex: BK AVENUE, SCI VH IMMO, VINCENT HILAIRE…), son sens et son montant. Cherche dans le détail des créances (actif) ET le détail des dettes financières (passif), y compris dans les tableaux annexes.
+
+DEUX MODÈLES DE PRÉSENTATION possibles (la société a changé d'expert-comptable). Adapte-toi : un bilan peut être une liasse fiscale CERFA classique (formulaires 2050/2051/2052/2053 numérotés), OU une plaquette/présentation de cabinet avec des intitulés et une mise en page différents. Les chiffres sont les mêmes, seuls les libellés et l'ordre changent. Détecte la présentation et renseigne "modele_presentation" : "liasse_cerfa" (formulaires numérotés 2050…) ou "plaquette_cabinet" (présentation libre par un cabinet). Indique aussi le nom du cabinet/expert-comptable s'il apparaît (en bas de page, mention « établi par… ») dans "cabinet".
+
+COÛT DU DIRIGEANT — repère tout ce qui est lié à la personne du dirigeant (Vincent Hilaire) et le coûte à la société. Cherche dans le compte de résultat, le détail des charges, l'annexe et les comptes 64/62/61 :
+- "remuneration_dirigeant" : rémunération brute du gérant (compte 641 gérant / 644 rémunération de l'exploitant), salaire ou rémunération de gérance versée au dirigeant.
+- "charges_sociales_dirigeant" : cotisations sociales du dirigeant (TNS/URSSAF, compte 646 « cotisations sociales personnelles de l'exploitant », ou charges sur rémunération gérant).
+- "vehicule_dirigeant" : coût du/des véhicule(s) de fonction (amortissement véhicule + crédit-bail/location longue durée compte 612/6132, entretien 615…).
+- "assurance_vehicule" : prime d'assurance du/des véhicule(s) (compte 616).
+- "carburant" : carburant / essence (compte 6061 ou 6068 carburants).
+- "restaurants_receptions" : frais de restaurant, réceptions, missions (comptes 6256 missions, 6257 réceptions, restaurants).
+- "deplacements_voyages" : voyages et déplacements (compte 6251).
+- "autres_avantages_dirigeant" : autres frais personnels du dirigeant identifiables (téléphone, cotisations facultatives Madelin payées par la société…).
+Ne mets une valeur que si tu la vois réellement ; sinon null. Ne devine pas.
+
+Objet JSON attendu :
 {
  "date_cloture": "JJ/MM/AAAA",
+ "modele_presentation": "liasse_cerfa" ou "plaquette_cabinet",
+ "cabinet": "nom du cabinet ou null",
  "duree_mois": nombre,
  "chiffre_affaires": nombre,
  "resultat_exploitation": nombre,
@@ -3230,6 +3264,7 @@ async function extraireBilanIA(box, file, soc, year, rowEl, ctx) {
  "resultat_net": nombre,
  "resultat_fiscal": nombre,
  "ebe": nombre,
+ "ebe_calcule": true/false,
  "capital_social": nombre,
  "reserve_legale": nombre,
  "report_a_nouveau": nombre,
@@ -3244,12 +3279,20 @@ async function extraireBilanIA(box, file, soc, year, rowEl, ctx) {
  "cc_associes_passif_total": nombre,
  "cc_associe_dirigeant": nombre,
  "cc_groupe_actif_total": nombre,
+ "remuneration_dirigeant": nombre,
+ "charges_sociales_dirigeant": nombre,
+ "vehicule_dirigeant": nombre,
+ "assurance_vehicule": nombre,
+ "carburant": nombre,
+ "restaurants_receptions": nombre,
+ "deplacements_voyages": nombre,
+ "autres_avantages_dirigeant": nombre,
  "comptes_courants_detail": [ {"nom": "nom société ou personne", "sens": "actif" ou "passif", "montant": nombre } ]
 }
-Pour comptes_courants_detail : "actif" = la société liée DOIT de l'argent à cette entreprise (créance) ; "passif" = cette entreprise DOIT de l'argent (dette envers associé/groupe). Liste chaque compte courant 451/455 trouvé avec son nom exact (ex: BK AVENUE, SCI VH IMMO, VINCENT HILAIRE...).`});
+Règle pour comptes_courants_detail : "actif" = la société liée DOIT de l'argent à cette entreprise (créance, à l'actif) ; "passif" = cette entreprise DOIT de l'argent (dette envers associé/groupe, au passif). Sois exhaustif : si une ligne « Groupe et associés » existe à l'actif ET au passif, liste les deux.`});
     const r = await fetch('/api/ia', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:'claude-sonnet-4-5', max_tokens:2500, messages:[{role:'user', content}] })
+      body: JSON.stringify({ model:'claude-sonnet-4-5', max_tokens:4000, messages:[{role:'user', content}] })
     });
     const data = await r.json();
     if(!r.ok) throw new Error((data && data.error) || ('HTTP '+r.status));
@@ -3436,6 +3479,104 @@ function completerCC(d){
   return d;
 }
 
+// ── COÛT DU DIRIGEANT (pop-up par société) ──
+const SOC_FIN_CACHE = {};
+// Postes qui composent le coût du dirigeant + libellés lisibles
+const DIR_POSTES = [
+  ['remuneration_dirigeant','Rémunération de gérance (brut)'],
+  ['charges_sociales_dirigeant','Charges sociales / TNS'],
+  ['vehicule_dirigeant','Véhicule (amortissement / location)'],
+  ['assurance_vehicule','Assurance du véhicule'],
+  ['carburant','Carburant / essence'],
+  ['restaurants_receptions','Restaurants & réceptions'],
+  ['deplacements_voyages','Déplacements & voyages'],
+  ['autres_avantages_dirigeant','Autres avantages (téléphone, Madelin…)']
+];
+function coutDirigeantTotal(d){
+  if(!d) return null;
+  let tot=0, vu=false;
+  DIR_POSTES.forEach(([k])=>{ const v=Number(d[k]); if(!isNaN(v) && d[k]!=null){ tot+=v; vu=true; } });
+  return vu ? tot : null;
+}
+
+// Page « Coût Vincent » : agrège, toutes sociétés confondues, ce que le dirigeant coûte.
+// S'appuie sur le dernier exercice connu de chaque société (SOC_FIN_CACHE), rempli par
+// renderSocFinances au chargement. Si le cache n'est pas prêt, on lit directement la base.
+const CV_SOCS = ['vh','ba','bka','bksj','fvh','sci'];
+async function renderCoutVincent() {
+  const kpiZone = document.getElementById('cv-kpis');
+  const body = document.getElementById('cv-body');
+  if(!body) return;
+  body.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">Chargement…</div>';
+  // Récupère le dernier exercice de chaque société (cache sinon base)
+  const last = {};
+  for(const soc of CV_SOCS){
+    let rows = SOC_FIN_CACHE[soc];
+    if(!rows){
+      try { const {data}=await sb.from('societe_finances').select('*').eq('societe',soc).order('exercice',{ascending:false}); rows=(data||[]).map(r=>({...r, donnees: completerCC(r.donnees||{})})); } catch(e){ rows=[]; }
+    }
+    if(rows && rows.length) last[soc] = rows[0];
+  }
+  const socsAvecData = CV_SOCS.filter(s=>last[s]);
+  if(!socsAvecData.length){
+    if(kpiZone) kpiZone.innerHTML = '';
+    body.innerHTML = '<div class="alert a-b"><span>🔎</span><div>Aucun bilan exploité pour le moment. Dépose les bilans dans chaque société (et clique « 🔄 Relire » sur les bilans déjà importés) : les coûts du dirigeant apparaîtront ici dès qu\'ils auront été lus.</div></div>';
+    return;
+  }
+  // Totaux par poste (somme sur toutes les sociétés) + total par société
+  const totauxPoste = {}; DIR_POSTES.forEach(([k])=>totauxPoste[k]=null);
+  const totalParSoc = {};
+  let grandTotal = 0, grandVu = false;
+  socsAvecData.forEach(soc=>{
+    const d = last[soc].donnees || {};
+    DIR_POSTES.forEach(([k])=>{
+      const v = d[k];
+      if(v!=null && !isNaN(Number(v))){ totauxPoste[k] = (totauxPoste[k]||0) + Number(v); }
+    });
+    const t = coutDirigeantTotal(d);
+    totalParSoc[soc] = t;
+    if(t!=null){ grandTotal += t; grandVu = true; }
+  });
+  // Rémunération brute totale (KPI dédié)
+  const remunTot = totauxPoste['remuneration_dirigeant'];
+  const chargesTot = totauxPoste['charges_sociales_dirigeant'];
+  // KPIs
+  if(kpiZone){
+    const kpi=(l,v,cls,sub)=>`<div class="kpi ${cls||''}"><div class="kl">${l}</div><div class="kv">${v!=null?eurF(v):'—'}</div><div class="ks">${sub||''}</div></div>`;
+    kpiZone.innerHTML =
+      kpi('Coût total du dirigeant', grandVu?grandTotal:null, 'acc', 'toutes sociétés · dernier exercice') +
+      kpi('Rémunération de gérance', remunTot, '', 'brut, toutes sociétés') +
+      kpi('Charges sociales / TNS', chargesTot, 'war', '') +
+      kpi('Sociétés prises en compte', null, '', '') ;
+    // remplace le dernier KPI (nombre, pas un montant)
+    kpiZone.lastElementChild.querySelector('.kv').textContent = socsAvecData.length + ' / ' + CV_SOCS.length;
+  }
+  let html = '';
+  // Tableau par poste
+  html += `<div class="card"><div class="card-title">Détail par poste — toutes sociétés (dernier exercice de chacune)</div>`;
+  html += `<div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>« — » = poste non trouvé dans les bilans (pas forcément nul). Pour le compléter, ouvre la société concernée et clique « 🔄 Relire » sur son bilan, ou envoie-moi le compte de résultat détaillé.</div></div>`;
+  html += `<table class="tbl"><thead><tr><th>Poste</th><th class="r">Total groupe</th></tr></thead><tbody>`;
+  DIR_POSTES.forEach(([k,lab])=>{
+    const v = totauxPoste[k];
+    html += `<tr><td>${lab}</td><td class="r">${v!=null?eurF(v):'<span style="color:var(--text3);">—</span>'}</td></tr>`;
+  });
+  html += `<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;">Coût total du dirigeant</td><td class="r" style="font-weight:700;">${grandVu?eurF(grandTotal):'—'}</td></tr>`;
+  html += `</tbody></table></div>`;
+  // Tableau par société
+  html += `<div class="card"><div class="card-title">Coût du dirigeant par société</div>`;
+  html += `<table class="tbl"><thead><tr><th>Société</th><th>Exercice</th><th class="r">Rémunération</th><th class="r">Coût total</th></tr></thead><tbody>`;
+  socsAvecData.forEach(soc=>{
+    const d = last[soc].donnees || {};
+    const rem = d.remuneration_dirigeant;
+    html += `<tr><td><strong>${IS_SOC_LABEL[soc]||soc}</strong></td><td>${d.date_cloture||last[soc].exercice}</td><td class="r">${rem!=null?eurF(rem):'—'}</td><td class="r">${totalParSoc[soc]!=null?eurF(totalParSoc[soc]):'—'}</td></tr>`;
+  });
+  html += `<tr style="border-top:2px solid var(--border2);"><td colspan="3" style="font-weight:700;">Total groupe</td><td class="r" style="font-weight:700;">${grandVu?eurF(grandTotal):'—'}</td></tr>`;
+  html += `</tbody></table></div>`;
+  // Note méthodo + idée "coût de remplacement"
+  html += `<div class="alert a-w"><span>🧭</span><div><strong>Lecture.</strong> Ce total représente ce que Vincent coûte aujourd'hui aux sociétés (charges déjà déduites des résultats). Pour raisonner « combien coûterait son remplacement », il faudrait comparer cette rémunération + avantages au salaire d'un directeur salarié équivalent — dis-le moi si tu veux que j'ajoute ce comparatif.</div></div>`;
+  body.innerHTML = html;
+}
+
 async function renderSocFinances(soc) {
   const zone = document.querySelector('.fin-zone[data-soc="'+soc+'"]');
   if(!zone) return;
@@ -3452,9 +3593,16 @@ async function renderSocFinances(soc) {
   }
   const last = rows[0];
   const d = last.donnees || {};
+  SOC_FIN_CACHE[soc] = rows; // pour la pop-up « coût du dirigeant »
   // KPI principaux du dernier exercice
   const kpi = (label,val,cls)=>`<div class="kpi ${cls||''}"><div class="kl">${label}</div><div class="kv">${eurF(val)}</div><div class="ks">exercice ${last.exercice}</div></div>`;
-  let html = `<div class="alert a-g" style="margin-bottom:12px;"><span>✓</span><div>Chiffres extraits automatiquement du bilan <strong>${d.date_cloture||('exercice '+last.exercice)}</strong>. ${rows.length>1?('Historique sur '+rows.length+' exercices ci-dessous.'):''}</div></div>`;
+  // Badge modèle de présentation (ancien / nouveau cabinet)
+  let modeleBadge = '';
+  if(d.modele_presentation){
+    const libelle = d.modele_presentation==='plaquette_cabinet' ? 'Plaquette cabinet' : 'Liasse CERFA';
+    modeleBadge = ` <span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1px 8px;font-size:11px;color:var(--text2);">📄 ${libelle}${d.cabinet?(' · '+d.cabinet):''}</span>`;
+  }
+  let html = `<div class="alert a-g" style="margin-bottom:12px;"><span>✓</span><div>Chiffres extraits automatiquement du bilan <strong>${d.date_cloture||('exercice '+last.exercice)}</strong>.${modeleBadge} ${rows.length>1?('Historique sur '+rows.length+' exercices ci-dessous.'):''}</div></div>`;
   html += `<div class="g4">${kpi('Résultat net',d.resultat_net,'acc')}${kpi('Capitaux propres',d.capitaux_propres)}${kpi("Chiffre d'affaires",d.chiffre_affaires)}${kpi('Trésorerie',d.tresorerie,'war')}</div>`;
 
   // Encarts explicatifs en langage simple
