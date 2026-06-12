@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 13h08
+      <span style="font-size:9px;">●</span> Mis à jour le vendredi 12 juin 2026 à 13h18
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -2843,14 +2843,6 @@ async function isDelete(id, dropbox_path) {
 
 // ── BLOC IMPORT INTÉGRÉ DANS CHAQUE PAGE SOCIÉTÉ (.socimp) ──
 // Réutilise dbxToken(), dbxShareLink(), IS_SOC_LABEL/FOLDER et la table societe_docs.
-function socImpYears() {
-  const now = new Date().getFullYear();
-  let o = '';
-  const top = Math.max(now+2, 2028);
-  for(let y=top; y>=2023; y--) o += `<option value="${y}"${y===now-1?' selected':''}>Exercice ${y}</option>`;
-  return o;
-}
-
 function buildSocImports() {
   document.querySelectorAll('.socimp').forEach(box => {
     const soc = box.dataset.soc;
@@ -2858,26 +2850,7 @@ function buildSocImports() {
       <div class="card" style="margin-top:14px;">
         <div class="card-title">📥 Importer les bilans — ${IS_SOC_LABEL[soc]||''}</div>
         <div class="si-frise" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
-        <div class="alert a-b" style="margin-bottom:12px;"><span>💡</span><div>Dépose ici les documents de <strong>${IS_SOC_LABEL[soc]||'cette société'}</strong> par exercice : <strong>bilan</strong> et <strong>PV d'Assemblée Générale</strong> (+ liasse, FEC…). La frise ci-dessus passe en vert quand le bilan ET le PV d'AG sont reçus pour une année. Rangés dans Dropbox « Fiscal Vincent » en <code>/${IS_SOC_FOLDER[soc]||soc}/Exercice/</code>. Envoie-les aussi dans le chat pour que je les analyse.</div></div>
-        <div class="g2" style="margin-bottom:12px;">
-          <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;">
-            <label style="width:auto;">Exercice</label>
-            <select class="sim-in si-year" style="width:100%;font-family:var(--font);">${socImpYears()}</select>
-          </div>
-          <div class="sim-row" style="flex-direction:column;align-items:stretch;gap:4px;">
-            <label style="width:auto;">Type de document</label>
-            <select class="sim-in si-doctype" style="width:100%;font-family:var(--font);">
-              <option value="Bilan">Bilan (actif/passif)</option>
-              <option value="Compte de résultat">Compte de résultat</option>
-              <option value="Liasse fiscale">Liasse fiscale (2065/2033…)</option>
-              <option value="PV Assemblée Générale">PV d'Assemblée Générale (validation + dividende)</option>
-              <option value="FEC">FEC</option>
-              <option value="Grand livre">Grand livre</option>
-              <option value="Balance">Balance</option>
-              <option value="Annexe">Annexe / autres</option>
-            </select>
-          </div>
-        </div>
+        <div class="alert a-b" style="margin-bottom:12px;"><span>💡</span><div>Dépose ici les documents de <strong>${IS_SOC_LABEL[soc]||'cette société'}</strong> : <strong>bilan</strong> et <strong>PV d'Assemblée Générale</strong> (+ liasse, FEC…). Pas besoin de choisir l'année ni le type : l'app lit la date dans le bilan et range tout seul sur le bon exercice. La frise ci-dessus passe en vert quand le bilan ET le PV d'AG sont reçus pour une année. Rangés dans Dropbox « Fiscal Vincent » en <code>/${IS_SOC_FOLDER[soc]||soc}/Exercice/</code>.</div></div>
         <div class="drop si-drop" style="padding:22px;">
           <div style="font-size:28px;margin-bottom:6px;">🏢📎</div>
           <h3>Glisse les fichiers de ${IS_SOC_LABEL[soc]||'la société'} ici</h3>
@@ -2886,6 +2859,9 @@ function buildSocImports() {
         </div>
         <div class="si-ia" style="margin-top:10px;"></div>
         <div class="si-list" style="margin-top:12px;"></div>
+        <div style="margin-top:14px;text-align:right;">
+          <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--danger);border-color:var(--danger);" onclick="socPurge('${soc}')">🗑 Tout effacer pour ${IS_SOC_LABEL[soc]||'cette société'}</button>
+        </div>
       </div>`;
     const drop = box.querySelector('.si-drop');
     const input = box.querySelector('.si-input');
@@ -2898,16 +2874,35 @@ function buildSocImports() {
   });
 }
 
+// Devine le type de document d'après le nom de fichier (l'IA confirmera pour les PDF)
+function devineDoctype(nom){
+  const n = (nom||'').toLowerCase();
+  if(/\b(pv|proces|procès|assembl|a\.?g\.?|ago|age)\b/.test(n)) return 'PV Assemblée Générale';
+  if(/fec\b/.test(n)) return 'FEC';
+  if(/grand[\s_-]?livre/.test(n)) return 'Grand livre';
+  if(/balance/.test(n)) return 'Balance';
+  if(/liasse|2065|2033|2050/.test(n)) return 'Liasse fiscale';
+  if(/compte[\s_-]?de[\s_-]?resultat|résultat/.test(n)) return 'Compte de résultat';
+  if(/annexe/.test(n)) return 'Annexe';
+  return 'Bilan'; // défaut : on tente le bilan (l'IA lira et confirmera)
+}
+// Devine une année provisoire depuis le nom (l'IA la corrigera avec la vraie date de clôture)
+function devineAnnee(nom){
+  const m = (nom||'').match(/(20\d{2})/g);
+  if(m && m.length){ const y=parseInt(m[m.length-1]); if(y>=2015 && y<=2035) return y; }
+  return new Date().getFullYear()-1; // défaut : dernier exercice clos
+}
+
 // Upload multi-fichiers depuis un bloc société
 async function socImpHandle(box, files) {
   const soc = box.dataset.soc;
-  const year = box.querySelector('.si-year').value;
-  const doctype = box.querySelector('.si-doctype').value;
   const dateStr = new Date().toISOString().slice(0,10);
   const folder = IS_SOC_FOLDER[soc] || soc;
   const list = box.querySelector('.si-list');
   for(const f of Array.from(files)) {
     const ext = (f.name.split('.').pop()||'').toLowerCase();
+    const doctype = devineDoctype(f.name);           // type auto
+    const year = String(devineAnnee(f.name));        // année provisoire (corrigée par l'IA)
     const docClean = doctype.replace(/[^a-zA-Z0-9]/g,'_');
     const niceName = `${docClean}_${folder}_${year}_${dateStr}.${ext}`;
     const dbxPath = `/${folder}/${year}/${niceName}`;
@@ -2950,6 +2945,10 @@ async function socImpHandle(box, files) {
     }
   }
   socImpRender(box);
+  // Rafraîchit la fiche société et la page Coût Vincent après import
+  delete SOC_FIN_CACHE[soc];
+  try { await renderSocFinances(soc); } catch(e){}
+  try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
 }
 
 // Ligne visuelle dans un bloc société
@@ -3087,24 +3086,58 @@ async function socImpRender(box) {
 // Suppression depuis un bloc société
 async function socImpDelete(btn, id, dropbox_path, soc, exercice, doctype) {
   if(!confirm('Supprimer ce fichier (Dropbox + index) ?')) return;
+  // 1) Supprime le fichier dans Dropbox
   try { if(dropbox_path){ const tok=await dbxToken(); await fetch('https://api.dropboxapi.com/2/files/delete_v2',{method:'POST',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({path:dropbox_path})}); } } catch(e){}
+  // 2) Supprime la ligne d'index
   try { await sb.from('societe_docs').delete().eq('id', id); } catch(e){}
-  // Nettoyage : si on supprime un BILAN, et qu'il ne reste plus aucun bilan pour cet
-  // exercice, on retire aussi les chiffres extraits (societe_finances) pour ne pas
-  // laisser de données orphelines une fois le fichier source supprimé.
-  if(soc && exercice && /bilan/i.test(doctype||'')) {
+  // 3) Nettoyage robuste des chiffres extraits :
+  //    On NE se fie PAS au doctype (un bilan peut être classé « Liasse », etc.).
+  //    Règle simple et fiable : pour CHAQUE exercice de societe_finances de cette
+  //    société, s'il ne reste plus AUCUN document source dans societe_docs pour cet
+  //    exercice, on efface les chiffres de cet exercice. Ainsi, quand tous les bilans
+  //    d'une société sont supprimés, il ne reste rien (ni chiffres, ni CC, ni coût Vincent).
+  if(soc){
     try {
-      const {data:reste} = await sb.from('societe_docs').select('id,doctype').eq('societe',soc).eq('exercice',parseInt(exercice));
-      const encoreUnBilan = (reste||[]).some(r => /bilan/i.test(r.doctype||''));
-      if(!encoreUnBilan){
-        await sb.from('societe_finances').delete().eq('societe',soc).eq('exercice',parseInt(exercice));
-        const zone = document.querySelector('.fin-zone[data-soc="'+soc+'"]');
-        if(zone) zone.innerHTML = '<div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l\'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div>';
-        renderSocFinances(soc);
+      // années encore couvertes par au moins un document
+      const {data:docs} = await sb.from('societe_docs').select('exercice').eq('societe',soc);
+      const anneesAvecDoc = new Set((docs||[]).map(d=>parseInt(d.exercice)));
+      // années présentes dans les chiffres extraits
+      const {data:fins} = await sb.from('societe_finances').select('exercice').eq('societe',soc);
+      const anneesOrphelines = (fins||[]).map(f=>parseInt(f.exercice)).filter(y=>!anneesAvecDoc.has(y));
+      for(const y of anneesOrphelines){
+        await sb.from('societe_finances').delete().eq('societe',soc).eq('exercice',y);
       }
     } catch(e){}
+    // 4) Rafraîchit TOUT : cache, fiche société, et page Coût Vincent
+    delete SOC_FIN_CACHE[soc];
+    try { await renderSocFinances(soc); } catch(e){}
+    try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
   }
   const box = btn.closest('.socimp'); if(box) socImpRender(box);
+}
+
+// Remise à zéro complète d'une société : supprime TOUS ses documents (Dropbox + index)
+// ET tous ses chiffres extraits. Utile pour repartir propre / purger d'anciens résidus.
+async function socPurge(soc){
+  if(!confirm('Tout effacer pour '+(IS_SOC_LABEL[soc]||soc)+' ?\n\nCela supprime TOUS les bilans/documents de cette société (Dropbox + index) ET tous les chiffres extraits. Action irréversible.')) return;
+  try {
+    const {data:docs} = await sb.from('societe_docs').select('id,dropbox_path').eq('societe',soc);
+    if(docs && docs.length){
+      let tok=null; try{ tok=await dbxToken(); }catch(e){}
+      for(const d of docs){
+        if(d.dropbox_path && tok){
+          try{ await fetch('https://api.dropboxapi.com/2/files/delete_v2',{method:'POST',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({path:d.dropbox_path})}); }catch(e){}
+        }
+      }
+    }
+  } catch(e){}
+  try { await sb.from('societe_docs').delete().eq('societe',soc); } catch(e){}
+  try { await sb.from('societe_finances').delete().eq('societe',soc); } catch(e){}
+  delete SOC_FIN_CACHE[soc];
+  const box = document.querySelector('.socimp[data-soc="'+soc+'"]'); if(box) socImpRender(box);
+  try { await renderSocFinances(soc); } catch(e){}
+  try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
+  alert('✓ '+(IS_SOC_LABEL[soc]||soc)+' : tout a été effacé. Tu peux redéposer les bilans proprement.');
 }
 
 // ── CAHIER DE BORD : JOURNAL DES VIREMENTS DIVIDENDES (mère ↔ filles) ──
@@ -3256,16 +3289,18 @@ OÙ TROUVER CHAQUE POSTE dans une liasse française (formulaires 2050 à 2059) :
 
 DEUX MODÈLES DE PRÉSENTATION possibles (la société a changé d'expert-comptable). Adapte-toi : un bilan peut être une liasse fiscale CERFA classique (formulaires 2050/2051/2052/2053 numérotés), OU une plaquette/présentation de cabinet avec des intitulés et une mise en page différents. Les chiffres sont les mêmes, seuls les libellés et l'ordre changent. Détecte la présentation et renseigne "modele_presentation" : "liasse_cerfa" (formulaires numérotés 2050…) ou "plaquette_cabinet" (présentation libre par un cabinet). Indique aussi le nom du cabinet/expert-comptable s'il apparaît (en bas de page, mention « établi par… ») dans "cabinet".
 
-COÛT DU DIRIGEANT — repère tout ce qui est lié à la personne du dirigeant (Vincent Hilaire) et le coûte à la société. Cherche dans le compte de résultat, le détail des charges, l'annexe et les comptes 64/62/61 :
-- "remuneration_dirigeant" : rémunération brute du gérant (compte 641 gérant / 644 rémunération de l'exploitant), salaire ou rémunération de gérance versée au dirigeant.
-- "charges_sociales_dirigeant" : cotisations sociales du dirigeant (TNS/URSSAF, compte 646 « cotisations sociales personnelles de l'exploitant », ou charges sur rémunération gérant).
-- "vehicule_dirigeant" : coût du/des véhicule(s) de fonction (amortissement véhicule + crédit-bail/location longue durée compte 612/6132, entretien 615…).
-- "assurance_vehicule" : prime d'assurance du/des véhicule(s) (compte 616).
-- "carburant" : carburant / essence (compte 6061 ou 6068 carburants).
-- "restaurants_receptions" : frais de restaurant, réceptions, missions (comptes 6256 missions, 6257 réceptions, restaurants).
-- "deplacements_voyages" : voyages et déplacements (compte 6251).
-- "autres_avantages_dirigeant" : autres frais personnels du dirigeant identifiables (téléphone, cotisations facultatives Madelin payées par la société…).
-Ne mets une valeur que si tu la vois réellement ; sinon null. Ne devine pas.
+COÛT DU DIRIGEANT — c'est une priorité. Une liasse contient en général un COMPTE DE RÉSULTAT DÉTAILLÉ (souvent en fin de document, parfois intitulé « détail des charges », « charges externes détaillées » ou compte de résultat « développé ») où CHAQUE charge est ventilée par compte du plan comptable. C'est LÀ que se trouvent les frais du gérant. Lis ce compte de résultat détaillé LIGNE PAR LIGNE et additionne tout ce qui relève de la personne du gérant (Vincent Hilaire). Ne te contente pas du compte de résultat synthétique. Repère notamment les comptes 60 à 65 :
+- "remuneration_dirigeant" : rémunération brute du gérant (641 rémunération du personnel si gérant salarié, 6411, ou 644 « rémunération du travail de l'exploitant » / rémunérations de gérance). Inclut les rémunérations exceptionnelles de gérance.
+- "charges_sociales_dirigeant" : cotisations sociales personnelles du dirigeant (646 « cotisations sociales personnelles de l'exploitant », TNS/URSSAF/RSI, charges sociales sur rémunération de gérance, 6411 charges).
+- "vehicule_dirigeant" : tout le coût du/des véhicule(s) (dotation aux amortissements du véhicule, crédit-bail / leasing / LLD 612 ou 6132, locations 6135, entretien et réparations 6155, petit équipement auto). Additionne ces lignes.
+- "assurance_vehicule" : primes d'assurance automobile (616, 6163).
+- "carburant" : carburants / essence / gazole (6061, 6068, « carburants »).
+- "restaurants_receptions" : frais de restaurant, repas, réceptions, missions, traiteur (6256 missions, 6257 réceptions, restaurants).
+- "deplacements_voyages" : voyages et déplacements, train, avion, hôtels, péages, parkings (6251, 6252, 6255).
+- "autres_avantages_dirigeant" : autres frais personnels du dirigeant : téléphone/mobile (626), cotisations facultatives Madelin / retraite / prévoyance du dirigeant payées par la société, cadeaux, frais de représentation, cotisations clubs.
+- "cout_dirigeant_total" : la SOMME de tous les postes ci-dessus si tu peux la calculer (sinon null, l'app la recalculera).
+- "cout_dirigeant_detail" : liste libre de TOUTE autre ligne du compte de résultat détaillé qui te semble être un frais du gérant et qui n'entre dans aucune case ci-dessus, sous la forme [{"libelle":"intitulé exact lu","montant":nombre}]. Sers-t'en pour ne RIEN oublier.
+Ne mets une valeur que si tu la vois réellement dans le document ; sinon null. N'invente pas, mais sois EXHAUSTIF : parcours tout le compte de résultat détaillé.
 
 Objet JSON attendu :
 {
@@ -3303,6 +3338,8 @@ Objet JSON attendu :
  "restaurants_receptions": nombre,
  "deplacements_voyages": nombre,
  "autres_avantages_dirigeant": nombre,
+ "cout_dirigeant_total": nombre,
+ "cout_dirigeant_detail": [ {"libelle": "intitulé exact lu dans le compte de résultat détaillé", "montant": nombre } ],
  "comptes_courants_detail": [ {"nom": "nom société ou personne", "sens": "actif" ou "passif", "montant": nombre } ]
 }
 Règle pour comptes_courants_detail : "actif" = la société liée DOIT de l'argent à cette entreprise (créance, à l'actif) ; "passif" = cette entreprise DOIT de l'argent (dette envers associé/groupe, au passif). Sois exhaustif : si une ligne « Groupe et associés » existe à l'actif ET au passif, liste les deux.`;
@@ -3406,7 +3443,9 @@ Règle pour comptes_courants_detail : "actif" = la société liée DOIT de l'arg
     }
     note.style.color='var(--success)';
     note.innerHTML = '✓ Bilan <strong>'+realYear+'</strong> lu automatiquement'+(realYear!==parseInt(year)?' (rangé en '+realYear+' d\'après la date du bilan)':'')+' — résultat net : <strong>'+(fin.resultat_net!=null?Math.round(fin.resultat_net).toLocaleString('fr-FR')+'€':'n.c.')+'</strong>, capitaux propres : <strong>'+(fin.capitaux_propres!=null?Math.round(fin.capitaux_propres).toLocaleString('fr-FR')+'€':'n.c.')+'</strong>';
-    renderSocFinances(soc);
+    delete SOC_FIN_CACHE[soc];
+    await renderSocFinances(soc);
+    try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
   } catch(e) {
     // Repli : l'IA n'a pas pu lire le bilan. On tente de deviner l'année à partir
     // du nom du fichier (ex. « bilan2022.pdf ») pour au moins ranger correctement.
@@ -3541,6 +3580,10 @@ function coutDirigeantTotal(d){
   if(!d) return null;
   let tot=0, vu=false;
   DIR_POSTES.forEach(([k])=>{ const v=Number(d[k]); if(!isNaN(v) && d[k]!=null){ tot+=v; vu=true; } });
+  // Ajoute les lignes libres repérées dans le compte de résultat détaillé (rien d'oublié)
+  if(Array.isArray(d.cout_dirigeant_detail)){
+    d.cout_dirigeant_detail.forEach(it=>{ const v=Number(it&&it.montant); if(!isNaN(v) && it.montant!=null){ tot+=v; vu=true; } });
+  }
   return vu ? tot : null;
 }
 
@@ -3570,6 +3613,8 @@ async function renderCoutVincent() {
   }
   // Totaux par poste (somme sur toutes les sociétés) + total par société
   const totauxPoste = {}; DIR_POSTES.forEach(([k])=>totauxPoste[k]=null);
+  let autresTot = null;            // somme des lignes libres « cout_dirigeant_detail »
+  const autresLignes = [];         // pour affichage détaillé (libellé + société + montant)
   const totalParSoc = {};
   let grandTotal = 0, grandVu = false;
   socsAvecData.forEach(soc=>{
@@ -3578,6 +3623,15 @@ async function renderCoutVincent() {
       const v = d[k];
       if(v!=null && !isNaN(Number(v))){ totauxPoste[k] = (totauxPoste[k]||0) + Number(v); }
     });
+    if(Array.isArray(d.cout_dirigeant_detail)){
+      d.cout_dirigeant_detail.forEach(it=>{
+        const v = Number(it&&it.montant);
+        if(!isNaN(v) && it.montant!=null){
+          autresTot = (autresTot||0) + v;
+          autresLignes.push({libelle:(it.libelle||'Autre frais'), soc, montant:v});
+        }
+      });
+    }
     const t = coutDirigeantTotal(d);
     totalParSoc[soc] = t;
     if(t!=null){ grandTotal += t; grandVu = true; }
@@ -3605,8 +3659,18 @@ async function renderCoutVincent() {
     const v = totauxPoste[k];
     html += `<tr><td>${lab}</td><td class="r">${v!=null?eurF(v):'<span style="color:var(--text3);">—</span>'}</td></tr>`;
   });
+  if(autresTot!=null){
+    html += `<tr><td>Autres frais du gérant (compte de résultat détaillé)</td><td class="r">${eurF(autresTot)}</td></tr>`;
+  }
   html += `<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;">Coût total du dirigeant</td><td class="r" style="font-weight:700;">${grandVu?eurF(grandTotal):'—'}</td></tr>`;
-  html += `</tbody></table></div>`;
+  html += `</tbody></table>`;
+  // Détail des lignes libres repérées dans le compte de résultat détaillé
+  if(autresLignes.length){
+    html += `<div style="margin-top:10px;font-size:12px;color:var(--text2);"><strong>Détail des « autres frais » lus dans le compte de résultat détaillé :</strong><ul style="margin:6px 0 0;padding-left:18px;">`;
+    autresLignes.forEach(it=>{ html += `<li>${it.libelle} <span style="color:var(--text3);">(${IS_SOC_LABEL[it.soc]||it.soc})</span> — ${eurF(it.montant)}</li>`; });
+    html += `</ul></div>`;
+  }
+  html += `</div>`;
   // Tableau par société
   html += `<div class="card"><div class="card-title">Coût du dirigeant par société</div>`;
   html += `<table class="tbl"><thead><tr><th>Société</th><th>Exercice</th><th class="r">Rémunération</th><th class="r">Coût total</th></tr></thead><tbody>`;
@@ -3630,10 +3694,10 @@ async function renderSocFinances(soc) {
   // Complète les totaux CC manquants (dérivés du détail) pour chaque exercice
   rows.forEach(r => { if(r && r.donnees) r.donnees = completerCC(r.donnees); });
   if(!rows.length){
-    // Plus aucun chiffre extrait : on remet le message d'attente (évite données orphelines)
-    if(/Chiffres extraits automatiquement/.test(zone.innerHTML)) {
-      zone.innerHTML = '<div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l\'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div>';
-    }
+    // Plus aucun chiffre extrait : on remet TOUJOURS le message d'attente (évite tout
+    // résidu : KPI, comptes courants, fournisseurs, historique d'un exercice supprimé).
+    delete SOC_FIN_CACHE[soc];
+    zone.innerHTML = '<div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l\'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div>';
     return;
   }
   const last = rows[0];
