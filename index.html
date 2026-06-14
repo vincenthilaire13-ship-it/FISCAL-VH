@@ -1527,7 +1527,15 @@ function pdfStatus(msg, color){
 }
 
 function pdfAnalyse(file){
-  pdfStatus('Lecture du relevé en cours… (cela peut prendre 30 s)','info');
+  // compteur de patience (la lecture d'un relevé de 15 pages peut prendre 1 à 3 min)
+  var t0=Date.now();
+  if(window._pdfTimer) clearInterval(window._pdfTimer);
+  var tick=function(){
+    var s=Math.round((Date.now()-t0)/1000);
+    pdfStatus('Lecture du relevé en cours… '+s+' s (l\'IA lit toutes les opérations, cela peut prendre 1 à 3 min sur un gros relevé)','info');
+  };
+  tick();
+  window._pdfTimer=setInterval(tick,1000);
 
   var reader=new FileReader();
   reader.onload=function(e){
@@ -1563,6 +1571,7 @@ function pdfAnalyse(file){
       body: JSON.stringify(payload)
     })
     .then(function(r){
+      if(window._pdfTimer){ clearInterval(window._pdfTimer); window._pdfTimer=null; }
       if(!r.ok){
         return r.json().then(function(j){
           throw new Error((j&&j.error) ? j.error : ('Serveur IA HTTP '+r.status));
@@ -1590,7 +1599,7 @@ function pdfAnalyse(file){
       _pdfParsed = parsed;
       pdfTraiteResultat(parsed, restoSel);
     })
-    .catch(function(ex){ pdfStatus('Erreur : '+ex.message,'err'); });
+    .catch(function(ex){ if(window._pdfTimer){ clearInterval(window._pdfTimer); window._pdfTimer=null; } pdfStatus('Erreur : '+ex.message,'err'); });
   };
   reader.readAsDataURL(file);
 }
