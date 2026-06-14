@@ -1459,11 +1459,46 @@ function bkDel(){
 
 var _pdfTx = [];
 
+// Empêche le navigateur d'OUVRIR un PDF lâché à côté de la zone (comportement par défaut gênant)
+window.addEventListener('dragover', function(e){ if(document.getElementById('pdf-ov') && document.getElementById('pdf-ov').classList.contains('open')) e.preventDefault(); }, false);
+window.addEventListener('drop', function(e){ if(document.getElementById('pdf-ov') && document.getElementById('pdf-ov').classList.contains('open')) e.preventDefault(); }, false);
+
 function pdfOpen(){
   document.getElementById('pdf-ov').classList.add('open');
   // pré-sélectionner la société actuellement affichée
   var sel=document.getElementById('pdf-resto');
   if(sel){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===resto){ sel.selectedIndex=i; break; } } }
+  pdfSetupDrop();
+}
+
+// Installe le glisser-déposer sur la zone (sinon le navigateur OUVRE le PDF au lieu de le lire)
+var _pdfDropReady=false;
+function pdfSetupDrop(){
+  if(_pdfDropReady) return;
+  var zone=document.getElementById('pdf-drop');
+  if(!zone) return;
+  var stop=function(e){ e.preventDefault(); e.stopPropagation(); };
+  ['dragenter','dragover','dragleave','drop'].forEach(function(ev){
+    zone.addEventListener(ev, stop, false);
+  });
+  zone.addEventListener('dragover', function(){ zone.classList.add('active'); }, false);
+  zone.addEventListener('dragleave', function(){ zone.classList.remove('active'); }, false);
+  zone.addEventListener('drop', function(e){
+    zone.classList.remove('active');
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if(files && files.length){
+      var sel=document.getElementById('pdf-resto');
+      if(sel && sel.value) resto = sel.value;
+      var f=files[0];
+      var nameDiv = zone.querySelector('div:nth-child(2)');
+      if(nameDiv) nameDiv.textContent = f.name;
+      pdfAnalyse(f);
+    }
+  }, false);
+  // empêcher la fenêtre modale d'ouvrir le fichier si on rate la zone
+  var ov=document.getElementById('pdf-ov');
+  if(ov){ ['dragover','drop'].forEach(function(ev){ ov.addEventListener(ev, function(e){ if(e.target===ov){ e.preventDefault(); } }, false); }); }
+  _pdfDropReady=true;
 }
 function pdfClose(){
   document.getElementById('pdf-ov').classList.remove('open');
