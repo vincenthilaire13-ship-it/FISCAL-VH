@@ -1549,7 +1549,7 @@ function pdfAnalyse(file){
 
     var payload = {
       model: 'claude-opus-4-5',
-      max_tokens: 8000,
+      max_tokens: 16000,
       messages: [{role:'user', content:[
         {type:'document', source:{type:'base64', media_type:'application/pdf', data:b64}},
         {type:'text', text:prompt}
@@ -1574,8 +1574,19 @@ function pdfAnalyse(file){
       if(data.error){ pdfStatus('Erreur IA : '+(data.error.message||data.error),'err'); return; }
       var txt='';
       (data.content||[]).forEach(function(b){ if(b.type==='text') txt+=b.text; });
+      if(!txt){ pdfStatus('L\'IA n\'a renvoyé aucun texte. Réponse : '+JSON.stringify(data).slice(0,200),'err'); return; }
       var parsed = pdfParseJSON(txt);
-      if(!parsed){ pdfStatus('Réponse IA illisible (JSON). Réessayez l\'import.','err'); console.warn('Réponse brute IA:', txt); return; }
+      if(!parsed){
+        console.warn('Réponse brute IA:', txt);
+        var apercu = txt.replace(/\s+/g,' ').slice(0,280);
+        pdfStatus('Lecture JSON impossible. Début de la réponse IA : « '+apercu+' »','err');
+        return;
+      }
+      if(!parsed.postes || !parsed.postes.length){
+        pdfStatus('JSON lu mais aucun poste détecté. Vérifiez le relevé.','err');
+        console.warn('JSON sans postes:', parsed);
+        return;
+      }
       _pdfParsed = parsed;
       pdfTraiteResultat(parsed, restoSel);
     })
@@ -1603,13 +1614,41 @@ function pdfParseJSON(txt){
       s,
       s.replace(/,\s*([}\]])/g, '$1'),                 // virgules en trop avant } ou ]
       s.replace(/,\s*([}\]])/g, '$1').replace(/[\u0000-\u001F]+/g,' '), // + caractères de contrôle
-      s.replace(/,\s*([}\]])/g, '$1').replace(/[\u0000-\u001F]+/g,' ').replace(/"\s*\n\s*"/g,' ') // valeurs coupées sur 2 lignes
+      s.replace(/,\s*([}\]])/g, '$1').replace(/[\u0000-\u001F]+/g,' ').replace(/"\s*\n\s*"/g,' '), // valeurs coupées sur 2 lignes
+      pdfRepareTronque(s)                              // JSON coupé : on ferme ce qui est ouvert
     ];
     for(var t=0;t<tries.length;t++){
-      try{ return JSON.parse(tries[t]); }catch(e){}
+      try{ if(tries[t]) return JSON.parse(tries[t]); }catch(e){}
     }
   }
   return null;
+}
+
+// Répare un JSON coupé en plein milieu (réponse tronquée) : ferme les guillemets,
+// retire le dernier élément incomplet, et referme accolades/crochets ouverts.
+function pdfRepareTronque(s){
+  if(!s) return null;
+  var a=s.indexOf('{'); if(a<0) return null;
+  s=s.slice(a);
+  // couper après la dernière accolade/crochet complet probable
+  // 1) enlever une éventuelle dernière paire clé:"valeur incomplète
+  s=s.replace(/,\s*"[^"]*"\s*:\s*("[^"]*)?$/,''); // clé:val coupée
+  s=s.replace(/,\s*\{[^}]*$/,'');                  // objet de poste coupé
+  // compter accolades/crochets ouverts
+  var open={cur:0,sq:0}, inStr=false, esc=false;
+  for(var k=0;k<s.length;k++){
+    var c=s[k];
+    if(esc){esc=false;continue;}
+    if(c==='\\'){esc=true;continue;}
+    if(c==='"'){inStr=!inStr;continue;}
+    if(inStr) continue;
+    if(c==='{')open.cur++; else if(c==='}')open.cur--;
+    else if(c==='[')open.sq++; else if(c===']')open.sq--;
+  }
+  if(inStr) s+='"';
+  while(open.sq-->0) s+=']';
+  while(open.cur-->0) s+='}';
+  return s;
 }
 
 // Construit le prompt d'extraction + regroupement (règles métier VH)
