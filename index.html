@@ -232,7 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-dashboard" class="panel active">
   <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
     <span id="maj-badge" style="display:inline-flex;align-items:center;gap:6px;background:var(--success-l);color:var(--success);font-size:11px;font-weight:600;font-family:var(--mono);padding:4px 11px;border-radius:20px;border:1px solid rgba(22,101,52,0.2);">
-      <span style="font-size:9px;">●</span> Mis à jour le dimanche 14 juin 2026 à 09h41
+      <span style="font-size:9px;">●</span> Mis à jour le dimanche 14 juin 2026 à 09h48
     </span>
   </div>
   <!-- Optimisation panel toujours visible -->
@@ -2314,73 +2314,99 @@ async function imageFileToBase64(file, opts){
   return canvas.toDataURL('image/jpeg', quality).split(',')[1];
 }
 
-// Lance l'extraction IA d'un document bâtiment et renvoie l'objet JSON (ou {error}).
-// Accepte TOUT : PDF (texte OU scan), JPEG, PNG, photo. L'IA Claude sait lire une image,
-// donc on lui envoie des images dans tous les cas. Messages d'erreur explicites.
+// Lance l'extraction IA d'un document bâtiment et renvoie {data} ou {error, diag}.
+// DIAGNOSTIC : à chaque étape, on note ce qui se passe (taille, pages, poids envoi,
+// code serveur, réponse IA). En cas d'échec, ce journal est renvoyé pour être AFFICHÉ
+// DANS L'APPLI — fini de deviner, l'app dit elle-même pourquoi ça n'a pas marché.
 async function batExtractDoc(cat, file, batNom){
+  const diag = [];
+  const log = (m)=>{ diag.push(m); const el=document.getElementById('batdrop-status-'+cat); if(el){ el.innerHTML = '<span style="color:var(--accent);">🤖 Lecture… '+m+'</span>'; } };
+  const Mo = o => (o/1024/1024).toFixed(2)+' Mo';
+
   const ext = (file.name.split('.').pop()||'').toLowerCase();
   const type = (file.type||'').toLowerCase();
   const isPdf   = ext==='pdf'  || type==='application/pdf';
   const isImage = /^(jpe?g|png|webp|gif|bmp|heic|heif|tif?f)$/.test(ext) || /^image\//.test(type);
-  if(!isPdf && !isImage){ return {error:'Format non pris en charge pour la lecture auto ('+(ext||type||'inconnu')+'). Formats lus : PDF, JPG, PNG, scan, photo.'}; }
+  diag.push('Fichier : '+file.name+' ('+(ext||type||'type inconnu')+', '+Mo(file.size)+')');
+  if(!isPdf && !isImage){ return {error:'Format non pris en charge ('+(ext||type||'inconnu')+'). Formats lus : PDF, JPG, PNG, scan, photo.', diag}; }
 
-  // Paliers de compression décroissante : on réessaie plus léger si le serveur refuse (413/400).
-  const ALL = 80;
+  // Compte les pages d'un PDF (info de diagnostic + décision d'envoi)
+  let nbPages = 1;
+  if(isPdf){ nbPages = await pdfPageCount(file); diag.push('Pages PDF détectées : '+nbPages); }
+
+  // Paliers : on réduit résolution ET nombre de pages si l'envoi est trop lourd.
+  // Pour un gros document, on cible page 1 + pages utiles plutôt que tout envoyer.
+  const allPages = Array.from({length:nbPages}, (_,k)=>k+1);
   const paliers = [
-    {pages:ALL, maxWidth:1500, quality:0.72},
-    {pages:ALL, maxWidth:1200, quality:0.6},
-    {pages:ALL, maxWidth:1000, quality:0.5},
-    {pages:ALL, maxWidth:820,  quality:0.42}
+    {pages:allPages,                      maxWidth:1500, quality:0.72},
+    {pages:allPages,                      maxWidth:1200, quality:0.6},
+    {pages:choisirPagesUtiles(nbPages),   maxWidth:1300, quality:0.62},
+    {pages:choisirPagesUtiles(nbPages),   maxWidth:1000, quality:0.5},
+    {pages:[1],                           maxWidth:1300, quality:0.6}
   ];
+
   let lastErr = '';
   for(let i=0;i<paliers.length;i++){
     const cfg = paliers[i];
     try {
-      // 1) Obtenir les images du document, quel que soit son type
+      log('tentative '+(i+1)+'/'+paliers.length+'…');
+      // 1) Images du document
       let imgs = [];
       if(isPdf){
-        try {
-          imgs = await pdfToImages(file, cfg.pages, {maxWidth:cfg.maxWidth, quality:cfg.quality});
-        } catch(pdfErr){
-          // PDF illisible par pdf.js (souvent un scan encapsulé mal formé) : on tente
-          // de le traiter comme une image directe en dernier recours.
-          imgs = [];
-        }
-        // Scan en PDF : pdf.js rend quand même la page en image, donc imgs ne devrait pas
-        // être vide. S'il l'est, on signale clairement.
-        if((!imgs || !imgs.length) && i===paliers.length-1){
-          lastErr = 'PDF illisible (ni texte ni image exploitable). Réessaie en déposant une photo / un export JPEG du document.';
-          continue;
-        }
+        try { imgs = await pdfChosenPagesToImages(file, cfg.pages, {maxWidth:cfg.maxWidth, quality:cfg.quality}); }
+        catch(pdfErr){ diag.push('Tentative '+(i+1)+' : pdf.js a échoué ('+((pdfErr&&pdfErr.message)||'?')+')'); imgs=[]; }
       } else {
-        // Image directe (JPEG/PNG/scan/photo)
         const b64 = await imageFileToBase64(file, {maxWidth:cfg.maxWidth, quality:cfg.quality});
         imgs = b64 ? [b64] : [];
       }
-      if(!imgs || !imgs.length){ lastErr='Aucune image exploitable produite à partir du document.'; continue; }
+      if(!imgs || !imgs.length){ lastErr='Aucune image produite à la tentative '+(i+1); diag.push(lastErr); continue; }
 
-      // 2) Envoi à l'IA (toujours sous forme d'images : ça marche pour PDF texte, scan, photo)
+      // 2) Construction et MESURE de l'envoi
       const content = imgs.map(d=>({type:'image', source:{type:'base64', media_type:'image/jpeg', data:d}}));
       content.push({type:'text', text: batPromptFor(cat, batNom)});
       const payload = JSON.stringify({ model:'claude-sonnet-4-5', max_tokens:1500, messages:[{role:'user', content}] });
-      const r = await fetch('/api/ia', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload });
+      const poids = payload.length;
+      diag.push('Tentative '+(i+1)+' : '+imgs.length+' page(s) envoyée(s), poids '+Mo(poids));
+      log((i+1)+'/'+paliers.length+' — envoi de '+imgs.length+' page(s) ('+Mo(poids)+')…');
+
+      // 3) Envoi au serveur IA
+      let r;
+      try { r = await fetch('/api/ia', { method:'POST', headers:{'Content-Type':'application/json'}, body: payload }); }
+      catch(netErr){ lastErr='Réseau /api/ia : '+((netErr&&netErr.message)||'?'); diag.push('Tentative '+(i+1)+' : '+lastErr); continue; }
+      diag.push('Tentative '+(i+1)+' : réponse serveur HTTP '+r.status);
       if(!r.ok){
-        lastErr = 'Serveur de lecture IA : HTTP '+r.status;
-        if(r.status===413 || r.status===400){ continue; } // trop lourd → palier plus compressé
-        return {error:lastErr};
+        lastErr = 'Serveur IA HTTP '+r.status+' (envoi '+Mo(poids)+')';
+        if(r.status===413){ diag.push('→ 413 : envoi TROP LOURD, on réessaie avec moins de pages / plus compressé'); continue; }
+        if(r.status===400){ diag.push('→ 400 : requête refusée, on réessaie plus léger'); continue; }
+        if(r.status===401||r.status===403){ return {error:'Serveur IA : accès refusé (HTTP '+r.status+'). La clé API de /api/ia est probablement absente ou invalide sur Vercel.', diag}; }
+        if(r.status===404){ return {error:'Serveur IA introuvable (HTTP 404) : le fichier /api/ia n\'existe pas sur Vercel.', diag}; }
+        if(r.status===500||r.status===502||r.status===504){ return {error:'Serveur IA en erreur (HTTP '+r.status+'). Souvent : clé API manquante, quota dépassé, ou timeout. Regarde les logs de /api/ia sur Vercel.', diag}; }
+        continue;
       }
-      const j = await r.json();
+      // 4) Lecture de la réponse
+      let j; try { j = await r.json(); } catch(e){ lastErr='Réponse serveur illisible (pas du JSON)'; diag.push(lastErr); continue; }
+      if(j && j.error){ const em=(j.error.message||JSON.stringify(j.error)); diag.push('Tentative '+(i+1)+' : l\'IA a renvoyé une erreur — '+em); lastErr='Erreur IA : '+em; if(/overload|rate|limit|quota/i.test(em)){ continue; } return {error:lastErr, diag}; }
       let txt = '';
       if(j && Array.isArray(j.content)) txt = j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
       else if(j && j.content && j.content[0] && j.content[0].text) txt = j.content[0].text;
       txt = (txt||'').replace(/```json|```/g,'').trim();
       const m = txt.match(/\{[\s\S]*\}/);
-      if(!m){ lastErr='L\'IA n\'a pas renvoyé de données exploitables (document peut-être trop flou / illisible).'; continue; }
-      try { return JSON.parse(m[0]); }
-      catch(e){ lastErr='Réponse IA non décodable (JSON invalide).'; continue; }
-    } catch(e){ lastErr=(e&&e.message)||'erreur inconnue'; }
+      if(!m){ lastErr='L\'IA n\'a pas renvoyé de données structurées'; diag.push('Tentative '+(i+1)+' : '+lastErr+(txt?(' — début réponse : "'+txt.slice(0,80)+'…"'):' (réponse vide)')); continue; }
+      try { const parsed = JSON.parse(m[0]); diag.push('✓ Lecture réussie à la tentative '+(i+1)); return {data:parsed, diag}; }
+      catch(e){ lastErr='Données IA non décodables (JSON invalide)'; diag.push('Tentative '+(i+1)+' : '+lastErr); continue; }
+    } catch(e){ lastErr=(e&&e.message)||'erreur inconnue'; diag.push('Tentative '+(i+1)+' : exception — '+lastErr); }
   }
-  return {error: lastErr || 'Lecture auto impossible après plusieurs tentatives.'};
+  return {error: lastErr || 'Lecture impossible après toutes les tentatives.', diag};
+}
+
+// Choisit les pages utiles d'un gros document (ex. tableau d'amortissement) :
+// page 1 (infos du prêt) + pages couvrant l'année en cours et la suivante.
+// Heuristique simple : page 1, puis quelques pages réparties autour du milieu.
+function choisirPagesUtiles(nbPages){
+  if(nbPages<=3) return Array.from({length:nbPages}, (_,k)=>k+1);
+  // page 1 + 2 pages vers le début/milieu (là où se trouve l'année courante d'un prêt récent)
+  const set = new Set([1, 2, Math.min(3,nbPages)]);
+  return Array.from(set).sort((a,b)=>a-b);
 }
 
 // Construit la zone « documents de cette catégorie » : liste cliquable + dépôt.
@@ -2442,9 +2468,10 @@ async function batDocHandle(cat, files){
     catch(e){ if(statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">Échec Dropbox : '+((e&&e.message)||'')+'</span>'; continue; }
     if(statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">🤖 Lecture automatique de '+f.name+'… (10-30s)</span>';
     let res = null;
-    try { res = await batExtractDoc(cat, f, b.nom); } catch(e){ res = {error:(e&&e.message)||'erreur'}; }
-    const data = (res && !res.error) ? res : null;
+    try { res = await batExtractDoc(cat, f, b.nom); } catch(e){ res = {error:(e&&e.message)||'erreur', diag:['Exception : '+((e&&e.message)||'')]}; }
+    const data = (res && res.data) ? res.data : null;
     const errMsg = (res && res.error) ? res.error : null;
+    const diagArr = (res && res.diag) ? res.diag : [];
     const doc = {
       cat, nom: up.nom,
       titre: (data && data.titre) ? data.titre : f.name.replace(/\.[^.]+$/,''),
@@ -2462,7 +2489,10 @@ async function batDocHandle(cat, files){
       if(data){
         statusEl.innerHTML = '<span style="color:var(--success);">✓ '+f.name+' ajouté et lu. Les champs ci-dessous ont été pré-remplis — vérifie et enregistre.</span>';
       } else {
-        statusEl.innerHTML = '<span style="color:var(--warn);">⚠ '+f.name+' a bien été sauvegardé dans Dropbox, mais la <strong>lecture automatique n\'a pas abouti</strong>'+(errMsg?(' — '+errMsg):'')+'<br>👉 Clique « 🔄 Relire » pour réessayer, ou remplis les champs du prêt à la main (bouton « + Ajouter un prêt manuellement »).</span>';
+        const journal = diagArr.length
+          ? '<details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;">🔎 Voir le diagnostic détaillé (pourquoi ça n\'a pas marché)</summary><div style="font-family:monospace;font-size:11px;background:var(--bg);border-radius:8px;padding:10px;margin-top:6px;white-space:pre-wrap;line-height:1.6;">'+diagArr.map(x=>'• '+x).join('\n')+'</div></details>'
+          : '';
+        statusEl.innerHTML = '<div style="color:var(--warn);">⚠ '+f.name+' a bien été sauvegardé dans Dropbox, mais la <strong>lecture automatique n\'a pas abouti</strong>'+(errMsg?(' :<br><strong>'+errMsg+'</strong>'):'')+'<br>👉 Clique « 🔄 Relire » pour réessayer, ou remplis les champs à la main.'+journal+'</div>';
       }
     }
   }
@@ -2484,16 +2514,21 @@ async function batDocRelire(globalIdx, cat){
     const blob = await dl.blob();
     const file = new File([blob], d.nom||'doc.pdf', {type:'application/pdf'});
     const res = await batExtractDoc(cat, file, b.nom);
-    if(res && !res.error){
-      d.extrait = res;
-      d.titre = res.titre || d.titre;
-      d.sous_type = res.type_doc || d.sous_type;
-      d.date_doc = res.date_effet||res.date_achat||res.date_facture||res.date_echeance||res.date_limite_paiement||d.date_doc;
-      batApplyExtract(b, cat, res, {force:true, srcPath:d.dropbox_path});
+    const rdata = (res && res.data) ? res.data : null;
+    if(rdata){
+      d.extrait = rdata;
+      d.titre = rdata.titre || d.titre;
+      d.sous_type = rdata.type_doc || d.sous_type;
+      d.date_doc = rdata.date_effet||rdata.date_achat||rdata.date_facture||rdata.date_echeance||rdata.date_limite_paiement||d.date_doc;
+      batApplyExtract(b, cat, rdata, {force:true, srcPath:d.dropbox_path});
       await saveBatToDb(b);
       if(statusEl) statusEl.innerHTML = '<span style="color:var(--success);">✓ Relu. Champs mis à jour.</span>';
     } else {
-      if(statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">Relecture échouée'+((res&&res.error)?(' ('+res.error+')'):'')+'.</span>';
+      const diagArr = (res && res.diag) ? res.diag : [];
+      const journal = diagArr.length
+        ? '<details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:600;">🔎 Voir le diagnostic détaillé</summary><div style="font-family:monospace;font-size:11px;background:var(--bg);border-radius:8px;padding:10px;margin-top:6px;white-space:pre-wrap;line-height:1.6;">'+diagArr.map(x=>'• '+x).join('\n')+'</div></details>'
+        : '';
+      if(statusEl) statusEl.innerHTML = '<div style="color:var(--danger);">Relecture échouée'+((res&&res.error)?(' : <strong>'+res.error+'</strong>'):'')+journal+'</div>';
     }
   } catch(e){
     if(statusEl) statusEl.innerHTML = '<span style="color:var(--danger);">Relecture impossible : '+((e&&e.message)||'')+'</span>';
@@ -4133,6 +4168,40 @@ async function pdfToImages(file, maxPages, opts) {
 
 // Estime le poids total (octets) d'un lot d'images base64
 function imgsBytes(imgs){ return imgs.reduce((s,b)=>s + Math.floor((b.length*3)/4), 0); }
+
+// Rend des PAGES PRÉCISES d'un PDF en images (pas seulement les N premières).
+// Utile pour un gros tableau d'amortissement : on prend la page 1 (infos du prêt)
+// + les pages couvrant l'année en cours (capital restant dû d'aujourd'hui), sans
+// envoyer les 6+ pages au serveur (ce qui dépasserait la limite de /api/ia).
+async function pdfChosenPagesToImages(file, pageNums, opts){
+  if(!window.pdfjsLib) throw new Error('pdf.js non chargé');
+  opts = opts || {};
+  const maxW = opts.maxWidth || 1300, quality = opts.quality || 0.72;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const total = pdf.numPages;
+  // Garde les numéros valides, uniques, triés
+  const wanted = Array.from(new Set(pageNums.filter(p=>p>=1 && p<=total))).sort((a,b)=>a-b);
+  const imgs = [];
+  for(const p of wanted){
+    const page = await pdf.getPage(p);
+    const base = page.getViewport({scale:1});
+    const scale = Math.min(2, Math.max(1, maxW / base.width));
+    const vp = page.getViewport({scale});
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
+    imgs.push(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+  }
+  return imgs;
+}
+
+// Pour un PDF de prêt : nombre total de pages (pour décider quelles pages envoyer)
+async function pdfPageCount(file){
+  if(!window.pdfjsLib) return 1;
+  try { const buf = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data:buf}).promise; return pdf.numPages; }
+  catch(e){ return 1; }
+}
 
 async function extraireBilanIA(box, file, soc, year, rowEl, ctx) {
   const zone = box ? box.querySelector('.si-ia') : null;
