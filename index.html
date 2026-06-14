@@ -1591,9 +1591,10 @@ function pdfAnalyse(file){
         pdfStatus('Lecture JSON impossible. Début de la réponse IA : « '+apercu+' »','err');
         return;
       }
-      if(!parsed.postes || !parsed.postes.length){
-        pdfStatus('JSON lu mais aucun poste détecté. Vérifiez le relevé.','err');
-        console.warn('JSON sans postes:', parsed);
+      var lignes = parsed.operations || parsed.postes || [];
+      if(!lignes.length){
+        pdfStatus('JSON lu mais aucune opération détectée. Début : « '+txt.replace(/\s+/g,' ').slice(0,200)+' »','err');
+        console.warn('JSON sans opérations:', parsed);
         return;
       }
       _pdfParsed = parsed;
