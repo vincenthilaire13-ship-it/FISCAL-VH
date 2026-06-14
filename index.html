@@ -1976,25 +1976,29 @@ function pdfTraiteResultat(parsed, restoSel){
 
   var ecartD = (totD!=null) ? (ctrlOut - totD) : null;   // <0 = il manque des sorties lues
   var ecartC = (totC!=null) ? (ctrlIn  - totC) : null;   // <0 = il manque des entrées lues
-  var okD = (ecartD!=null) && Math.abs(ecartD) < 0.5;
-  var okC = (ecartC!=null) && Math.abs(ecartC) < 0.5;
+  // Tolérance : en dessous de 5 € c'est un arrondi (centimes de frais), pas une écriture manquante.
+  var TOL = 5;
+  var okD = (ecartD!=null) && Math.abs(ecartD) < TOL;
+  var okC = (ecartC!=null) && Math.abs(ecartC) < TOL;
 
   // équation de solde : avec les totaux officiels si dispo, sinon avec les totaux lus
   var entreesRef = (totC!=null)?totC:ctrlIn;
   var sortiesRef = (totD!=null)?totD:ctrlOut;
   var soldeCalc = (sI!=null) ? (sI + entreesRef - sortiesRef) : null;
   var ecartSolde = (soldeCalc!=null && sF!=null) ? (soldeCalc - sF) : null;
-  var okSolde = (ecartSolde!=null) && Math.abs(ecartSolde) < 0.5;
+  var okSolde = (ecartSolde!=null) && Math.abs(ecartSolde) < TOL;
 
   var controleDispo = (totD!=null || totC!=null || (sI!=null && sF!=null));
-  var toutOk = (totD==null||okD) && (totC==null||okC) && (ecartSolde==null||okSolde);
-  _pdfParsed._controleOk = !controleDispo || toutOk;
+  var lectureComplete0 = (totC==null||okC) && (totD==null||okD);
+  var toutOk = lectureComplete0 && (ecartSolde==null||okSolde);
+  _pdfParsed._controleOk = !controleDispo || lectureComplete0;
 
   var info = document.getElementById('pdf-resto-detected');
   if(info){
     info.style.display='block';
-    info.style.background = (toutOk&&controleDispo)?'#e6f9f1':(controleDispo?'#fff7ec':'#eef4ff');
-    info.style.color = (toutOk&&controleDispo)?'#0d7a52':(controleDispo?'#b3600f':'#1a4a7e');
+    var vert = controleDispo && lectureComplete0;   // vert dès que la lecture est complète
+    info.style.background = vert?'#e6f9f1':(controleDispo?'#fff7ec':'#eef4ff');
+    info.style.color = vert?'#0d7a52':(controleDispo?'#b3600f':'#1a4a7e');
 
     var lignes=[];
     // soldes (toujours affichés s'ils existent : ils font foi et enchaînent les mois)
@@ -2006,13 +2010,21 @@ function pdfTraiteResultat(parsed, restoSel){
     if(totD!=null) lignes.push(okD ? 'sorties ✓ ('+ctrlOut.toLocaleString('fr-FR')+'€)' : 'sorties : il manque '+(-ecartD).toLocaleString('fr-FR')+'€');
     // contrôle équation de solde
     if(ecartSolde!=null){
-      lignes.push(okSolde ? 'équation de solde ✓' : 'équation de solde : écart de '+ecartSolde.toLocaleString('fr-FR')+'€');
+      lignes.push(okSolde ? ('équation de solde ✓'+(Math.abs(ecartSolde)>=0.01?' (écart '+ecartSolde.toFixed(2)+'€, arrondi)':'')) : 'équation de solde : écart de '+ecartSolde.toLocaleString('fr-FR')+'€');
     }
 
-    var titre = controleDispo ? (toutOk ? '✓ Auto-contrôle OK — tout est cohérent' : '⚠ Il manque une ou des écritures') : 'ℹ Contrôle partiel (totaux non lus)';
-    var conseil = (controleDispo && !toutOk)
-      ? '<br><span style="font-size:10px">Une ou plusieurs écritures manquent. Tu peux importer quand même : la (les) écriture(s) manquante(s) seront à positionner ensuite, comme on l\'a vu — l\'app ne devine pas.</span>'
+    // Verdict : la lecture est COMPLÈTE si entrées et sorties collent aux totaux officiels.
+    var lectureComplete = lectureComplete0;
+    var titre = controleDispo
+      ? (toutOk ? '✓ Lecture complète et cohérente — tu peux importer'
+                : (lectureComplete ? '✓ Lecture complète (petit écart de solde sans gravité)'
+                                   : '⚠ Il manque une ou des écritures'))
+      : 'ℹ Contrôle partiel (totaux non lus)';
+    var conseil = (controleDispo && !lectureComplete)
+      ? '<br><span style="font-size:10px">Une ou plusieurs écritures manquent. Tu peux importer quand même : la (les) écriture(s) manquante(s) seront à positionner ensuite — l\'app ne devine pas.</span>'
       : '';
+    // si la lecture est complète, on considère l'import comme OK même avec un micro-écart de solde
+    if(lectureComplete) _pdfParsed._controleOk = true;
 
     info.innerHTML = '<strong>'+(parsed.titulaire||restoSel)+'</strong> · '+(periode||'?')
       + (parsed.iban ? '<br><span style="font-size:11px">IBAN '+parsed.iban+'</span>' : '')
