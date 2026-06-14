@@ -1610,12 +1610,23 @@ function pdfParseJSON(txt){
 
   for(var i=0;i<candidates.length;i++){
     var s=candidates[i];
+    var nettoyeNombres=function(str){
+      // Corrige les nombres pollués par des lettres parasites : "total":229abortar19.63 → 22919.63
+      return str.replace(/("(?:total|solde_initial|solde_final|nb)"\s*:\s*)([0-9][^,}\]]*)/g, function(_,pre,val){
+        var clean=val.replace(/[^0-9.\-]/g,'');           // ne garder que chiffres . -
+        var parts=clean.split('.');                        // un seul point décimal
+        if(parts.length>2) clean=parts[0]+'.'+parts.slice(1).join('');
+        if(clean===''||clean==='-'||clean==='.') clean='0';
+        return pre+clean;
+      });
+    };
     var tries=[
       s,
-      s.replace(/,\s*([}\]])/g, '$1'),                 // virgules en trop avant } ou ]
-      s.replace(/,\s*([}\]])/g, '$1').replace(/[\u0000-\u001F]+/g,' '), // + caractères de contrôle
-      s.replace(/,\s*([}\]])/g, '$1').replace(/[\u0000-\u001F]+/g,' ').replace(/"\s*\n\s*"/g,' '), // valeurs coupées sur 2 lignes
-      pdfRepareTronque(s)                              // JSON coupé : on ferme ce qui est ouvert
+      s.replace(/,\s*([}\]])/g, '$1'),
+      nettoyeNombres(s),
+      nettoyeNombres(s).replace(/,\s*([}\]])/g, '$1'),
+      nettoyeNombres(s).replace(/,\s*([}\]])/g, '$1').replace(/[\u0000-\u001F]+/g,' '),
+      pdfRepareTronque(nettoyeNombres(s))
     ];
     for(var t=0;t<tries.length;t++){
       try{ if(tries[t]) return JSON.parse(tries[t]); }catch(e){}
@@ -1651,55 +1662,55 @@ function pdfRepareTronque(s){
   return s;
 }
 
-// Construit le prompt d'extraction + regroupement (règles métier VH)
+// Construit le prompt d'extraction : l'IA LIT et LISTE les opérations (elle ne calcule AUCUN total)
 function pdfBuildPrompt(fournisseurs){
   return [
-'Tu es un expert-comptable. On te donne un relevé de compte bancaire (souvent Banque Populaire du Sud, parfois Crédit Agricole).',
+'Tu es un lecteur de relevés bancaires (Banque Populaire du Sud, parfois Crédit Agricole).',
 '',
-'OBJECTIF : extraire les opérations et les REGROUPER par poste/fournisseur, avec un TOTAL par poste pour la période du relevé.',
+'TÂCHE : lis le relevé et LISTE chaque opération, une par une. Tu ne fais AUCUN calcul, AUCune addition, AUCUN total. Tu recopies juste ce qui est écrit. C\'est l\'application qui additionnera.',
 '',
-'RÈGLES DE REGROUPEMENT (très important) :',
-'- Toutes les lignes "REMISE CB" → UN seul poste "REMISE CB" (somme des montants, crédit).',
-'- Toutes les lignes "COM CB" → UN seul poste "COM CB" (somme, débit).',
-'- Toutes les lignes "REMBT CB" → poste "REMBT CB".',
-'- Tous les "VRST DEPOT" / "VRST" (dépôts d\'espèces) → UN seul poste "VRST DEPOT" (somme, crédit).',
-'- Les recettes plateformes restent SÉPARÉES, un poste chacune : "UBER" (STICHTING CUSTODIAN UBER PAYMENTS), "DELIVEROO", et les titres-restaurant séparés : "SWILE", "PLUXEE", "UP COOP", "EDENRED", "BIMPLI" (REGLEMENT AFFILIES / NIT-TRD).',
-'- Les autres fournisseurs (PRLV SEPA xxx, VIR xxx) : un poste par créancier réel (regarde le détail SEPA en fin de relevé qui donne le vrai nom).',
+'Pour CHAQUE opération du relevé, donne :',
+'- "libelle" : le libellé court tel qu\'écrit (ex. "REMISE CB", "COM CB", "VRST DEPOT", "PRLV SEPA FRANCE BKR", "EURO VIR Deliveroo").',
+'- "montant" : le montant EXACT tel qu\'écrit, en nombre positif, point décimal (ex. 8733.46). JAMAIS de lettre ni d\'espace dans le nombre.',
+'- "type" : "entree" si crédit (+), "sortie" si débit (-).',
+'- "poste" : le nom du poste de rangement (voir règles ci-dessous).',
+'- "categorie" : voir liste ci-dessous.',
+'- "sur" : true si tu es certain du poste, false si tu hésites (fournisseur inconnu/ambigu).',
 '',
-'INDICES MÉTIER (pour t\'aider à nommer le poste, sans inventer) :',
-'- "FRANCE BKR" = redevance/loyer Burger King.',
-'- "QSL-STEF" = fournisseur de marchandises (nourriture).',
-'- "VIR SEPA M VINCENT HILAI" ou "REMUNERATION" = rémunération du gérant.',
-'- "VIR SEPA REMISE" gros montant = salaires versés (poste "SALAIRES").',
-'- "URSSAF" : distingue "URSSAF VINCENT" (gérant, si le libellé le précise) de "URSSAF" (salariés).',
-'- "PRLV INT ETS DIRECTION G" ou "DGFIP" : impôts — précise IS / TVA / CVAE / PAS d\'après le libellé (IS-, TVA-, CVAE-, IMPOT-PAS-).',
-'- "LUCIA" = électricité. "EDF" = électricité. "AREAS", "ROEDERER" = assurances.',
-'- "DRFIP ILE DE FRANCE" = remboursement/aide (crédit).',
+'RÈGLES DE POSTE (pour le regroupement que fera l\'application) :',
+'- "REMISE CB" pour toutes les remises de cartes. "COM CB" pour les commissions CB. "REMBT CB" pour les remboursements CB.',
+'- "VRST DEPOT" pour les dépôts d\'espèces (VRST DEPOT, VRST VCL, VRST).',
+'- Recettes plateformes SÉPARÉES : "UBER" (STICHTING CUSTODIAN UBER), "DELIVEROO". Titres-resto SÉPARÉS : "SWILE", "PLUXEE", "UP COOP", "EDENRED", "BIMPLI" (REGLEMENT AFFILIES / NIT-TRD).',
+'- Autres : un poste par créancier réel (regarde le détail SEPA en fin de relevé pour le vrai nom).',
 '',
-'IBAN : repère l\'IBAN du compte (format FRxx...) et le nom du titulaire.',
+'INDICES MÉTIER (n\'invente pas, mets "sur":false si tu hésites) :',
+'- "FRANCE BKR" = loyer/redevance Burger King (categorie loyer).',
+'- "QSL-STEF" = marchandises (nourriture).',
+'- "VIR SEPA M VINCENT HILAI" / "REMUNERATION" = rémunération gérant (cout-vincent).',
+'- "VIR SEPA REMISE" gros montant = salaires (poste "SALAIRES", categorie salaires).',
+'- "URSSAF" : si le libellé précise Vincent/gérant → poste "URSSAF VINCENT" (cout-vincent), sinon "URSSAF" (social).',
+'- "PRLV INT ETS DIRECTION G" / "DGFIP" = impôts : précise IS/TVA/CVAE/PAS selon le libellé (poste "IMPOT IS", "TVA", "IMPOT CVAE", "IMPOT PAS").',
+'- "LUCIA", "EDF" = électricité (energie). "AREAS", "ROEDERER" = assurance.',
+'- "DRFIP ILE DE FRANCE" = remboursement/aide reçue (entree).',
 '',
-'Voici les postes DÉJÀ EXISTANTS dans cette société (réutilise EXACTEMENT le même nom si ça correspond, sinon propose un nouveau nom clair) :',
-fournisseurs.length ? fournisseurs.join(', ') : '(aucun pour le moment)',
+'IBAN : repère l\'IBAN (FRxx...), le titulaire, la période (mois principal du relevé), et les soldes initial/final si présents.',
 '',
-'Réponds UNIQUEMENT en JSON, sans texte autour :',
+'Postes DÉJÀ EXISTANTS dans cette société (réutilise EXACTEMENT le même nom si ça correspond) :',
+fournisseurs.length ? fournisseurs.join(', ') : '(aucun)',
+'',
+'Réponds UNIQUEMENT en JSON, sans texte autour, sans ```. Format :',
 '{',
-'  "iban": "FR...",',
-'  "titulaire": "SARL ...",',
-'  "periode": "MAI 2026",',
-'  "solde_initial": 0.00,',
-'  "solde_final": 0.00,',
-'  "postes": [',
-'    {"nom":"REMISE CB","type":"entree","total":0.00,"nb":0,"categorie":"recette","existant":true},',
-'    {"nom":"FRANCE BKR","type":"sortie","total":0.00,"nb":1,"categorie":"loyer","existant":false}',
+'  "iban":"FR...", "titulaire":"SARL ...", "periode":"MAI 2026",',
+'  "solde_initial":154854.38, "solde_final":198224.78,',
+'  "operations":[',
+'    {"libelle":"REMISE CB","montant":8733.46,"type":"entree","poste":"REMISE CB","categorie":"recette","sur":true},',
+'    {"libelle":"PRLV SEPA FRANCE BKR","montant":97761.43,"type":"sortie","poste":"FRANCE BKR","categorie":"loyer","sur":true}',
 '  ]',
 '}',
 '',
-'"type" = "entree" (crédit) ou "sortie" (débit). "total" = somme POSITIVE du poste sur la période.',
 '"categorie" parmi : recette, loyer, marchandises, salaires, cout-vincent, social, assurance, impots, energie, banque, inter-societe, autre.',
-'"existant" = true UNIQUEMENT si tu es certain que le nom correspond exactement à un poste déjà existant fourni ci-dessus. Si tu hésites, ou si c\'est un fournisseur nouveau/inconnu, mets "existant": false — il vaut mieux demander à l\'utilisateur que deviner.',
-'"periode" au format "MOIS AAAA" en 3 lettres majuscules françaises (JAN, FEV, MAR, AVR, MAI, JUI, JUL, AOU, SEP, OCT, NOV, DEC).',
-'',
-'IMPÉRATIF JSON : les nombres SANS espace ni symbole € (écris 97761.43 et non "97 761,43 €"), le point comme séparateur décimal, AUCUN guillemet ni retour à la ligne à l\'intérieur d\'un nom de poste, et PAS de virgule après le dernier élément. Réponds uniquement le JSON, rien d\'autre.'
+'"periode" = "MOIS AAAA", mois en 3 lettres majuscules (JAN FEV MAR AVR MAI JUI JUL AOU SEP OCT NOV DEC).',
+'IMPÉRATIF : montants en nombres purs (8733.46), jamais de lettre/espace/€ dedans, point décimal, pas de virgule finale. Liste TOUTES les opérations, n\'en oublie aucune.'
   ].join('\n');
 }
 
@@ -1720,16 +1731,15 @@ function pdfNum(v){
   return isNaN(n)?0:n;
 }
 
-// Affiche les postes regroupés détectés, pour validation comptable
+// Reçoit la LISTE d'opérations lues par l'IA, REGROUPE et ADDITIONNE côté application.
 function pdfTraiteResultat(parsed, restoSel){
   _pdfRestoSel = restoSel;
-  var postes = parsed.postes||[];
-  if(!postes.length){ pdfStatus('Aucun poste détecté dans ce relevé.','err'); return; }
+  var ops = parsed.operations || parsed.postes || [];  // compat
+  if(!ops.length){ pdfStatus('Aucune opération lue dans ce relevé.','err'); return; }
 
-  // Période détectée (ex. "MAI 2026")
   var periode = (parsed.periode||'').toUpperCase().trim();
 
-  // Liste des postes existants de la société (pour le menu déroulant)
+  // Postes existants de la société (pour menu déroulant + reconnaissance)
   var fournisseurs=[];
   if(RAW[restoSel]){
     ['sorties','entrees'].forEach(function(sec){
@@ -1737,52 +1747,72 @@ function pdfTraiteResultat(parsed, restoSel){
     });
   }
 
-  // Bandeau IBAN / période / soldes
+  // ── REGROUPEMENT + ADDITION (côté app, fiable) ──
+  var groupes={};                 // clé poste → {nom,type,total,nb,categorie,sur}
+  var ctrlIn=0, ctrlOut=0;
+  ops.forEach(function(o){
+    var montant = pdfNum(o.montant);
+    if(o.type==='sortie') ctrlOut+=montant; else ctrlIn+=montant;
+    var poste = (o.poste||o.libelle||'?').trim();
+    var k = (o.type||'')+'||'+poste.toUpperCase();
+    if(!groupes[k]) groupes[k]={nom:poste, type:o.type||'sortie', total:0, nb:0, categorie:o.categorie||'autre', sur:true};
+    groupes[k].total += montant;
+    groupes[k].nb++;
+    if(o.sur===false) groupes[k].sur=false;     // si une opération doute, le poste doute
+  });
+  var postes = Object.keys(groupes).map(function(k){return groupes[k];});
+  // tri : douteux d'abord, puis par montant décroissant
+  postes.sort(function(a,b){ if(a.sur!==b.sur) return a.sur?1:-1; return b.total-a.total; });
+
+  _pdfParsed = parsed;
+  _pdfParsed._periode = periode;
+  _pdfParsed._postes = postes;
+
+  // Bandeau IBAN / période / contrôle
+  var variation = ctrlIn - ctrlOut;
+  var soldeVar = (parsed.solde_final!=null && parsed.solde_initial!=null) ? (pdfNum(parsed.solde_final)-pdfNum(parsed.solde_initial)) : null;
+  var ctrlOk = (soldeVar!=null) && Math.abs(variation - soldeVar) < 0.5;
   var info = document.getElementById('pdf-resto-detected');
   if(info){
     info.style.display='block';
-    info.style.background='#eef4ff'; info.style.color='#1a4a7e';
-    info.innerHTML = '<strong>'+(parsed.titulaire||restoSel)+'</strong> · Période : '+(periode||'?')
+    info.style.background = ctrlOk?'#e6f9f1':(soldeVar!=null?'#fff7ec':'#eef4ff');
+    info.style.color = ctrlOk?'#0d7a52':(soldeVar!=null?'#b3600f':'#1a4a7e');
+    info.innerHTML = '<strong>'+(parsed.titulaire||restoSel)+'</strong> · '+(periode||'?')
       + (parsed.iban ? '<br><span style="font-size:11px">IBAN '+parsed.iban+'</span>' : '')
-      + (parsed.solde_final!=null ? '<br><span style="font-size:11px">Solde final relevé : '+pdfNum(parsed.solde_final).toLocaleString('fr-FR')+' €</span>' : '');
+      + '<br><span style="font-size:11px">'+ops.length+' opérations lues · entrées '+ctrlIn.toLocaleString('fr-FR')+'€ · sorties '+ctrlOut.toLocaleString('fr-FR')+'€</span>'
+      + (soldeVar!=null ? '<br><span style="font-size:11px">Contrôle solde : '+(ctrlOk?'✓ cohérent ('+variation.toLocaleString('fr-FR')+'€)':'⚠ écart de '+(variation-soldeVar).toLocaleString('fr-FR')+'€ — une opération a pu être mal lue')+'</span>' : '');
   }
 
-  var nbDoute = 0;
-  var h='';
+  // Affichage des postes regroupés
+  var nbDoute=0, h='';
   postes.forEach(function(p,i){
     var color = p.type==='sortie' ? '#e03a3a' : '#0d9e6e';
-    var nom = (p.nom||'').toUpperCase();
-    var matchExist = fournisseurs.some(function(f){ return f.toUpperCase()===nom; });
-    // Un poste est "sûr" si l'IA l'a relié à un poste existant (existant:true) OU si le nom matche exactement.
-    var sur = matchExist || p.existant===true;
-    if(!sur) nbDoute++;
+    var nomU = (p.nom||'').toUpperCase();
+    var matchExist = fournisseurs.some(function(f){ return f.toUpperCase()===nomU; });
+    var sur = p.sur && (matchExist || p.nb>0);   // doute = l'IA a signalé un doute
+    if(!p.sur) { sur=false; nbDoute++; }
 
     var opts = '<option value="__NEW__"'+(matchExist?'':' selected')+'>➕ Créer le poste : '+(p.nom||'?')+'</option>';
     opts += fournisseurs.map(function(f){
-      return '<option value="'+f.replace(/"/g,'')+'"'+(f.toUpperCase()===nom?' selected':'')+'>'+f+'</option>';
+      return '<option value="'+f.replace(/"/g,'')+'"'+(f.toUpperCase()===nomU?' selected':'')+'>'+f+'</option>';
     }).join('');
 
     var badge = sur
       ? '<span style="color:#0d9e6e;font-size:10px;font-weight:700">✓ reconnu</span>'
       : '<span style="color:#e07d1a;font-size:10px;font-weight:700">⚠ à confirmer</span>';
 
-    h += '<div class="tx-row'+(sur?'':' tx-doute')+'" data-i="'+i+'" data-sur="'+(sur?'1':'0')+'" style="'+(sur?'':'background:#fff7ec;border-left:3px solid #e07d1a;padding-left:8px;')+'">'
-      + '<div class="tx-lbl">'+(p.nom||'?')+'<br>'+badge+' <span style="color:#7a90a8;font-size:10px">'+(p.nb?('×'+p.nb+' op.'):'')+' · '+(p.categorie||'autre')+'</span></div>'
-      + '<div class="tx-amt" style="color:'+color+'">'+(p.type==='sortie'?'- ':'+ ')+pdfNum(p.total).toLocaleString('fr-FR')+' €</div>'
+    h += '<div class="tx-row'+(sur?'':' tx-doute')+'" data-i="'+i+'" style="'+(sur?'':'background:#fff7ec;border-left:3px solid #e07d1a;padding-left:8px;')+'">'
+      + '<div class="tx-lbl">'+(p.nom||'?')+'<br>'+badge+' <span style="color:#7a90a8;font-size:10px">×'+p.nb+' op. · '+(p.categorie||'autre')+'</span></div>'
+      + '<div class="tx-amt" style="color:'+color+'">'+(p.type==='sortie'?'- ':'+ ')+p.total.toLocaleString('fr-FR')+' €</div>'
       + '<select class="tx-sel" data-i="'+i+'" onchange="pdfMajBouton()">'+opts+'</select>'
       + '</div>';
   });
   document.getElementById('pdf-tx-list').innerHTML = h;
   document.getElementById('pdf-results').style.display='block';
 
-  // Message clair selon le nombre de doutes
-  if(nbDoute>0){
-    pdfStatus(postes.length+' postes lus · '+nbDoute+' à confirmer (en orange) avant import','info');
-  } else {
-    pdfStatus(postes.length+' postes reconnus — vous pouvez importer','ok');
-  }
+  if(nbDoute>0) pdfStatus(postes.length+' postes · '+nbDoute+' à confirmer (en orange) avant import','info');
+  else pdfStatus(postes.length+' postes reconnus — vous pouvez importer','ok');
 
-  _pdfParsed._periode = periode;
   pdfMajBouton();
 }
 
@@ -1810,7 +1840,7 @@ function pdfImport(){
   var restoSel=_pdfRestoSel;
   var periode=(_pdfParsed&&_pdfParsed._periode)||'';
   if(!periode){ pdfStatus('Période du relevé non détectée.','err'); return; }
-  var postes=_pdfParsed.postes||[];
+  var postes=(_pdfParsed && _pdfParsed._postes)||[];
   var rows=document.querySelectorAll('#pdf-tx-list .tx-row');
   var imported=0;
 
