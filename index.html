@@ -1677,8 +1677,20 @@ function pdfAnalyse(file){
 
   pdfTextePages(file).then(function(pages){
     // séparer pages d'opérations (avant le récap SEPA) et pages de récap/totaux
-    var idxRecap = pages.findIndex(function(t){ return /D[EÉ]TAIL DE VOS (MOUVEMENTS|PR[EÉ]L[EÈ]VEMENTS|VIREMENTS) SEPA/i.test(t); });
-    var pagesOps = (idxRecap>=0) ? pages.slice(0, idxRecap) : pages;
+    var reSepa = /D[EÉ]TAIL DE VOS (MOUVEMENTS|PR[EÉ]L[EÈ]VEMENTS|VIREMENTS) SEPA/i;
+    var idxRecap = pages.findIndex(function(t){ return reSepa.test(t); });
+    var pagesOps;
+    if(idxRecap>=0){
+      // la page de transition contient ENCORE des opérations avant le marqueur récap :
+      // on garde la portion de cette page située AVANT le marqueur.
+      var pageTransition = pages[idxRecap];
+      var coupe = pageTransition.search(reSepa);
+      var debutPage = coupe>0 ? pageTransition.slice(0, coupe) : '';
+      pagesOps = pages.slice(0, idxRecap);
+      if(debutPage.trim()) pagesOps.push(debutPage);   // ajoute la fin d'opérations de la page de transition
+    } else {
+      pagesOps = pages;
+    }
     // la page des totaux officiels (TOTAL DES MOUVEMENTS) est généralement juste avant/au début du récap
     var texteTotaux = pages.filter(function(t){return /TOTAL DES MOUVEMENTS|SOLDE CREDITEUR/i.test(t);}).join('\n');
 
