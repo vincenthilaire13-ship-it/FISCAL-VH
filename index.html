@@ -1617,85 +1617,106 @@ function pdfStatus(msg, color){
   el.textContent=msg;
 }
 
+// Extrait le texte de chaque page du PDF (pdf.js)
+async function pdfTextePages(file){
+  if(!window.pdfjsLib) throw new Error('pdf.js non chargé');
+  var buf = await file.arrayBuffer();
+  var pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  var pages=[];
+  for(var p=1;p<=pdf.numPages;p++){
+    var page = await pdf.getPage(p);
+    var tc = await page.getTextContent();
+    // reconstruire les lignes par position Y
+    var items = tc.items.map(function(it){ return {s:it.str, x:it.transform[4], y:Math.round(it.transform[5])}; });
+    var byY={};
+    items.forEach(function(it){ (byY[it.y]=byY[it.y]||[]).push(it); });
+    var ys=Object.keys(byY).map(Number).sort(function(a,b){return b-a;});
+    var txt = ys.map(function(y){
+      return byY[y].sort(function(a,b){return a.x-b.x;}).map(function(it){return it.s;}).join(' ');
+    }).join('\n');
+    pages.push(txt);
+  }
+  return pages;
+}
+
 function pdfAnalyse(file){
-  // compteur de patience (la lecture d'un relevé de 15 pages peut prendre 1 à 3 min)
   var t0=Date.now();
   if(window._pdfTimer) clearInterval(window._pdfTimer);
+  var etat={phase:'Préparation'};
   var tick=function(){
     var s=Math.round((Date.now()-t0)/1000);
-    pdfStatus('Lecture du relevé en cours… '+s+' s (l\'IA lit toutes les opérations, cela peut prendre 1 à 3 min sur un gros relevé)','info');
+    pdfStatus(etat.phase+'… '+s+' s (lecture fractionnée page par page pour ne rien rater)','info');
   };
-  tick();
-  window._pdfTimer=setInterval(tick,1000);
+  tick(); window._pdfTimer=setInterval(tick,1000);
 
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var b64=e.target.result.split(',')[1];
-    window._pdfFichier = file;   // mémorisé pour archivage Dropbox à l'import
+  window._pdfFichier = file;
+  var restoSel=resto;
+  var fournisseurs=[];
+  if(RAW[restoSel]){
+    ['sorties','entrees'].forEach(function(sec){
+      (RAW[restoSel][sec]||[]).forEach(function(x){ if(x.label && x.label.toUpperCase()!=='TOTAL' && x.label.length>1) fournisseurs.push(x.label); });
+    });
+  }
 
-    // Liste des fournisseurs déjà connus pour CETTE société (aide au rapprochement)
-    var restoSel=resto;
-    var fournisseurs=[];
-    if(RAW[restoSel]){
-      ['sorties','entrees'].forEach(function(sec){
-        (RAW[restoSel][sec]||[]).forEach(function(x){
-          if(x.label && x.label.toUpperCase()!=='TOTAL' && x.label.length>1) fournisseurs.push(x.label);
+  // appel IA sur un bout de texte, renvoie le JSON parsé
+  function lireBout(texte, role){
+    var prompt = pdfBuildPromptTexte(fournisseurs, role);
+    return fetch('/api/ia',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:8000,
+        messages:[{role:'user',content:[{type:'text',text:prompt+'\n\n=== TEXTE DU RELEVÉ ===\n'+texte}]}]})
+    }).then(function(r){
+      if(!r.ok) return r.json().then(function(j){throw new Error((j&&j.error)||('HTTP '+r.status));})
+        .catch(function(){throw new Error('Serveur IA HTTP '+r.status+' (ANTHROPIC_API_KEY configurée ?)');});
+      return r.json();
+    }).then(function(data){
+      if(data.error) throw new Error(data.error.message||data.error);
+      var txt=''; (data.content||[]).forEach(function(b){if(b.type==='text')txt+=b.text;});
+      return pdfParseJSON(txt)||{};
+    });
+  }
+
+  pdfTextePages(file).then(function(pages){
+    // séparer pages d'opérations (avant le récap SEPA) et pages de récap/totaux
+    var idxRecap = pages.findIndex(function(t){ return /D[EÉ]TAIL DE VOS (MOUVEMENTS|PR[EÉ]L[EÈ]VEMENTS|VIREMENTS) SEPA/i.test(t); });
+    var pagesOps = (idxRecap>=0) ? pages.slice(0, idxRecap) : pages;
+    // la page des totaux officiels (TOTAL DES MOUVEMENTS) est généralement juste avant/au début du récap
+    var texteTotaux = pages.filter(function(t){return /TOTAL DES MOUVEMENTS|SOLDE CREDITEUR/i.test(t);}).join('\n');
+
+    // métadonnées (iban, période, soldes, totaux officiels) : lire la 1ʳᵉ page + la page des totaux
+    etat.phase='Lecture en-tête et totaux';
+    var meta = lireBout((pages[0]||'')+'\n'+texteTotaux, 'meta');
+
+    // opérations : par groupes de 3 pages
+    var groupes=[]; for(var i=0;i<pagesOps.length;i+=3) groupes.push(pagesOps.slice(i,i+3).join('\n'));
+    var seq = meta.then(function(m){
+      _pdfMeta = m||{};
+      var toutesOps=[];
+      var chain=Promise.resolve();
+      groupes.forEach(function(g,gi){
+        chain=chain.then(function(){
+          etat.phase='Lecture opérations '+(gi+1)+'/'+groupes.length;
+          return lireBout(g,'operations').then(function(res){
+            (res.operations||[]).forEach(function(o){toutesOps.push(o);});
+          });
         });
       });
-    }
+      return chain.then(function(){ return toutesOps; });
+    });
 
-    // Prompt comptable : extraire + REGROUPER selon les règles VH
-    var prompt = pdfBuildPrompt(fournisseurs);
-
-    var payload = {
-      model: 'claude-opus-4-5',
-      max_tokens: 16000,
-      messages: [{role:'user', content:[
-        {type:'document', source:{type:'base64', media_type:'application/pdf', data:b64}},
-        {type:'text', text:prompt}
-      ]}]
-    };
-
-    // On passe par le gardien serveur /api/ia (clé cachée côté Vercel).
-    fetch('/api/ia', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    })
-    .then(function(r){
-      if(window._pdfTimer){ clearInterval(window._pdfTimer); window._pdfTimer=null; }
-      if(!r.ok){
-        return r.json().then(function(j){
-          throw new Error((j&&j.error) ? j.error : ('Serveur IA HTTP '+r.status));
-        }).catch(function(){ throw new Error('Serveur IA HTTP '+r.status+' (clé ANTHROPIC_API_KEY configurée dans Vercel ?)'); });
-      }
-      return r.json();
-    })
-    .then(function(data){
-      if(data.error){ pdfStatus('Erreur IA : '+(data.error.message||data.error),'err'); return; }
-      var txt='';
-      (data.content||[]).forEach(function(b){ if(b.type==='text') txt+=b.text; });
-      if(!txt){ pdfStatus('L\'IA n\'a renvoyé aucun texte. Réponse : '+JSON.stringify(data).slice(0,200),'err'); return; }
-      var parsed = pdfParseJSON(txt);
-      if(!parsed){
-        console.warn('Réponse brute IA:', txt);
-        var apercu = txt.replace(/\s+/g,' ').slice(0,280);
-        pdfStatus('Lecture JSON impossible. Début de la réponse IA : « '+apercu+' »','err');
-        return;
-      }
-      var lignes = parsed.operations || parsed.postes || [];
-      if(!lignes.length){
-        pdfStatus('JSON lu mais aucune opération détectée. Début : « '+txt.replace(/\s+/g,' ').slice(0,200)+' »','err');
-        console.warn('JSON sans opérations:', parsed);
-        return;
-      }
-      _pdfParsed = parsed;
-      pdfTraiteResultat(parsed, restoSel);
-    })
-    .catch(function(ex){ if(window._pdfTimer){ clearInterval(window._pdfTimer); window._pdfTimer=null; } pdfStatus('Erreur : '+ex.message,'err'); });
-  };
-  reader.readAsDataURL(file);
+    return seq;
+  }).then(function(toutesOps){
+    if(window._pdfTimer){clearInterval(window._pdfTimer);window._pdfTimer=null;}
+    var parsed = Object.assign({}, _pdfMeta||{});
+    parsed.operations = toutesOps;
+    if(!toutesOps.length){ pdfStatus('Aucune opération lue. Réessaie.','err'); return; }
+    _pdfParsed = parsed;
+    pdfTraiteResultat(parsed, restoSel);
+  }).catch(function(ex){
+    if(window._pdfTimer){clearInterval(window._pdfTimer);window._pdfTimer=null;}
+    pdfStatus('Erreur : '+ex.message,'err');
+  });
 }
+var _pdfMeta=null;
 
 // Analyse tolérante du JSON renvoyé par l'IA : tente plusieurs nettoyages avant d'abandonner.
 function pdfParseJSON(txt){
@@ -1765,6 +1786,41 @@ function pdfRepareTronque(s){
 }
 
 // Construit le prompt d'extraction : l'IA LIT et LISTE les opérations (elle ne calcule AUCUN total)
+// Prompt pour la lecture fractionnée par texte (role = 'meta' ou 'operations')
+function pdfBuildPromptTexte(fournisseurs, role){
+  if(role==='meta'){
+    return [
+'Voici un extrait de relevé bancaire (en-tête + totaux). Extrais UNIQUEMENT les métadonnées, en JSON, sans texte autour :',
+'{',
+'  "iban":"FR...", "titulaire":"SARL ...", "periode":"MOIS AAAA",',
+'  "solde_initial":0.00, "solde_final":0.00,',
+'  "total_debits":0.00, "total_credits":0.00',
+'}',
+'- "periode" : mois principal du relevé, 3 lettres majuscules (JAN FEV MAR AVR MAI JUI JUL AOU SEP OCT NOV DEC) + année.',
+'- "solde_initial" = SOLDE CREDITEUR au début ; "solde_final" = SOLDE CREDITEUR à la fin.',
+'- "total_debits" = TOTAL DES MOUVEMENTS DEBITEURS ; "total_credits" = TOTAL DES MOUVEMENTS CREDITEURS.',
+'- Nombres purs (point décimal, pas d\'espace ni €). Si une valeur est absente, mets null.'
+    ].join('\n');
+  }
+  // role operations
+  return [
+'Voici un EXTRAIT (quelques pages) d\'un relevé bancaire Banque Populaire. Liste CHAQUE opération de cet extrait, une par une, sans calcul ni total. Recopie les montants exactement.',
+'',
+'Pour chaque opération : {"libelle","montant","type","poste","categorie","sur"}',
+'- "libelle" : libellé complet tel qu\'écrit (ex. "PRLV SEPA ADIENZ", "REMISE CB", "VRST DEPOT", "VIR SEPA REMISE"). Jamais "Autres".',
+'- "montant" : nombre pur positif (point décimal, pas d\'espace ni €).',
+'- "type" : "entree" (crédit +) ou "sortie" (débit -).',
+'- "poste" : règle de regroupement → "REMISE CB" pour les remises CB, "COM CB" pour commissions, "VRST DEPOT" pour dépôts espèces. UBER, DELIVEROO, SWILE, PLUXEE, UP COOP, EDENRED, BIMPLI : un poste chacun. Autres créanciers : le nom du créancier. Si tu ne sais pas → recopie le libellé et mets "sur":false.',
+'- "categorie" parmi : recette, loyer, marchandises, salaires, cout-vincent, social, assurance, impots, energie, banque, inter-societe, autre.',
+'- "sur" : true seulement si certain, sinon false.',
+'',
+'Indices : FRANCE BKR=loyer ; QSL-STEF=marchandises ; VIR SEPA M VINCENT HILAI/REMUNERATION=cout-vincent ; URSSAF=social (URSSAF VINCENT=cout-vincent) ; DGFIP/DIRECTION G=impots ; LUCIA/EDF=energie ; AREAS/ROEDERER=assurance.',
+'Postes existants (réutilise le même nom si ça correspond) : '+(fournisseurs.length?fournisseurs.join(', '):'(aucun)'),
+'',
+'Réponds UNIQUEMENT en JSON, sans texte autour : {"operations":[ ... ]}. Ne mets PAS les lignes de solde ni les totaux. N\'oublie AUCUNE opération de l\'extrait.'
+  ].join('\n');
+}
+
 function pdfBuildPrompt(fournisseurs){
   return [
 'Tu es un lecteur de relevés bancaires (Banque Populaire du Sud, parfois Crédit Agricole).',
