@@ -187,8 +187,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   </div>
   <div class="sb-section">Tableau de bord</div>
   <div class="sb-item active" onclick="sw('dashboard',this)"><span class="sb-ico">◈</span>Vue d'ensemble</div>
-  <div class="sb-item" onclick="sw('optim',this)"><span class="sb-ico">◎</span>Optimisations<span class="sb-badge r">6</span></div>
-  <div class="sb-item" onclick="sw('sim',this)"><span class="sb-ico">◐</span>Simulateur</div>
   <div class="sb-section">Sociétés</div>
   <div class="sb-item" onclick="sw('soc-vh',this)"><span class="sb-ico">▣</span>VH Company<span class="sb-badge g" id="b-vh">✓</span></div>
   <div class="sb-item" onclick="sw('soc-ba',this)"><span class="sb-ico">▣</span>Burger Avenue<span class="sb-badge g" id="b-ba">✓</span></div>
@@ -203,14 +201,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-section">Le dirigeant</div>
   <div class="sb-item" onclick="sw('cout-vincent',this)"><span class="sb-ico">👤</span>Coût Vincent</div>
   <div class="sb-section">Impôts</div>
-  <div class="sb-item" onclick="sw('declaration',this)"><span class="sb-ico">📋</span>Ma déclaration 2026</div>
+  <div class="sb-item" onclick="sw('declaration',this)"><span class="sb-ico">📋</span>Ma déclaration</div>
   <div class="sb-item" onclick="sw('checklist',this)"><span class="sb-ico">☐</span>Checklist documents</div>
   <div class="sb-section">Assurances</div>
   <div class="sb-item" onclick="sw('contrats',this)"><span class="sb-ico">🛡</span>Prévoyance & Retraite<span class="sb-badge g" id="b-contrats">6</span></div>
   <div class="sb-item" onclick="sw('assur-bien',this)"><span class="sb-ico">🏠</span>Habitation & Véhicules<span class="sb-badge" id="b-bien">—</span></div>
   <div class="sb-item" onclick="sw('assur-pro',this)"><span class="sb-ico">🏢</span>Entreprise & Pro<span class="sb-badge" id="b-pro">—</span></div>
-  <div class="sb-section">Outils</div>
-  <div class="sb-item" onclick="sw('import',this)"><span class="sb-ico">↑</span>Import fichiers<span class="sb-badge" id="b-imp">0</span></div>
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
@@ -238,128 +234,49 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <span style="font-size:9px;">●</span> <span id="maj-date">Chargement…</span>
     </span>
   </div>
-  <!-- Optimisation panel toujours visible -->
-  <div class="opt-wrap">
-    <div class="opt-hdr" onclick="togOpt()">
-      <div class="opt-hdr-l">
-        <span style="font-size:18px;">🎯</span>
-        <div>
-          <div class="opt-title">Leviers d'optimisation — toujours visibles</div>
-          <div class="opt-sub">Cliquez pour déployer · Cochez quand c'est fait · Sauvegardé automatiquement</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span class="opt-pill" id="opt-score">0 / 6</span>
-        <span class="opt-chev" id="opt-chev">▼</span>
-      </div>
-    </div>
-    <div id="opt-body" style="display:none;" class="opt-body">
-      <div class="lev"><div class="lev-tog" data-key="lev1" onclick="togLev(this)"></div><div class="lev-n nr">1</div><div class="lev-body"><div class="lev-title">PER — Aucun versement depuis 3 ans (priorité absolue)</div><div class="lev-desc">Plafond disponible Vincent : <strong>115 761 €</strong>. À TMI 41%, économie immédiate 41 cts/€. Cases 6OS (TNS). Reports 5 ans (LFI 2026).</div></div><div class="lev-gain g">12k→47k€</div></div>
-      <div class="lev"><div class="lev-tog" data-key="lev2" onclick="togLev(this)"></div><div class="lev-n nr">2</div><div class="lev-body"><div class="lev-title">⚠ Dividendes SARL — Cotisations TNS sur l'excédent</div><div class="lev-desc" id="lev2-desc">En attente du bilan VH Company.</div></div><div class="lev-gain r">Impact majeur</div></div>
-      <div class="lev"><div class="lev-tog" data-key="lev3" onclick="togLev(this)"></div><div class="lev-n nw">3</div><div class="lev-body"><div class="lev-title">Compte courant associé — Levier sur le seuil dividendes</div><div class="lev-desc" id="lev3-desc">En attente du bilan VH Company.</div></div><div class="lev-gain w">Structurel</div></div>
-      <div class="lev"><div class="lev-tog" data-key="lev4" onclick="togLev(this)"></div><div class="lev-n nw">4</div><div class="lev-body"><div class="lev-title">CEHR — Surveiller le seuil 500k€ RFR</div><div class="lev-desc">RFR 2024 : 494 792 € (juste −5 208 € sous le seuil couple). Les versements PER réduisent le RFR. En 2022 : CEHR 13 534 € payé.</div></div><div class="lev-gain g">Évite 13k€+</div></div>
-      <div class="lev"><div class="lev-tog" data-key="lev5" onclick="togLev(this)"></div><div class="lev-n nw">5</div><div class="lev-body"><div class="lev-title">Emploi à domicile — Optimiser jusqu'au plafond</div><div class="lev-desc">Mme Renault Sophie : 10 222 € en 2024 → crédit 5 111 €. Plafond couple avec enfant : 12 000 € → 6 000 € max. Marge : +1 778 € = +889 € de crédit.</div></div><div class="lev-gain g">+889€ possible</div></div>
-      <div class="lev"><div class="lev-tog" data-key="lev6" onclick="togLev(this)"></div><div class="lev-n nb">6</div><div class="lev-body"><div class="lev-title">Holding — Accumuler dans VH ou distribuer ?</div><div class="lev-desc" id="lev6-desc">En attente du bilan VH Company.</div></div><div class="lev-gain w">Étude</div></div>
-    </div>
+
+  <!-- KPI santé du groupe (trésorerie en direct) -->
+  <div class="g4" id="dash-kpi-treso">
+    <div class="kpi suc"><div class="kl">Trésorerie totale</div><div class="kv" id="kpi-treso-tot">—</div><div class="ks" id="kpi-treso-tot-sub">tous comptes</div></div>
+    <div class="kpi"><div class="kl">Entrées (dernier mois)</div><div class="kv" id="kpi-treso-ent" style="color:var(--success)">—</div><div class="ks" id="kpi-treso-ent-sub">&nbsp;</div></div>
+    <div class="kpi"><div class="kl">Sorties (dernier mois)</div><div class="kv" id="kpi-treso-sor" style="color:var(--danger)">—</div><div class="ks" id="kpi-treso-sor-sub">&nbsp;</div></div>
+    <div class="kpi acc"><div class="kl">Coût Vincent</div><div class="kv" id="kpi-treso-cv">—</div><div class="ks">cumul trésorerie</div></div>
   </div>
 
-  <div class="g4">
-    <div class="kpi acc"><div class="kl">Impôt net 2024</div><div class="kv">75 477€</div><div class="ks">Solde versé : 79 194€</div></div>
-    <div class="kpi dan"><div class="kl">RFR 2024</div><div class="kv">494 792€</div><div class="ks">Seuil CEHR : 500 000€</div></div>
-    <div class="kpi war"><div class="kl">Plafond PER dispo.</div><div class="kv">115 761€</div><div class="ks">Reports 2022-2024 · Non utilisés</div></div>
-    <div class="kpi"><div class="kl">Taux moyen / TMI</div><div class="kv">21,09%</div><div class="ks">Taux marginal : 41%</div></div>
+  <!-- Trésorerie en direct : une carte par banque -->
+  <div class="card-title" style="display:flex;align-items:center;gap:10px;">💰 Trésorerie en direct
+    <a onclick="sw('tresorerie',document.querySelector('.sb-item[onclick*=tresorerie]'))" style="color:var(--accent);cursor:pointer;font-size:12px;font-weight:400;">voir le détail →</a>
   </div>
+  <div class="soc-grid" id="dash-treso-grid"><div style="color:var(--text3);font-size:13px;padding:14px;">Chargement de la trésorerie…</div></div>
 
-  <div class="g2">
+  <!-- Points d'attention -->
+  <div class="card-title" style="margin-top:8px;">⚠️ Points d'attention</div>
+  <div id="dash-alertes"><div style="color:var(--text3);font-size:13px;padding:8px 2px;">Analyse en cours…</div></div>
+
+  <div id="dash-sarl-alert"></div>
+
+  <!-- Sociétés du groupe -->
+  <div class="card-title">Sociétés du groupe</div>
+  <div class="soc-grid" id="dash-soc-grid"></div>
+
+  <!-- Aperçu fiscal (résumé, détail dans Ma déclaration) -->
+  <div class="g2" style="margin-top:4px;">
     <div class="card">
-      <div class="card-title">Évolution fiscale 3 ans</div>
-      <table class="tbl">
-        <thead><tr><th>Année</th><th class="r">Impôt net</th><th class="r">Solde</th><th class="r">RFR</th></tr></thead>
-        <tbody>
-          <tr class="ok"><td><strong>2024</strong></td><td class="r"><strong>75 477€</strong></td><td class="r">79 194€</td><td class="r">494 792€</td></tr>
-          <tr><td>2023</td><td class="r">64 760€</td><td class="r">22 618€</td><td class="r">539 241€</td></tr>
-          <tr class="hl"><td>2022</td><td class="r" style="color:var(--danger)">179 108€</td><td class="r">179 884€</td><td class="r">951 119€</td></tr>
-        </tbody>
-      </table>
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">Aperçu fiscal
+        <a onclick="sw('declaration',document.querySelector('.sb-item[onclick*=declaration]'))" style="color:var(--accent);cursor:pointer;font-size:12px;font-weight:400;">ma déclaration →</a>
+      </div>
+      <div class="row"><span class="rl">Impôt net 2024</span><span class="rv">75 477€</span></div>
+      <div class="row"><span class="rl">RFR 2024</span><span class="rv">494 792€ <span style="color:var(--text3);font-size:11px;">(seuil CEHR 500k)</span></span></div>
+      <div class="row"><span class="rl">Plafond PER disponible</span><span class="rv g">115 761€</span></div>
+      <div class="row"><span class="rl">Taux moyen / TMI</span><span class="rv">21,09% / 41%</span></div>
     </div>
     <div class="card">
       <div class="card-title">Groupe VH — consolidé</div>
       <div id="dash-conso"><div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">En attente du bilan VH Company.</div></div>
     </div>
   </div>
-
-  <div id="dash-sarl-alert"></div>
-
-  <div class="card-title">Sociétés du groupe</div>
-  <div class="soc-grid" id="dash-soc-grid"></div>
 </div>
 
-<!-- OPTIMISATIONS -->
-<div id="tab-optim" class="panel">
-  <div class="alert a-b"><span>ℹ</span><div>Analyse indicative — à valider avec votre expert-comptable avant toute décision.</div></div>
-  <div class="g2">
-    <div class="card">
-      <div class="card-title">🏆 PER — Levier n°1</div>
-      <div class="row"><span class="rl">Plafond Vincent disponible</span><span class="rv b">115 761€</span></div>
-      <div class="row"><span class="rl">Plafond Émilie disponible</span><span class="rv b">17 264€</span></div>
-      <div class="row"><span class="rl">Économie sur 30k€ versés (41%)</span><span class="rv g">≈ 12 300€</span></div>
-      <div class="row"><span class="rl">Économie sur 60k€ versés (41%)</span><span class="rv g">≈ 24 600€</span></div>
-      <div class="row"><span class="rl">Économie sur 100k€ versés (41%)</span><span class="rv g">≈ 41 000€</span></div>
-      <div class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Cases 6OS (Vincent TNS). Reports portés à 5 ans (LFI 2026). Verser avant 31/12/2025.</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">🚨 Dividendes SARL — Seuil TNS</div>
-      <div id="optim-tns"><div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">En attente du bilan VH Company (capital, compte courant, dividendes).</div></div>
-    </div>
-  </div>
-  <div class="g2">
-    <div class="card">
-      <div class="card-title">⚖️ PFU vs Barème sur dividendes</div>
-      <table class="tbl">
-        <thead><tr><th>Option</th><th class="r">Taux effectif</th><th class="r">Verdict</th></tr></thead>
-        <tbody>
-          <tr class="ok"><td>PFU 30% (flat tax)</td><td class="r">30%</td><td class="r"><span class="tag tag-g">✓ Optimal</span></td></tr>
-          <tr><td>Barème progressif</td><td class="r">~34-35%</td><td class="r"><span class="tag tag-r">✗ +5%</span></td></tr>
-          <tr class="hl"><td>Remontée rémunération</td><td class="r">55-65%</td><td class="r"><span class="tag tag-r">✗ Très coûteux</span></td></tr>
-        </tbody>
-      </table>
-      <div class="alert a-w" style="margin-top:10px;"><span>⚠</span><div>Ne pas cocher la case 2OP (barème progressif). Conserver le PFU.</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📊 CEHR — Seuil à surveiller</div>
-      <div class="row"><span class="rl">Seuil CEHR couple</span><span class="rv">500 000€</span></div>
-      <div class="row"><span class="rl">RFR 2024</span><span class="rv g">494 792€</span></div>
-      <div class="row"><span class="rl">Écart sous le seuil</span><span class="rv g">−5 208€</span></div>
-      <div class="row"><span class="rl">CEHR payée en 2022</span><span class="rv r">13 534€</span></div>
-      <div class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Un PER de 30k€ ferait passer le RFR à ~465k€ — très confortablement sous le seuil.</div></div>
-    </div>
-  </div>
-</div>
-
-<!-- SIMULATEUR -->
-<div id="tab-sim" class="panel">
-  <div class="card">
-    <div class="card-title">Simulateur IR 2025</div>
-    <div class="g2">
-      <div>
-        <div class="stitle">Revenus 2025 estimés</div>
-        <div class="sim-row"><label>Rémunération gérant (€)</label><input type="number" class="sim-in" id="s-rem" value="199359" oninput="sim()"></div>
-        <div class="sim-row"><label>BNC bénéfices (€)</label><input type="number" class="sim-in" id="s-bnc" value="51072" oninput="sim()"></div>
-        <div class="sim-row"><label>Dividendes PFU 30% (€)</label><input type="number" class="sim-in" id="s-div" value="200000" oninput="sim()"></div>
-        <div class="sim-row"><label>Salaire Émilie (€)</label><input type="number" class="sim-in" id="s-sal" value="37601" oninput="sim()"></div>
-        <div class="sim-row"><label>Revenus fonciers bruts (€)</label><input type="number" class="sim-in" id="s-fon" value="14400" oninput="sim()"></div>
-        <div class="sim-row"><label>Aide à domicile (€)</label><input type="number" class="sim-in" id="s-dom" value="10222" oninput="sim()"></div>
-      </div>
-      <div>
-        <div class="stitle">Optimisations</div>
-        <div class="sim-row"><label>PER Vincent (€)</label><input type="range" id="r-p1" min="0" max="115761" step="2000" value="0" oninput="sim()"><span class="so" id="op1">0€</span></div>
-        <div class="sim-row"><label>PER Émilie (€)</label><input type="range" id="r-p2" min="0" max="17264" step="500" value="0" oninput="sim()"><span class="so" id="op2">0€</span></div>
-        <div class="sim-row"><label>Déficit foncier réel (€)</label><input type="range" id="r-df" min="0" max="10700" step="100" value="0" oninput="sim()"><span class="so" id="odf">0€</span></div>
-      </div>
-    </div>
-    <div id="sim-res" style="background:var(--bg);border-radius:var(--r);padding:16px;margin-top:4px;"></div>
-  </div>
-</div>
 
 <!-- VH COMPANY -->
 <div id="tab-soc-vh" class="panel">
@@ -766,7 +683,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
         </tbody>
       </table>
       <div class="alert a-w" style="margin-top:10px;"><span>⚠</span><div><strong>Madelin ≠ PER :</strong> le levier « PER plafond 115 761€ » du dashboard vise la case 6OS. Vérifier si le GAN/AREAS sont en 6QS (Madelin) — enveloppe en partie distincte et déjà partiellement consommée par tes versements actuels.</div></div>
-      <button class="btn btn-p" style="margin-top:10px;" onclick="sw('sim',null)">→ Ouvrir le simulateur IR</button>
+      <button class="btn btn-p" style="margin-top:10px;" onclick="document.getElementById('sim-res').scrollIntoView({behavior:'smooth',block:'center'})">→ Aller au simulateur IR (plus bas)</button>
     </div>
   </div>
 
@@ -783,7 +700,73 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     </table>
     <div class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Plafond prévoyance/santé Madelin distinct du plafond retraite : 3,75% du bénéfice + 7% du PASS, plafonné. Les deux enveloppes se cumulent.</div></div>
   </div>
+
+  <!-- ===== OPTIMISATIONS (déplacé ici, sous la déclaration) ===== -->
+  <div class="card-title" style="font-size:18px;margin:28px 0 6px;">◎ Leviers d'optimisation</div>
+  <div class="alert a-b"><span>ℹ</span><div>Analyse indicative — à valider avec votre expert-comptable avant toute décision.</div></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">🏆 PER — Levier n°1</div>
+      <div class="row"><span class="rl">Plafond Vincent disponible</span><span class="rv b">115 761€</span></div>
+      <div class="row"><span class="rl">Plafond Émilie disponible</span><span class="rv b">17 264€</span></div>
+      <div class="row"><span class="rl">Économie sur 30k€ versés (41%)</span><span class="rv g">≈ 12 300€</span></div>
+      <div class="row"><span class="rl">Économie sur 60k€ versés (41%)</span><span class="rv g">≈ 24 600€</span></div>
+      <div class="row"><span class="rl">Économie sur 100k€ versés (41%)</span><span class="rv g">≈ 41 000€</span></div>
+      <div class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Cases 6OS (Vincent TNS). Reports portés à 5 ans (LFI 2026). Verser avant 31/12/2025.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🚨 Dividendes SARL — Seuil TNS</div>
+      <div id="optim-tns"><div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">En attente du bilan VH Company (capital, compte courant, dividendes).</div></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">⚖️ PFU vs Barème sur dividendes</div>
+      <table class="tbl">
+        <thead><tr><th>Option</th><th class="r">Taux effectif</th><th class="r">Verdict</th></tr></thead>
+        <tbody>
+          <tr class="ok"><td>PFU 30% (flat tax)</td><td class="r">30%</td><td class="r"><span class="tag tag-g">✓ Optimal</span></td></tr>
+          <tr><td>Barème progressif</td><td class="r">~34-35%</td><td class="r"><span class="tag tag-r">✗ +5%</span></td></tr>
+          <tr class="hl"><td>Remontée rémunération</td><td class="r">55-65%</td><td class="r"><span class="tag tag-r">✗ Très coûteux</span></td></tr>
+        </tbody>
+      </table>
+      <div class="alert a-w" style="margin-top:10px;"><span>⚠</span><div>Ne pas cocher la case 2OP (barème progressif). Conserver le PFU.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 CEHR — Seuil à surveiller</div>
+      <div class="row"><span class="rl">Seuil CEHR couple</span><span class="rv">500 000€</span></div>
+      <div class="row"><span class="rl">RFR 2024</span><span class="rv g">494 792€</span></div>
+      <div class="row"><span class="rl">Écart sous le seuil</span><span class="rv g">−5 208€</span></div>
+      <div class="row"><span class="rl">CEHR payée en 2022</span><span class="rv r">13 534€</span></div>
+      <div class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Un PER de 30k€ ferait passer le RFR à ~465k€ — très confortablement sous le seuil.</div></div>
+    </div>
+  </div>
+
+  <!-- ===== SIMULATEUR (déplacé ici, sous la déclaration) ===== -->
+  <div class="card-title" style="font-size:18px;margin:28px 0 6px;">◐ Simulateur d'impôt</div>
+  <div class="card">
+    <div class="card-title">Simulateur IR 2025</div>
+    <div class="g2">
+      <div>
+        <div class="stitle">Revenus 2025 estimés</div>
+        <div class="sim-row"><label>Rémunération gérant (€)</label><input type="number" class="sim-in" id="s-rem" value="199359" oninput="sim()"></div>
+        <div class="sim-row"><label>BNC bénéfices (€)</label><input type="number" class="sim-in" id="s-bnc" value="51072" oninput="sim()"></div>
+        <div class="sim-row"><label>Dividendes PFU 30% (€)</label><input type="number" class="sim-in" id="s-div" value="200000" oninput="sim()"></div>
+        <div class="sim-row"><label>Salaire Émilie (€)</label><input type="number" class="sim-in" id="s-sal" value="37601" oninput="sim()"></div>
+        <div class="sim-row"><label>Revenus fonciers bruts (€)</label><input type="number" class="sim-in" id="s-fon" value="14400" oninput="sim()"></div>
+        <div class="sim-row"><label>Aide à domicile (€)</label><input type="number" class="sim-in" id="s-dom" value="10222" oninput="sim()"></div>
+      </div>
+      <div>
+        <div class="stitle">Optimisations</div>
+        <div class="sim-row"><label>PER Vincent (€)</label><input type="range" id="r-p1" min="0" max="115761" step="2000" value="0" oninput="sim()"><span class="so" id="op1">0€</span></div>
+        <div class="sim-row"><label>PER Émilie (€)</label><input type="range" id="r-p2" min="0" max="17264" step="500" value="0" oninput="sim()"><span class="so" id="op2">0€</span></div>
+        <div class="sim-row"><label>Déficit foncier réel (€)</label><input type="range" id="r-df" min="0" max="10700" step="100" value="0" oninput="sim()"><span class="so" id="odf">0€</span></div>
+      </div>
+    </div>
+    <div id="sim-res" style="background:var(--bg);border-radius:var(--r);padding:16px;margin-top:4px;"></div>
+  </div>
 </div>
+
 
 <!-- ASSURANCES HABITATION & VEHICULES -->
 <div id="tab-assur-bien" class="panel">
@@ -798,7 +781,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
   <div class="card-title">Habitation</div>
   <div class="soc-grid">
-    <div class="soc-card miss" onclick="sw('import',null)">
+    <div class="soc-card miss" onclick="sw('assur-bien',null)">
       <div class="soc-hdr"><div><div class="soc-name">Résidence principale</div><div class="soc-type">2 chemin Vieux · 34690 Fabrègues</div></div><span class="tag tag-gr">À compléter</span></div>
       <div class="soc-nums">
         <div class="soc-num"><div class="nl">Assureur</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
@@ -2468,9 +2451,7 @@ window.tresoReaffecte = tresoReaffecte;
 </div>
 
 <!-- IMPORT -->
-<div id="tab-import" class="panel">
-  <div class="alert a-b"><span>💡</span><div><strong>L'import se fait maintenant dans chaque société.</strong> Va dans la société concernée (VH Company, Burger Avenue, BK Avenue, BK Saint-Jean, FVH, SCI VH Immo) et dépose les bilans dans le bloc en bas de sa page. Ils sont rangés automatiquement dans Dropbox « Fiscal Vincent » en <code>/Société/Exercice/</code>, renommés avec la date. Pense à m'envoyer aussi le bilan dans le chat pour que je l'analyse.</div></div>
-</div>
+<!-- (page Import fichiers supprimée : l'import se fait directement à chaque endroit concerné) -->
 
 </div></div></div>
 
@@ -4419,6 +4400,9 @@ async function init() {
   }
   sim();
   calcFiscal();
+  // démarrer la trésorerie et remplir la vue d'ensemble (page active au boot)
+  try{ if(window.TRESO_INIT) window.TRESO_INIT(); }catch(e){}
+  try{ if(typeof renderDashboardTreso==='function') renderDashboardTreso(); }catch(e){}
 }
 
 async function setupTables() {
@@ -4428,7 +4412,7 @@ async function setupTables() {
 }
 
 // ── NAVIGATION ──
-const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',batiments:'Bâtiments','tresorerie':'Trésorerie du groupe','cout-vincent':'Coût Vincent',declaration:'Ma déclaration 2026',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents',import:'Import fichiers'};
+const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',batiments:'Bâtiments','tresorerie':'Trésorerie du groupe','cout-vincent':'Coût Vincent',declaration:'Ma déclaration',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents'};
 function sw(id, btn) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -4439,6 +4423,7 @@ function sw(id, btn) {
   var pt = document.getElementById('perso-tags');
   if (pt) pt.style.display = (id === 'dashboard') ? 'flex' : 'none';
   if (id === 'cout-vincent') { try { renderCoutVincent(); } catch(e){} }
+  if (id === 'dashboard') { try { if(window.TRESO_INIT) window.TRESO_INIT(); renderDashboardTreso(); } catch(e){ console.error(e); } }
   if (id === 'tresorerie') { try { if(window.TRESO_INIT) window.TRESO_INIT(); } catch(e){ console.error(e); } }
   if (id && id.indexOf('soc-')===0) { try { renderTresoSoc(id.slice(4)); } catch(e){ console.error(e); } }
 }
@@ -4447,8 +4432,8 @@ function sw(id, btn) {
 let optOpen = false;
 function togOpt() {
   optOpen = !optOpen;
-  document.getElementById('opt-body').style.display = optOpen ? 'block' : 'none';
-  document.getElementById('opt-chev').classList.toggle('open', optOpen);
+  var b=document.getElementById('opt-body'); if(b) b.style.display = optOpen ? 'block' : 'none';
+  var c=document.getElementById('opt-chev'); if(c) c.classList.toggle('open', optOpen);
 }
 
 async function togLev(el) {
@@ -4464,7 +4449,8 @@ async function togLev(el) {
 
 function updateScore() {
   const n = document.querySelectorAll('.lev-tog.on[data-key^="lev"]').length;
-  document.getElementById('opt-score').textContent = n + ' / 6';
+  const sc = document.getElementById('opt-score');
+  if (sc) sc.textContent = n + ' / 6';
   // Progression déclaration (étapes decl*)
   const dEl = document.getElementById('decl-step');
   if (dEl) {
@@ -4507,7 +4493,7 @@ async function loadState() {
         addDocToTable(doc.nom, doc.societe);
         if(doc.societe==='Société') updateSocBadge(doc.nom);
       });
-      document.getElementById('b-imp').textContent = count;
+      { var _bi=document.getElementById('b-imp'); if(_bi) _bi.textContent = count; }
     }
   } catch(e) {}
 }
@@ -5172,7 +5158,7 @@ async function handleF(files) {
   const cat = document.getElementById('imp-cat') ? document.getElementById('imp-cat').value : 'Autre';
   for(const f of Array.from(files)) {
     impCount++;
-    document.getElementById('b-imp').textContent = impCount;
+    { var _bi2=document.getElementById('b-imp'); if(_bi2) _bi2.textContent = impCount; }
     const ext = f.name.split('.').pop().toUpperCase();
     addFileToUI(f.name, ext, cat, false);
     let saved = null;
@@ -6902,6 +6888,80 @@ function tresoSoldeRecent(socKey){
   return (dernier==null) ? null : {solde:dernier, mois:moisDernier};
 }
 
+// Ordre chronologique des mois (utilitaire dashboard)
+const TRESO_ORDRE_MOIS = ['DÉC 2024','JAN 2025','FEV 2025','MAR 2025','AVR 2025','MAI 2025','JUI 2025','JUL 2025','AOU 2025','SEP 2025','OCT 2025','NOV 2025','DEC 2025','JAN 2026','FEV 2026','MAR 2026','AVR 2026','MAI 2026'];
+
+// Remplit la vue d'ensemble côté trésorerie : 4 KPI, grille des banques, points d'attention.
+function renderDashboardTreso(){
+  var data = window.TRESO_DATA || {};
+  var fmt = function(n){ return (n||n===0) ? Math.round(n).toLocaleString('fr-FR')+'€' : '—'; };
+  // banques de trésorerie réellement présentes (clés de RAW non vides)
+  var banques = Object.keys(data).filter(function(k){ return data[k] && !data[k]._vide && data[k].soldes; });
+
+  var totalTreso=0, totalEnt=0, totalSor=0, moisGlobal=null, cartes='', alertes=[];
+
+  banques.forEach(function(tkey){
+    var d=data[tkey];
+    // dernier mois avec solde
+    var dernier=null, moisD=null, precedent=null, moisP=null;
+    TRESO_ORDRE_MOIS.forEach(function(m){
+      if(d.soldes[m]!=null){ moisP=moisD; precedent=dernier; dernier=d.soldes[m]; moisD=m; }
+    });
+    if(dernier==null) return;
+    totalTreso+=dernier;
+    if(!moisGlobal || TRESO_ORDRE_MOIS.indexOf(moisD)>TRESO_ORDRE_MOIS.indexOf(moisGlobal)) moisGlobal=moisD;
+    // entrées / sorties du dernier mois (lignes TOTAL)
+    var findTotal=function(sec){ var t=(d[sec]||[]).find(function(x){return (x.label||'').toUpperCase()==='TOTAL';}); return t? (t.vals[moisD]||0):0; };
+    var ent=findTotal('entrees'), sor=findTotal('sorties');
+    totalEnt+=ent; totalSor+=sor;
+    // variation de solde vs mois précédent
+    var varTxt='', varCol='var(--text3)';
+    if(precedent!=null){
+      var dv=dernier-precedent;
+      varCol = dv>=0?'var(--success)':'var(--danger)';
+      varTxt=(dv>=0?'▲ +':'▼ ')+fmt(Math.abs(dv)).replace('€','')+'€ vs '+(moisP||'');
+    }
+    cartes+='<div class="soc-card" style="cursor:pointer" onclick="setResto&&setResto(\''+tkey.replace(/'/g,"\\'")+'\');sw(\'tresorerie\',document.querySelector(\'.sb-item[onclick*=tresorerie]\'))">'
+      +'<div class="soc-name">'+tkey+'</div>'
+      +'<div style="font-size:22px;font-weight:800;color:#0f1c2e;margin:4px 0">'+fmt(dernier)+'</div>'
+      +'<div style="font-size:11px;color:'+varCol+';font-weight:600">'+(varTxt||('solde '+(moisD||'')))+'</div>'
+      +'<div style="display:flex;gap:12px;margin-top:8px;font-size:11px">'
+        +'<span style="color:var(--success)">↗ '+fmt(ent)+'</span>'
+        +'<span style="color:var(--danger)">↘ '+fmt(sor)+'</span>'
+      +'</div></div>';
+    // alerte : solde en forte baisse (>15%)
+    if(precedent>0 && (precedent-dernier)/precedent>0.15){
+      alertes.push({lvl:'r', txt:'<strong>'+tkey+'</strong> : trésorerie en baisse de '+Math.round((precedent-dernier)/precedent*100)+'% sur '+moisD+' (de '+fmt(precedent)+' à '+fmt(dernier)+').'});
+    }
+  });
+
+  // KPI
+  var set=function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+  set('kpi-treso-tot', fmt(totalTreso));
+  set('kpi-treso-tot-sub', banques.length+' compte(s) · '+(moisGlobal||''));
+  set('kpi-treso-ent', fmt(totalEnt));
+  set('kpi-treso-ent-sub', moisGlobal||'\u00a0');
+  set('kpi-treso-sor', fmt(totalSor));
+  set('kpi-treso-sor-sub', moisGlobal||'\u00a0');
+  // coût Vincent (cumul toutes sociétés)
+  var cv=0; try{ Object.keys(TRESO_MAP_SOC).forEach(function(sk){ cv += tresoQuery(sk,{cat:'cout-vincent'}).reduce(function(s,r){return s+r.total;},0); }); }catch(e){}
+  set('kpi-treso-cv', fmt(cv));
+
+  // grille banques
+  var grid=document.getElementById('dash-treso-grid');
+  if(grid) grid.innerHTML = cartes || '<div style="color:var(--text3);font-size:13px;padding:14px;">Aucune trésorerie chargée. Importe un relevé pour commencer.</div>';
+
+  // points d'attention (alertes trésorerie + rappels fiscaux fixes)
+  alertes.push({lvl:'g', txt:'<strong>Plafond PER</strong> de 115 761 € non utilisé — chaque tranche versée économise ~41% (voir Ma déclaration).'});
+  alertes.push({lvl:'w', txt:'<strong>Seuil CEHR</strong> : RFR 2024 à 494 792 €, juste sous 500 000 €. À surveiller.'});
+  var az=document.getElementById('dash-alertes');
+  if(az){
+    az.innerHTML = alertes.map(function(a){
+      return '<div class="alert a-'+a.lvl+'" style="margin-bottom:8px"><span>'+(a.lvl==='r'?'🚨':a.lvl==='w'?'⚠':'✓')+'</span><div>'+a.txt+'</div></div>';
+    }).join('');
+  }
+}
+
 // Charger les corrections manuelles de catégorie depuis Supabase (table treso_categories)
 async function loadTresoCategories(){
   try{
@@ -6989,6 +7049,8 @@ window.tresoOnUpdate = function(){
         renderTresoSoc(p.id.slice(8));
       }
     });
+    // rafraîchir la vue d'ensemble (trésorerie en direct) si elle est affichée ou existante
+    if(typeof renderDashboardTreso==='function') renderDashboardTreso();
   }catch(e){}
 };
 
@@ -7116,7 +7178,7 @@ async function renderDashboardGroupe(){
       const has = !!last[soc];
       const d = has ? (last[soc].donnees||{}) : {};
       const cls = has ? 'soc-card imp' : 'soc-card miss';
-      const onclick = has ? `sw('${meta.tab}',null)` : `sw('import',null)`;
+      const onclick = `sw('${meta.tab}',null)`;
       const tag = has ? `<span class="tag tag-g">✓ Bilan ${last[soc].exercice}</span>` : `<span class="tag tag-w">→ Importer</span>`;
       // Choix des 4 chiffres affichés selon ce qui est lu
       const num = (l,v,col)=>`<div class="soc-num"><div class="nl">${l}</div><div class="nv"${col?` style="color:${col}"`:''}>${v}</div></div>`;
