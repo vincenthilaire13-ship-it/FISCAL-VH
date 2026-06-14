@@ -1394,10 +1394,15 @@ function render(){
       // aller chercher les PDF déjà rangés dans Dropbox (gratuit, sans IA) puis rafraîchir la liste
       if(window.tresoScanDropbox){
         var socScan=resto;
-        window.tresoScanDropbox(socScan).then(function(ok){
-          if(ok){
-            var liste=document.getElementById('treso-releves-liste');
-            if(liste && resto===socScan) liste.innerHTML=window.tresoRelevesListe(socScan);
+        window.tresoScanDropbox(socScan).then(function(diag){
+          var liste=document.getElementById('treso-releves-liste');
+          if(!liste || resto!==socScan) return;
+          if(diag && diag.trouve>0){
+            liste.innerHTML=window.tresoRelevesListe(socScan);
+          } else {
+            liste.innerHTML=window.tresoRelevesListe(socScan)
+              +'<div style="font-size:11px;color:#b08800;margin-top:8px">Aucun relevé trouvé dans Dropbox pour cette banque'
+              +(diag&&diag.erreur?(' — détail : '+diag.erreur):'')+'.</div>';
           }
         });
       }
@@ -3639,40 +3644,60 @@ window.tresoVoirReleve = async function(soc, periode){
   else alert('Lien Dropbox indisponible (token expiré ?).');
 };
 
-// Scanne le dossier Dropbox /Tresorerie/<Société>/ et liste les PDF déjà rangés (AUCUNE IA, gratuit).
-// Reconstruit TRESO_RELEVES[soc] à partir des noms de fichiers "<Société> - <MOIS ANNÉE>.pdf".
+// Scanne Dropbox pour retrouver les relevés déjà rangés (AUCUNE IA, gratuit).
+// Cherche dans plusieurs emplacements possibles et renvoie un diagnostic {trouve, erreur, ...}.
 window.tresoScanDropbox = async function(soc){
+  var diag = {trouve:0, erreur:null};
   try{
     var tok = await dbxToken();
     var clean = function(s){ return (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim(); };
-    var dossier = '/Tresorerie/'+clean(soc);
-    var r = await fetch('https://api.dropboxapi.com/2/files/list_folder',{
-      method:'POST', headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
-      body: JSON.stringify({path:dossier, recursive:true, limit:2000})
-    });
-    if(!r.ok) return false;
-    var j = await r.json();
-    var entries = j.entries||[];
-    // pagination éventuelle
-    while(j.has_more){
-      var r2 = await fetch('https://api.dropboxapi.com/2/files/list_folder/continue',{
-        method:'POST', headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
-        body: JSON.stringify({cursor:j.cursor})
-      });
-      if(!r2.ok) break;
-      j = await r2.json(); entries = entries.concat(j.entries||[]);
+    // emplacements candidats (selon comment ça a été rangé)
+    var candidats = [
+      '/Tresorerie/'+clean(soc),
+      '/Tresorerie',
+      ''  // racine complète de l'app folder (dernier recours)
+    ];
+    var entries = [];
+    var lastErr = '';
+    for(var ci=0; ci<candidats.length; ci++){
+      try{
+        var r = await fetch('https://api.dropboxapi.com/2/files/list_folder',{
+          method:'POST', headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
+          body: JSON.stringify({path:candidats[ci], recursive:true, limit:2000})
+        });
+        if(!r.ok){ try{ lastErr=(await r.json()).error_summary||('HTTP '+r.status); }catch(e){ lastErr='HTTP '+r.status; } continue; }
+        var j = await r.json();
+        entries = j.entries||[];
+        while(j.has_more){
+          var r2 = await fetch('https://api.dropboxapi.com/2/files/list_folder/continue',{
+            method:'POST', headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
+            body: JSON.stringify({cursor:j.cursor})
+          });
+          if(!r2.ok) break;
+          j = await r2.json(); entries = entries.concat(j.entries||[]);
+        }
+        if(entries.length) break; // ce candidat a donné des fichiers
+      }catch(e){ lastErr=String(e&&e.message||e); }
     }
+    if(!entries.length){ diag.erreur = lastErr || 'dossier vide ou introuvable'; return diag; }
+
     if(!TRESO_RELEVES[soc]) TRESO_RELEVES[soc]={};
+    var socClean = clean(soc).toLowerCase();
     entries.forEach(function(e){
       if(e['.tag']!=='file') return;
       if(!/\.pdf$/i.test(e.name)) return;
-      // nom attendu : "<Société> - <MOIS ANNÉE>.pdf" → on récupère la partie après " - "
+      var p = (e.path_display||e.path_lower||'');
+      // ne garder que les PDF de trésorerie de CETTE société
+      var pl = p.toLowerCase();
+      if(pl.indexOf('tresorerie')<0) return;
+      if(socClean && pl.indexOf(socClean)<0 && (e.name||'').toLowerCase().indexOf(socClean)<0) return;
+      // période = ce qui suit " - " dans le nom, sinon le nom sans extension
       var base = e.name.replace(/\.pdf$/i,'');
       var per = base.indexOf(' - ')>=0 ? base.split(' - ').pop().trim() : base.trim();
-      if(per) TRESO_RELEVES[soc][per] = e.path_lower || e.path_display;
+      if(per){ TRESO_RELEVES[soc][per] = e.path_lower || e.path_display; diag.trouve++; }
     });
-    return true;
-  }catch(e){ console.warn('tresoScanDropbox:', e); return false; }
+    return diag;
+  }catch(e){ diag.erreur = String(e&&e.message||e); return diag; }
 };
 window.tresoRelireReleve = async function(soc, periode){
   var path = (TRESO_RELEVES[soc]||{})[periode];
@@ -7025,11 +7050,9 @@ function renderTresoSoc(socKey){
     <div id="treso-releves-soc-${socKey}">${window.tresoRelevesListe ? window.tresoRelevesListe(tkey) : ''}</div>
   </div>`;
   if(window.tresoScanDropbox){
-    window.tresoScanDropbox(tkey).then(function(ok){
-      if(ok){
-        var l=document.getElementById('treso-releves-soc-'+socKey);
-        if(l) l.innerHTML=window.tresoRelevesListe(tkey);
-      }
+    window.tresoScanDropbox(tkey).then(function(diag){
+      var l=document.getElementById('treso-releves-soc-'+socKey);
+      if(l) l.innerHTML=window.tresoRelevesListe(tkey);
     });
   }
 }
