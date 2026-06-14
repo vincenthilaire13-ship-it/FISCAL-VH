@@ -2137,6 +2137,9 @@ const BAT_CAT_LABEL = {
 // Envoie un fichier dans Dropbox (catégorie du bâtiment) et renvoie {dropbox_path, url}.
 async function batUploadDoc(batNom, cat, file){
   const tok = await dbxToken();
+  if(!tok || typeof tok !== 'string' || tok.length < 20){
+    throw new Error('Token Dropbox vide ou invalide renvoyé par /api/dbx — vérifie les variables DBX_* sur Vercel.');
+  }
   const clean = s => (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim();
   const catFolder = BAT_CATS[cat] || 'Autres';
   const dateStr = new Date().toISOString().slice(0,10);
@@ -2144,12 +2147,23 @@ async function batUploadDoc(batNom, cat, file){
   const baseName = clean(file.name.replace(/\.[^.]+$/,''));
   const niceName = `${baseName}_${dateStr}.${ext}`;
   const path = `${DROPBOX_FOLDER}/${clean(batNom)}/${catFolder}/${niceName}`;
-  const up = await fetch('https://content.dropboxapi.com/2/files/upload', {
-    method:'POST',
-    headers:{'Authorization':'Bearer '+tok,'Dropbox-API-Arg':JSON.stringify({path, mode:'add', autorename:true, mute:false}),'Content-Type':'application/octet-stream'},
-    body:file
-  });
-  if(!up.ok){ let d=''; try{ d=(await up.json()).error_summary||''; }catch(e){} throw new Error(d||('HTTP '+up.status)); }
+  let up;
+  try {
+    up = await fetch('https://content.dropboxapi.com/2/files/upload', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tok,'Dropbox-API-Arg':JSON.stringify({path, mode:'add', autorename:true, mute:false}),'Content-Type':'application/octet-stream'},
+      body:file
+    });
+  } catch(netErr){
+    // Une erreur réseau/CORS ici masque presque toujours un refus d'authentification Dropbox
+    throw new Error('Dropbox a refusé la requête (probable token rejeté ou permission « files.content.write » manquante sur l\'app Dropbox). Détail navigateur : '+((netErr&&netErr.message)||'CORS/réseau'));
+  }
+  if(!up.ok){
+    let d=''; try{ d=(await up.json()).error_summary||''; }catch(e){}
+    if(/missing_scope/i.test(d)) throw new Error('Permission manquante sur l\'app Dropbox : il faut activer le scope « files.content.write » (Dropbox App Console → Permissions), puis régénérer le refresh token. ['+d+']');
+    if(/invalid_access_token|expired/i.test(d)) throw new Error('Token Dropbox rejeté/expiré : le refresh token (DBX_REFRESH) n\'est plus valide. ['+d+']');
+    throw new Error(d || ('HTTP '+up.status));
+  }
   const meta = await up.json();
   const realPath = meta.path_lower || path;
   const url = await dbxShareLink(tok, realPath);
