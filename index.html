@@ -1388,9 +1388,19 @@ function render(){
       bloc.id='treso-releves-bloc';
       bloc.style.cssText='max-width:1100px;margin:24px auto 40px;background:#fff;border:1px solid #e6ecf5;border-radius:12px;padding:18px 20px;box-shadow:0 2px 10px rgba(15,28,46,.05)';
       bloc.innerHTML='<div style="font-size:15px;font-weight:700;color:#0f1c2e;margin-bottom:4px">📄 Relevés bancaires importés — '+resto+'</div>'
-        +'<div style="font-size:11px;color:#7a90a8;margin-bottom:12px">Tous les relevés téléchargés pour cette banque. « voir » ouvre le PDF dans Dropbox · « supprimer » efface le PDF, tous les montants du mois et le solde.</div>'
-        +window.tresoRelevesListe(resto);
+        +'<div style="font-size:11px;color:#7a90a8;margin-bottom:12px">Tous les relevés téléchargés pour cette banque. « voir » ouvre le PDF dans Dropbox · « 🔄 relire » relance la lecture · « supprimer » efface le PDF, tous les montants du mois et le solde.</div>'
+        +'<div id="treso-releves-liste">'+window.tresoRelevesListe(resto)+'</div>';
       ct.appendChild(bloc);
+      // aller chercher les PDF déjà rangés dans Dropbox (gratuit, sans IA) puis rafraîchir la liste
+      if(window.tresoScanDropbox){
+        var socScan=resto;
+        window.tresoScanDropbox(socScan).then(function(ok){
+          if(ok){
+            var liste=document.getElementById('treso-releves-liste');
+            if(liste && resto===socScan) liste.innerHTML=window.tresoRelevesListe(socScan);
+          }
+        });
+      }
     }
   }catch(e){}
 }
@@ -3629,7 +3639,41 @@ window.tresoVoirReleve = async function(soc, periode){
   else alert('Lien Dropbox indisponible (token expiré ?).');
 };
 
-// Relire un relevé : retélécharge le PDF depuis Dropbox et relance la lecture (comme les bilans)
+// Scanne le dossier Dropbox /Tresorerie/<Société>/ et liste les PDF déjà rangés (AUCUNE IA, gratuit).
+// Reconstruit TRESO_RELEVES[soc] à partir des noms de fichiers "<Société> - <MOIS ANNÉE>.pdf".
+window.tresoScanDropbox = async function(soc){
+  try{
+    var tok = await dbxToken();
+    var clean = function(s){ return (s||'').replace(/[\/\\:*?"<>|]/g,'_').trim(); };
+    var dossier = '/Tresorerie/'+clean(soc);
+    var r = await fetch('https://api.dropboxapi.com/2/files/list_folder',{
+      method:'POST', headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
+      body: JSON.stringify({path:dossier, recursive:true, limit:2000})
+    });
+    if(!r.ok) return false;
+    var j = await r.json();
+    var entries = j.entries||[];
+    // pagination éventuelle
+    while(j.has_more){
+      var r2 = await fetch('https://api.dropboxapi.com/2/files/list_folder/continue',{
+        method:'POST', headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
+        body: JSON.stringify({cursor:j.cursor})
+      });
+      if(!r2.ok) break;
+      j = await r2.json(); entries = entries.concat(j.entries||[]);
+    }
+    if(!TRESO_RELEVES[soc]) TRESO_RELEVES[soc]={};
+    entries.forEach(function(e){
+      if(e['.tag']!=='file') return;
+      if(!/\.pdf$/i.test(e.name)) return;
+      // nom attendu : "<Société> - <MOIS ANNÉE>.pdf" → on récupère la partie après " - "
+      var base = e.name.replace(/\.pdf$/i,'');
+      var per = base.indexOf(' - ')>=0 ? base.split(' - ').pop().trim() : base.trim();
+      if(per) TRESO_RELEVES[soc][per] = e.path_lower || e.path_display;
+    });
+    return true;
+  }catch(e){ console.warn('tresoScanDropbox:', e); return false; }
+};
 window.tresoRelireReleve = async function(soc, periode){
   var path = (TRESO_RELEVES[soc]||{})[periode];
   if(!path){ alert('Aucun relevé archivé pour '+periode+'.'); return; }
@@ -6978,8 +7022,16 @@ function renderTresoSoc(socKey){
   <div class="card" style="margin-top:12px">
     <div class="card-title">📄 Relevés bancaires importés</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Chaque mois importé est archivé dans Dropbox. « Supprimer » efface le PDF, tous les montants du mois et le solde.</div>
-    <div>${window.tresoRelevesListe ? window.tresoRelevesListe(tkey) : ''}</div>
+    <div id="treso-releves-soc-${socKey}">${window.tresoRelevesListe ? window.tresoRelevesListe(tkey) : ''}</div>
   </div>`;
+  if(window.tresoScanDropbox){
+    window.tresoScanDropbox(tkey).then(function(ok){
+      if(ok){
+        var l=document.getElementById('treso-releves-soc-'+socKey);
+        if(l) l.innerHTML=window.tresoRelevesListe(tkey);
+      }
+    });
+  }
 }
 
 
