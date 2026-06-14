@@ -2030,7 +2030,14 @@ function pdfTraiteResultat(parsed, restoSel){
     var sur = p.sur && (matchExist || p.nb>0);   // doute = l'IA a signalé un doute
     if(!p.sur) { sur=false; nbDoute++; }
 
-    var opts = '<option value="__NEW__"'+(matchExist?'':' selected')+'>➕ Créer le poste : '+(p.nom||'?')+'</option>';
+    // Menu déroulant : en HAUT "créer un nouveau libellé", puis "laisser de côté",
+    // puis le poste suggéré par l'IA, puis les fournisseurs existants.
+    var opts = '<option value="__CREER__">➕ Créer un nouveau libellé…</option>';
+    opts += '<option value="__RIEN__">⊘ Laisser de côté (ne pas importer)</option>';
+    // poste suggéré (le nom proposé), sélectionné par défaut s'il ne matche pas un existant
+    if((p.nom||'') && !matchExist){
+      opts += '<option value="__SUGG__" selected>↪ '+(p.nom||'?')+' (proposé)</option>';
+    }
     opts += fournisseurs.map(function(f){
       return '<option value="'+f.replace(/"/g,'')+'"'+(f.toUpperCase()===nomU?' selected':'')+'>'+f+'</option>';
     }).join('');
@@ -2045,7 +2052,7 @@ function pdfTraiteResultat(parsed, restoSel){
     h += '<div class="tx-row'+(sur?'':' tx-doute')+'" data-i="'+i+'" style="'+(sur?'':'background:#fff7ec;border-left:3px solid #e07d1a;padding-left:8px;')+'">'
       + '<div class="tx-lbl">'+titreLigne+'<br>'+badge+' <span style="color:#7a90a8;font-size:10px">'+(p.individuelle?'1 op.':('×'+p.nb+' op.'))+' · '+(p.categorie||'autre')+'</span></div>'
       + '<div class="tx-amt" style="color:'+color+'">'+(p.type==='sortie'?'- ':'+ ')+p.total.toLocaleString('fr-FR')+' €</div>'
-      + '<select class="tx-sel" data-i="'+i+'" onchange="pdfMajBouton()">'+opts+'</select>'
+      + '<select class="tx-sel" data-i="'+i+'" onchange="pdfChoixPoste(this)">'+opts+'</select>'
       + '</div>';
   });
   document.getElementById('pdf-tx-list').innerHTML = h;
@@ -2054,6 +2061,23 @@ function pdfTraiteResultat(parsed, restoSel){
   if(nbDoute>0) pdfStatus(postes.length+' postes · '+nbDoute+' à confirmer (en orange) avant import','info');
   else pdfStatus(postes.length+' postes reconnus — vous pouvez importer','ok');
 
+  pdfMajBouton();
+}
+
+// Gère le choix dans le menu d'une opération : créer un libellé, laisser de côté, ou poste existant
+function pdfChoixPoste(sel){
+  if(sel.value==='__CREER__'){
+    var nom=(prompt('Nom du nouveau libellé / fournisseur :')||'').trim();
+    if(nom){
+      // ajoute une option dédiée et la sélectionne, pour mémoriser le nom choisi
+      var opt=document.createElement('option');
+      opt.value='__NOM__'+nom; opt.textContent='➕ '+nom; opt.selected=true;
+      sel.insertBefore(opt, sel.firstChild);
+      sel.value='__NOM__'+nom;
+    } else {
+      sel.selectedIndex=0; // annulé → on laisse sur "créer" (sera ignoré)
+    }
+  }
   pdfMajBouton();
 }
 
@@ -2104,7 +2128,13 @@ function pdfImport(){
     var i=+row.getAttribute('data-i');
     var p=postes[i]; if(!p) return;
     var sel=row.querySelector('.tx-sel').value;
-    var nom = (sel==='__NEW__') ? (p.nom||'').trim() : sel;
+    // interpréter le choix : __SUGG__ = nom proposé ; __NOM__xxx = nom saisi ;
+    // __RIEN__ / __CREER__ (non rempli) = laisser de côté (on n'importe pas cette ligne)
+    var nom;
+    if(sel==='__SUGG__' || sel==='__NEW__') nom=(p.nom||'').trim();
+    else if(sel && sel.indexOf('__NOM__')===0) nom=sel.slice(7).trim();
+    else if(sel==='__RIEN__' || sel==='__CREER__' || !sel) return;  // laissé de côté
+    else nom=sel;
     if(!nom) return;
     var sec = p.type==='sortie' ? 'sorties' : 'entrees';
     var k = sec+'||'+nom;
@@ -2253,6 +2283,7 @@ window.pdfClose = pdfClose;
 window.pdfSelected = pdfSelected;
 window.pdfImport = pdfImport;
 window.pdfMajBouton = pdfMajBouton;
+window.pdfChoixPoste = pdfChoixPoste;
 window.tresoVoirDetail = tresoVoirDetail;
 window.tresoDetClose = tresoDetClose;
 window.tresoReaffecte = tresoReaffecte;
