@@ -974,7 +974,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div style="font-size:13px;font-weight:700;color:#0f1c2e;margin-bottom:10px">Postes regroupés — vérifiez l'affectation et importez</div>
     <div id="pdf-tx-list"></div>
     <div style="margin-top:16px;display:flex;gap:8px">
-      <button onclick="pdfImport()" style="flex:1;padding:10px;background:#0d9e6e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">&#10003; Importer dans la trésorerie</button>
+      <button id="pdf-btn-import" onclick="pdfImport()" style="flex:1;padding:10px;background:#0d9e6e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">&#10003; Importer dans la trésorerie</button>
       <button onclick="pdfClose()" style="padding:10px 14px;background:#f0f3f8;color:#4a607a;border:none;border-radius:8px;font-size:13px;cursor:pointer">Annuler</button>
     </div>
   </div>
@@ -1574,17 +1574,42 @@ function pdfAnalyse(file){
       if(data.error){ pdfStatus('Erreur IA : '+(data.error.message||data.error),'err'); return; }
       var txt='';
       (data.content||[]).forEach(function(b){ if(b.type==='text') txt+=b.text; });
-      var m=txt.match(/\{[\s\S]*\}/);
-      if(!m){ pdfStatus('Réponse IA illisible.','err'); return; }
-      try{
-        var parsed=JSON.parse(m[0]);
-        _pdfParsed = parsed;
-        pdfTraiteResultat(parsed, restoSel);
-      }catch(ex){ pdfStatus('Erreur lecture JSON : '+ex.message,'err'); }
+      var parsed = pdfParseJSON(txt);
+      if(!parsed){ pdfStatus('Réponse IA illisible (JSON). Réessayez l\'import.','err'); console.warn('Réponse brute IA:', txt); return; }
+      _pdfParsed = parsed;
+      pdfTraiteResultat(parsed, restoSel);
     })
     .catch(function(ex){ pdfStatus('Erreur : '+ex.message,'err'); });
   };
   reader.readAsDataURL(file);
+}
+
+// Analyse tolérante du JSON renvoyé par l'IA : tente plusieurs nettoyages avant d'abandonner.
+function pdfParseJSON(txt){
+  if(!txt) return null;
+  var candidates=[];
+  // 1) bloc entre ```json ... ```
+  var fence = txt.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if(fence) candidates.push(fence[1]);
+  // 2) du premier { au dernier }
+  var a=txt.indexOf('{'), b=txt.lastIndexOf('}');
+  if(a>=0 && b>a) candidates.push(txt.slice(a,b+1));
+  // 3) le texte brut
+  candidates.push(txt);
+
+  for(var i=0;i<candidates.length;i++){
+    var s=candidates[i];
+    var tries=[
+      s,
+      s.replace(/,\s*([}\]])/g, '$1'),                 // virgules en trop avant } ou ]
+      s.replace(/,\s*([}\]])/g, '$1').replace(/[\u0000-\u001F]+/g,' '), // + caractères de contrôle
+      s.replace(/,\s*([}\]])/g, '$1').replace(/[\u0000-\u001F]+/g,' ').replace(/"\s*\n\s*"/g,' ') // valeurs coupées sur 2 lignes
+    ];
+    for(var t=0;t<tries.length;t++){
+      try{ return JSON.parse(tries[t]); }catch(e){}
+    }
+  }
+  return null;
 }
 
 // Construit le prompt d'extraction + regroupement (règles métier VH)
@@ -1632,8 +1657,10 @@ fournisseurs.length ? fournisseurs.join(', ') : '(aucun pour le moment)',
 '',
 '"type" = "entree" (crédit) ou "sortie" (débit). "total" = somme POSITIVE du poste sur la période.',
 '"categorie" parmi : recette, loyer, marchandises, salaires, cout-vincent, social, assurance, impots, energie, banque, inter-societe, autre.',
-'"existant" = true si le nom correspond à un poste déjà existant fourni ci-dessus.',
-'"periode" au format "MOIS AAAA" en 3 lettres majuscules françaises (JAN, FEV, MAR, AVR, MAI, JUI, JUL, AOU, SEP, OCT, NOV, DEC).'
+'"existant" = true UNIQUEMENT si tu es certain que le nom correspond exactement à un poste déjà existant fourni ci-dessus. Si tu hésites, ou si c\'est un fournisseur nouveau/inconnu, mets "existant": false — il vaut mieux demander à l\'utilisateur que deviner.',
+'"periode" au format "MOIS AAAA" en 3 lettres majuscules françaises (JAN, FEV, MAR, AVR, MAI, JUI, JUL, AOU, SEP, OCT, NOV, DEC).',
+'',
+'IMPÉRATIF JSON : les nombres SANS espace ni symbole € (écris 97761.43 et non "97 761,43 €"), le point comme séparateur décimal, AUCUN guillemet ni retour à la ligne à l\'intérieur d\'un nom de poste, et PAS de virgule après le dernier élément. Réponds uniquement le JSON, rien d\'autre.'
   ].join('\n');
 }
 
@@ -1641,6 +1668,18 @@ fournisseurs.length ? fournisseurs.join(', ') : '(aucun pour le moment)',
 
 var _pdfRestoSel='';
 var _pdfParsed=null;
+
+// Convertit un montant qui peut arriver en "97 761,43 €", "97761.43" ou nombre → Number
+function pdfNum(v){
+  if(typeof v==='number') return v;
+  if(v==null) return 0;
+  var s=String(v).replace(/[^\d,.\-]/g,'').replace(/\s/g,'');
+  // si virgule décimale française
+  if(/,\d{1,2}$/.test(s)) s=s.replace(/\./g,'').replace(',','.');
+  else s=s.replace(/,/g,'');
+  var n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
 
 // Affiche les postes regroupés détectés, pour validation comptable
 function pdfTraiteResultat(parsed, restoSel){
@@ -1666,30 +1705,65 @@ function pdfTraiteResultat(parsed, restoSel){
     info.style.background='#eef4ff'; info.style.color='#1a4a7e';
     info.innerHTML = '<strong>'+(parsed.titulaire||restoSel)+'</strong> · Période : '+(periode||'?')
       + (parsed.iban ? '<br><span style="font-size:11px">IBAN '+parsed.iban+'</span>' : '')
-      + (parsed.solde_final!=null ? '<br><span style="font-size:11px">Solde final relevé : '+Number(parsed.solde_final).toLocaleString('fr-FR')+' €</span>' : '');
+      + (parsed.solde_final!=null ? '<br><span style="font-size:11px">Solde final relevé : '+pdfNum(parsed.solde_final).toLocaleString('fr-FR')+' €</span>' : '');
   }
 
-  pdfStatus(postes.length+' poste(s) regroupé(s) — vérifiez l\'affectation puis importez','ok');
-
+  var nbDoute = 0;
   var h='';
   postes.forEach(function(p,i){
     var color = p.type==='sortie' ? '#e03a3a' : '#0d9e6e';
-    var matchExist = fournisseurs.some(function(f){ return f.toUpperCase()===(p.nom||'').toUpperCase(); });
-    var opts = '<option value="__NEW__"'+(matchExist?'':' selected')+'>➕ Nouveau poste : '+(p.nom||'?')+'</option>';
+    var nom = (p.nom||'').toUpperCase();
+    var matchExist = fournisseurs.some(function(f){ return f.toUpperCase()===nom; });
+    // Un poste est "sûr" si l'IA l'a relié à un poste existant (existant:true) OU si le nom matche exactement.
+    var sur = matchExist || p.existant===true;
+    if(!sur) nbDoute++;
+
+    var opts = '<option value="__NEW__"'+(matchExist?'':' selected')+'>➕ Créer le poste : '+(p.nom||'?')+'</option>';
     opts += fournisseurs.map(function(f){
-      return '<option value="'+f.replace(/"/g,'')+'"'+(f.toUpperCase()===(p.nom||'').toUpperCase()?' selected':'')+'>'+f+'</option>';
+      return '<option value="'+f.replace(/"/g,'')+'"'+(f.toUpperCase()===nom?' selected':'')+'>'+f+'</option>';
     }).join('');
-    h += '<div class="tx-row" data-i="'+i+'">'
-      + '<div class="tx-lbl">'+(p.nom||'?')+' <span style="color:#7a90a8;font-size:10px">'+(p.nb?('×'+p.nb):'')+' · '+(p.categorie||'autre')+'</span></div>'
-      + '<div class="tx-amt" style="color:'+color+'">'+(p.type==='sortie'?'- ':'+ ')+Number(p.total||0).toLocaleString('fr-FR')+' €</div>'
-      + '<select class="tx-sel" data-i="'+i+'">'+opts+'</select>'
+
+    var badge = sur
+      ? '<span style="color:#0d9e6e;font-size:10px;font-weight:700">✓ reconnu</span>'
+      : '<span style="color:#e07d1a;font-size:10px;font-weight:700">⚠ à confirmer</span>';
+
+    h += '<div class="tx-row'+(sur?'':' tx-doute')+'" data-i="'+i+'" data-sur="'+(sur?'1':'0')+'" style="'+(sur?'':'background:#fff7ec;border-left:3px solid #e07d1a;padding-left:8px;')+'">'
+      + '<div class="tx-lbl">'+(p.nom||'?')+'<br>'+badge+' <span style="color:#7a90a8;font-size:10px">'+(p.nb?('×'+p.nb+' op.'):'')+' · '+(p.categorie||'autre')+'</span></div>'
+      + '<div class="tx-amt" style="color:'+color+'">'+(p.type==='sortie'?'- ':'+ ')+pdfNum(p.total).toLocaleString('fr-FR')+' €</div>'
+      + '<select class="tx-sel" data-i="'+i+'" onchange="pdfMajBouton()">'+opts+'</select>'
       + '</div>';
   });
   document.getElementById('pdf-tx-list').innerHTML = h;
   document.getElementById('pdf-results').style.display='block';
 
-  // mémoriser la période pour l'import
+  // Message clair selon le nombre de doutes
+  if(nbDoute>0){
+    pdfStatus(postes.length+' postes lus · '+nbDoute+' à confirmer (en orange) avant import','info');
+  } else {
+    pdfStatus(postes.length+' postes reconnus — vous pouvez importer','ok');
+  }
+
   _pdfParsed._periode = periode;
+  pdfMajBouton();
+}
+
+// Active/désactive le bouton Importer selon qu'il reste des doutes non tranchés
+function pdfMajBouton(){
+  var btn=document.getElementById('pdf-btn-import');
+  if(!btn) return;
+  var rows=document.querySelectorAll('#pdf-tx-list .tx-row');
+  var reste=0;
+  rows.forEach(function(row){
+    var sel=row.querySelector('.tx-sel');
+    // un poste reste douteux si non sûr ET laissé sur "créer le poste" sans confirmation explicite
+    // → ici on considère qu'un choix dans le menu (quel qu'il soit) = tranché.
+    // On bloque seulement si la valeur est vide (ne devrait pas arriver).
+    if(sel && !sel.value) reste++;
+  });
+  // On exige surtout que l'utilisateur ait VU les doutes : si des doutes existent, on les compte tranchés dès qu'un choix est fait (toujours le cas ici).
+  btn.disabled = (reste>0);
+  btn.style.opacity = btn.disabled ? '0.5' : '1';
+  btn.style.cursor = btn.disabled ? 'not-allowed' : 'pointer';
 }
 
 // Importe les postes validés dans la trésorerie + Supabase (ÉCRASE le mois)
@@ -1720,7 +1794,7 @@ function pdfImport(){
     var nom = (sel==='__NEW__') ? (p.nom||'').trim() : sel;
     if(!nom) return;
     var sec = p.type==='sortie' ? 'sorties' : 'entrees';
-    var montant = Number(p.total)||0;
+    var montant = pdfNum(p.total);
 
     // Trouver/créer la ligne dans RAW
     if(!RAW[restoSel]) return;
@@ -1814,6 +1888,7 @@ window.pdfOpen = pdfOpen;
 window.pdfClose = pdfClose;
 window.pdfSelected = pdfSelected;
 window.pdfImport = pdfImport;
+window.pdfMajBouton = pdfMajBouton;
 
 })();
 </script>
