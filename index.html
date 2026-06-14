@@ -1378,6 +1378,21 @@ function render(){
   else if(page==='compare') renderCompare();
   else if(page==='annuel') renderAnnuel();
   else if(page==='mensuel') renderMensuel();
+
+  // Liste des relevés PDF importés (en bas de l'onglet) — voir / supprimer, comme BK Tech
+  try{
+    var ct=document.getElementById('ct');
+    if(ct && resto && resto!=='Comparaison' && window.tresoRelevesListe){
+      var old=document.getElementById('treso-releves-bloc'); if(old) old.remove();
+      var bloc=document.createElement('div');
+      bloc.id='treso-releves-bloc';
+      bloc.style.cssText='max-width:1100px;margin:24px auto 40px;background:#fff;border:1px solid #e6ecf5;border-radius:12px;padding:18px 20px;box-shadow:0 2px 10px rgba(15,28,46,.05)';
+      bloc.innerHTML='<div style="font-size:15px;font-weight:700;color:#0f1c2e;margin-bottom:4px">📄 Relevés bancaires importés — '+resto+'</div>'
+        +'<div style="font-size:11px;color:#7a90a8;margin-bottom:12px">Tous les relevés téléchargés pour cette banque. « voir » ouvre le PDF dans Dropbox · « supprimer » efface le PDF, tous les montants du mois et le solde.</div>'
+        +window.tresoRelevesListe(resto);
+      ct.appendChild(bloc);
+    }
+  }catch(e){}
 }
 
 // Remplit la liste des sociétés dans la sidebar (auto depuis EXTRA_SOC)
@@ -3614,7 +3629,23 @@ window.tresoVoirReleve = async function(soc, periode){
   else alert('Lien Dropbox indisponible (token expiré ?).');
 };
 
-// Supprime le relevé d'un mois : PDF Dropbox + tous les chiffres du mois + le solde + la trace.
+// Relire un relevé : retélécharge le PDF depuis Dropbox et relance la lecture (comme les bilans)
+window.tresoRelireReleve = async function(soc, periode){
+  var path = (TRESO_RELEVES[soc]||{})[periode];
+  if(!path){ alert('Aucun relevé archivé pour '+periode+'.'); return; }
+  try{
+    var link = await window.dbxTempLinkTreso(path);
+    if(!link){ alert('Lien Dropbox indisponible (token expiré ?).'); return; }
+    var resp = await fetch(link);
+    var blob = await resp.blob();
+    var file = new File([blob], (soc+' - '+periode+'.pdf'), {type:'application/pdf'});
+    // se placer sur la bonne banque puis lancer la lecture
+    if(typeof resto!=='undefined') resto = soc;
+    if(window.pdfOpen) window.pdfOpen();
+    window._pdfFichier = file;
+    if(window.pdfAnalyse) window.pdfAnalyse(file);
+  }catch(e){ alert('Relecture impossible : '+(e&&e.message||e)); }
+};
 window.tresoSupprimerReleve = async function(soc, periode){
   if(!confirm('Supprimer le relevé de '+periode+' pour '+soc+' ?\n\nCela efface : le PDF dans Dropbox, TOUS les montants de ce mois (entrées et sorties) et le solde.\n\nCette action est irréversible.')) return;
   // 1) supprimer le PDF dans Dropbox
@@ -3665,7 +3696,8 @@ window.tresoRelevesListe = function(soc){
   mois.forEach(function(p){
     h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f3f8">'
       +'<span style="flex:1;font-size:13px;font-weight:600">📄 '+p+'</span>'
-      +'<button onclick="tresoVoirReleve(\''+soc.replace(/'/g,"\\'")+'\',\''+p.replace(/'/g,"\\'")+'\')" style="font-size:11px;padding:4px 10px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">voir le relevé</button>'
+      +'<button onclick="tresoVoirReleve(\''+soc.replace(/'/g,"\\'")+'\',\''+p.replace(/'/g,"\\'")+'\')" style="font-size:11px;padding:4px 10px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">voir</button>'
+      +'<button onclick="tresoRelireReleve(\''+soc.replace(/'/g,"\\'")+'\',\''+p.replace(/'/g,"\\'")+'\')" style="font-size:11px;padding:4px 10px;background:#eef4ff;color:#1a6cf4;border:none;border-radius:6px;cursor:pointer">🔄 relire</button>'
       +'<button onclick="tresoSupprimerReleve(\''+soc.replace(/'/g,"\\'")+'\',\''+p.replace(/'/g,"\\'")+'\')" style="font-size:11px;padding:4px 10px;background:#fdecec;color:#e03a3a;border:none;border-radius:6px;cursor:pointer">supprimer</button>'
       +'</div>';
   });
