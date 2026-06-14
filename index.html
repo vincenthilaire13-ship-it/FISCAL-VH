@@ -1663,7 +1663,7 @@ function pdfAnalyse(file){
   function lireBout(texte, role){
     var prompt = pdfBuildPromptTexte(fournisseurs, role);
     return fetch('/api/ia',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:8000,
+      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:8000,
         messages:[{role:'user',content:[{type:'text',text:prompt+'\n\n=== TEXTE DU RELEVÉ ===\n'+texte}]}]})
     }).then(function(r){
       if(!r.ok) return r.json().then(function(j){throw new Error((j&&j.error)||('HTTP '+r.status));})
