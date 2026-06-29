@@ -6111,7 +6111,7 @@ COÛT DU DIRIGEANT — c'est une priorité. Une liasse contient en général un 
 - "deplacements_voyages" : voyages et déplacements, train, avion, hôtels, péages, parkings (6251 « Voyages et deplacements », 6252, 6255, « Frais deplt »).
 - "autres_avantages_dirigeant" : autres frais personnels du dirigeant : téléphone/mobile (626), cotisations facultatives Madelin / retraite / prévoyance / mutuelle du dirigeant payées par la société (libellés « Ass prevoy tns », « Ass complt muta sante », « ret generali », « Organic ret », « Madelin »), cadeaux, frais de représentation, cotisations clubs. Additionne ces lignes TNS de prévoyance/retraite/mutuelle personnelles si elles ne sont pas déjà comptées dans charges_sociales_dirigeant.
 - "cout_dirigeant_total" : la SOMME de tous les postes ci-dessus si tu peux la calculer (sinon null, l'app la recalculera).
-- "cout_dirigeant_detail" : liste libre de TOUTE autre ligne du compte de résultat détaillé qui te semble être un frais du gérant et qui n'entre dans aucune case ci-dessus, sous la forme [{"libelle":"intitulé exact lu","montant":nombre}]. RÈGLE STRICTE : ne mets JAMAIS ici un montant déjà placé dans un champ nommé ci-dessus (rémunération, charges sociales, véhicule, assurance, carburant, restaurants, déplacements, autres avantages) — sinon il serait compté deux fois. "cout_dirigeant_detail" ne sert qu'aux frais du gérant qui ne rentrent dans AUCUNE case.
+- "cout_dirigeant_detail" : liste libre de TOUTE autre ligne du compte de résultat détaillé qui te semble être un frais du gérant et qui n'entre dans aucune case ci-dessus, sous la forme [{"libelle":"intitulé exact lu","montant":nombre}]. RÈGLE STRICTE : ne mets JAMAIS ici un montant déjà placé dans un champ nommé ci-dessus (rémunération, charges sociales, véhicule, assurance, carburant, restaurants, déplacements, autres avantages) — sinon il serait compté deux fois. "cout_dirigeant_detail" ne sert qu'aux frais du gérant qui ne rentrent dans AUCUNE case. ⚠ INTERDICTION ABSOLUE d'y mettre des CHARGES D'EXPLOITATION COURANTES de l'entreprise, qui ne sont PAS des frais du dirigeant : publicité/marketing (« PUBLICITE … », « PUB … »), commissions de plateformes de livraison (« UBER EATS », « DELIVEROO », « STUART », « FRAIS … LIVRAISON »), frais bancaires et commissions cartes (« FRAIS … CB », « REMISES CB », « FRAIS S REMISES … », « COMMISSION … »), tickets restaurant employeur (« SWILE », « TICKET … »), achats de marchandises, loyers commerciaux, entretien des locaux, fournitures, énergie, salaires des employés, cotisations sociales du personnel. Tous ceux-là ne sont PAS du coût dirigeant : NE LES METS PAS dans cout_dirigeant_detail (ne les mets nulle part dans les postes du dirigeant). En cas de doute sur une ligne, ne l'inclus pas : il vaut mieux oublier un vrai frais du gérant que d'y ranger une charge d'exploitation.
 IMPORTANT pour le coût du dirigeant : un poste à 0 ou null doit signifier que la ligne est VRAIMENT absente du bilan, pas que tu ne l'as pas cherchée. Parcours le compte de résultat détaillé (souvent intitulé « Détail du Compte de Résultat », pages en milieu/fin de liasse) LIGNE PAR LIGNE avant de conclure qu'un poste est vide.
 Ne mets une valeur que si tu la vois réellement dans le document ; sinon null. N'invente pas, mais sois EXHAUSTIF : parcours tout le compte de résultat détaillé.
 
@@ -6390,13 +6390,16 @@ const DIR_POSTES = [
   ['deplacements_voyages','Déplacements & voyages'],
   ['autres_avantages_dirigeant','Autres avantages (téléphone, Madelin…)']
 ];
+function cvEstExclu(d, libelle){
+  return Array.isArray(d && d.cv_exclus) && d.cv_exclus.indexOf(libelle)!==-1;
+}
 function coutDirigeantTotal(d){
   if(!d) return null;
   let tot=0, vu=false;
   DIR_POSTES.forEach(([k])=>{ const v=Number(d[k]); if(!isNaN(v) && d[k]!=null){ tot+=v; vu=true; } });
-  // Ajoute les lignes libres repérées dans le compte de résultat détaillé (rien d'oublié)
+  // Ajoute les lignes libres repérées dans le compte de résultat détaillé (sauf celles exclues à la main)
   if(Array.isArray(d.cout_dirigeant_detail)){
-    d.cout_dirigeant_detail.forEach(it=>{ const v=Number(it&&it.montant); if(!isNaN(v) && it.montant!=null){ tot+=v; vu=true; } });
+    d.cout_dirigeant_detail.forEach(it=>{ const v=Number(it&&it.montant); if(!isNaN(v) && it.montant!=null && !cvEstExclu(d, it&&it.libelle)){ tot+=v; vu=true; } });
   }
   return vu ? tot : null;
 }
@@ -6440,7 +6443,8 @@ async function renderCvControle(last){
     else if(lus===total){ etat = 'complet'; col = 'var(--success)'; }
     else if(lus===0){ etat = 'vide'; col = 'var(--danger)'; }
     else { etat = lus+'/'+total+' postes lus'; col = 'var(--warn)'; }
-    const exoLabel = last[soc] ? (' · exercice '+last[soc].exercice) : '';
+    const dcloture = (d && d.date_cloture) ? d.date_cloture : null;
+    const exoLabel = last[soc] ? (' · '+(dcloture ? ('clôture '+dcloture) : ('exercice '+last[soc].exercice))) : '';
     const relireBtn = doc
       ? `<button class="btn" style="font-size:11px;padding:4px 10px;" onclick="cvRelireBilan('${soc}',this)">🔄 Relire le bilan</button>`
       : `<button class="btn" style="font-size:11px;padding:4px 10px;" onclick="sw('soc-${soc}',null)">Ouvrir la société →</button>`;
@@ -6577,7 +6581,7 @@ async function renderCoutVincent() {
       if(Array.isArray(d.cout_dirigeant_detail)){
         d.cout_dirigeant_detail.forEach(it=>{
           const v = Number(it&&it.montant);
-          if(!isNaN(v) && it.montant!=null){
+          if(!isNaN(v) && it.montant!=null && !cvEstExclu(d, it&&it.libelle)){
             autresParSoc[soc] += v; totColSoc[soc] += v;
             autresDetail.push({soc, exercice:r.exercice, libelle:(it.libelle||'Frais non précisé'), montant:v});
           }
@@ -6602,7 +6606,7 @@ async function renderCoutVincent() {
       if(Array.isArray(d.cout_dirigeant_detail)){
         d.cout_dirigeant_detail.forEach(it=>{
           const v = Number(it&&it.montant);
-          if(!isNaN(v) && it.montant!=null && v!==0){
+          if(!isNaN(v) && it.montant!=null && v!==0 && !cvEstExclu(d, it&&it.libelle)){
             (cellDetail['_autres'][soc]=cellDetail['_autres'][soc]||[]).push({exercice:r.exercice, montant:v, libelle:(it.libelle||'Frais non précisé')});
           }
         });
@@ -6647,6 +6651,8 @@ async function renderCoutVincent() {
   // Note nombre d'exercices pris en compte par société
   const nbExo = socsAffich.map(s=>`${IS_SOC_LABEL[s]||s} : ${(allRows[s]||[]).length} exercice${(allRows[s]||[]).length>1?'s':''}`).join(' · ');
   html += `<div style="margin-top:8px;font-size:11px;color:var(--text3);">Exercices cumulés — ${nbExo}.</div>`;
+  // Bouton pour restaurer les lignes exclues (toutes sociétés)
+  html += `<div style="margin-top:6px;"><span style="font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline;" onclick="cvRestaurerToutes()">↩ Restaurer les lignes exclues</span></div>`;
 
   // Détail de la ligne « Autres frais » : QUOI exactement, et où
   if(autresDetail.length){
@@ -6711,16 +6717,17 @@ async function renderCoutVincent() {
   const anneesTri = Array.from(annees).sort((a,b)=>b-a); // décroissant : 2025, 2024, 2023…
   if(anneesTri.length){
     // coutParSocAnnee[soc][annee] = total coût dirigeant
-    const coutParSocAnnee = {}, totParAnnee = {}, remParAnnee = {};
+    const coutParSocAnnee = {}, totParAnnee = {}, remParAnnee = {}, clotureParSocAnnee = {};
     anneesTri.forEach(y => { totParAnnee[y]=null; remParAnnee[y]=null; });
     CV_SOCS.forEach(soc=>{
       if(!allRows[soc]) return;
-      coutParSocAnnee[soc] = {};
+      coutParSocAnnee[soc] = {}; clotureParSocAnnee[soc] = {};
       allRows[soc].forEach(r=>{
         const y = parseInt(r.exercice); if(isNaN(y)) return;
         const d = r.donnees || {};
         const t = coutDirigeantTotal(d);
         coutParSocAnnee[soc][y] = t;
+        clotureParSocAnnee[soc][y] = d.date_cloture || null;
         if(t!=null){ totParAnnee[y] = (totParAnnee[y]||0) + t; }
         const rem = Number(d.remuneration_dirigeant);
         if(!isNaN(rem) && d.remuneration_dirigeant!=null){ remParAnnee[y] = (remParAnnee[y]||0) + rem; }
@@ -6729,13 +6736,15 @@ async function renderCoutVincent() {
 
     // Tableau principal : combien Vincent coûte au GROUPE chaque année
     html += `<div class="card"><div class="card-title">📈 Évolution — combien Vincent coûte au groupe, année par année</div>`;
-    html += `<div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Chaque colonne = un exercice. Le total additionne le coût du dirigeant (rémunération + charges + avantages) lu dans le bilan de chaque société pour cette année-là. « — » = aucun bilan exploité pour cette société cette année.</div></div>`;
+    html += `<div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Chaque colonne = une <strong>année de clôture</strong>. Le total additionne le coût du dirigeant (rémunération + charges + avantages) lu dans le bilan de chaque société pour cette année-là. « — » = aucun bilan clôturé cette année-là pour cette société.<br><span style="color:var(--text3);">⚠ Attention : les sociétés n'ont pas toutes la même date de clôture. VH Company et FVH clôturent en juin, les restaurants et la SCI en décembre. Une société à clôture juin a donc déjà son exercice 2025 (clôturé 30/06/2025), alors qu'une société à clôture décembre n'a encore que 2024 (le 2025 clôturera le 31/12/2025). Ce n'est pas une erreur : chaque bilan est rangé sur sa vraie année de clôture.</span></div></div>`;
     html += `<div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>Société</th>${anneesTri.map(y=>'<th class="r">'+y+'</th>').join('')}</tr></thead><tbody>`;
     CV_SOCS.forEach(soc=>{
       if(!coutParSocAnnee[soc]) return;
       const cells = anneesTri.map(y=>{
         const v = coutParSocAnnee[soc][y];
-        return '<td class="r">'+(v!=null?eurF(v):'<span style="color:var(--text3);">—</span>')+'</td>';
+        const cl = clotureParSocAnnee[soc] && clotureParSocAnnee[soc][y];
+        const tip = (v!=null && cl) ? ' title="Bilan clôturé le '+cl+'"' : '';
+        return '<td class="r"'+tip+'>'+(v!=null?eurF(v):'<span style="color:var(--text3);">—</span>')+'</td>';
       }).join('');
       html += `<tr><td><strong>${IS_SOC_LABEL[soc]||soc}</strong></td>${cells}</tr>`;
     });
@@ -6773,14 +6782,19 @@ window.cvCellDetail = function(poste, soc){
   if(!rows.length){
     inner = '<div style="color:var(--text3);font-size:13px;padding:10px;">Aucun détail disponible pour ce montant.</div>';
   } else {
-    inner = '<table class="tbl"><thead><tr><th>Exercice</th>'+(poste==='_autres'?'<th>Libellé lu dans le bilan</th>':'')+'<th class="r">Montant</th></tr></thead><tbody>';
+    inner = '<table class="tbl"><thead><tr><th>Exercice</th>'+(poste==='_autres'?'<th>Libellé lu dans le bilan</th>':'')+'<th class="r">Montant</th>'+(poste==='_autres'?'<th></th>':'')+'</tr></thead><tbody>';
     rows.forEach(r=>{
-      inner += '<tr><td>'+r.exercice+'</td>'+(poste==='_autres'?('<td>'+(r.libelle||'—')+'</td>'):'')+'<td class="r">'+eurF(r.montant)+'</td></tr>';
+      const exclBtn = (poste==='_autres')
+        ? '<td class="r"><button class="btn" style="font-size:11px;padding:3px 8px;color:var(--danger);border-color:var(--danger);" onclick="cvExclure(\''+soc+'\',\''+r.exercice+'\',\''+String(r.libelle||'').replace(/'/g,"\\'").replace(/"/g,'')+'\')">Exclure</button></td>'
+        : '';
+      inner += '<tr><td>'+r.exercice+'</td>'+(poste==='_autres'?('<td>'+(r.libelle||'—')+'</td>'):'')+'<td class="r">'+eurF(r.montant)+'</td>'+exclBtn+'</tr>';
     });
-    inner += '<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;"'+(poste==='_autres'?' colspan="2"':'')+'>Total</td><td class="r" style="font-weight:700;">'+eurF(total)+'</td></tr>';
+    inner += '<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;"'+(poste==='_autres'?' colspan="2"':'')+'>Total</td><td class="r" style="font-weight:700;">'+eurF(total)+'</td>'+(poste==='_autres'?'<td></td>':'')+'</tr>';
     inner += '</tbody></table>';
   }
-  const aide = '<div class="alert a-b" style="margin:10px 0 0;"><span>💡</span><div>Ce montant vient des bilans lus automatiquement. Si un chiffre te paraît faux (mal classé, pas un frais du dirigeant…), va sur la page de la société, ouvre le bilan concerné pour vérifier, ou clique « Relire le bilan » dans le panneau de contrôle en haut du Coût Vincent. La correction d\'un poste se fait en relisant ou en corrigeant le bilan source.</div></div>';
+  const aide = (poste==='_autres')
+    ? '<div class="alert a-w" style="margin:10px 0 0;"><span>⚠</span><div>Ces lignes ont été rattachées au gérant par la lecture automatique. Si une ligne n\'a <strong>rien à voir avec Vincent</strong> (ex. publicité, Uber Eats, Deliveroo, frais CB… = charges du restaurant), clique <strong>« Exclure »</strong> : elle ne comptera plus dans le coût du dirigeant. C\'est réversible (bouton « Restaurer les exclusions » en bas du tableau).</div></div>'
+    : '<div class="alert a-b" style="margin:10px 0 0;"><span>💡</span><div>Ce montant vient des bilans lus automatiquement. Si un chiffre te paraît faux, va sur la page de la société et clique « Relire le bilan » dans le panneau de contrôle en haut du Coût Vincent.</div></div>';
   let ov = document.getElementById('cv-detail-ov');
   if(!ov){
     ov = document.createElement('div');
@@ -6796,6 +6810,60 @@ window.cvCellDetail = function(poste, soc){
     + '</div>'
     + '<div style="font-size:12px;color:#7a90a8;margin-bottom:10px;">Décomposition par exercice de ce montant cumulé.</div>'
     + inner + aide + '</div>';
+};
+
+// Exclut une ligne « autres frais » du coût Vincent : ajoute le libellé à donnees.cv_exclus
+// pour la société + l'exercice concernés, dans Supabase, puis recalcule.
+window.cvExclure = async function(soc, exercice, libelle){
+  if(!confirm('Exclure « '+libelle+' » du coût de Vincent ?\n\nCette ligne ne sera plus comptée comme un frais du dirigeant (exercice '+exercice+', '+(IS_SOC_LABEL[soc]||soc)+'). Réversible.')) return;
+  try {
+    const {data} = await sb.from('societe_finances').select('donnees').eq('societe',soc).eq('exercice',parseInt(exercice)).maybeSingle();
+    const don = (data&&data.donnees) ? data.donnees : {};
+    const list = Array.isArray(don.cv_exclus) ? don.cv_exclus.slice() : [];
+    if(list.indexOf(libelle)===-1) list.push(libelle);
+    don.cv_exclus = list;
+    await sb.from('societe_finances').update({donnees:don, updated_at:new Date().toISOString()}).eq('societe',soc).eq('exercice',parseInt(exercice));
+    // mettre à jour le cache
+    if(Array.isArray(SOC_FIN_CACHE[soc])){
+      const row = SOC_FIN_CACHE[soc].find(r=>String(r.exercice)===String(exercice));
+      if(row){ row.donnees = row.donnees||{}; row.donnees.cv_exclus = list; }
+    }
+  } catch(e){ alert('Erreur lors de l\'exclusion : '+((e&&e.message)||'?')); return; }
+  const ov=document.getElementById('cv-detail-ov'); if(ov) ov.remove();
+  try { await renderCoutVincent(); } catch(e){}
+};
+
+window.cvRestaurerToutes = async function(){
+  if(!confirm('Restaurer TOUTES les lignes exclues (toutes sociétés) ? Elles recompteront dans le coût de Vincent.')) return;
+  for(const soc of CV_SOCS){
+    try {
+      const {data} = await sb.from('societe_finances').select('exercice,donnees').eq('societe',soc);
+      for(const r of (data||[])){
+        if(r.donnees && Array.isArray(r.donnees.cv_exclus) && r.donnees.cv_exclus.length){
+          const don = r.donnees; don.cv_exclus = [];
+          await sb.from('societe_finances').update({donnees:don, updated_at:new Date().toISOString()}).eq('societe',soc).eq('exercice',r.exercice);
+        }
+      }
+      if(Array.isArray(SOC_FIN_CACHE[soc])) SOC_FIN_CACHE[soc].forEach(row=>{ if(row.donnees) row.donnees.cv_exclus=[]; });
+    } catch(e){}
+  }
+  try { await renderCoutVincent(); } catch(e){}
+};
+
+// Restaure (annule) toutes les exclusions d'une société : vide donnees.cv_exclus sur tous ses exercices.
+window.cvRestaurerExclusions = async function(soc){
+  if(!confirm('Restaurer toutes les lignes exclues pour '+(IS_SOC_LABEL[soc]||soc)+' ? Elles recompteront dans le coût de Vincent.')) return;
+  try {
+    const {data} = await sb.from('societe_finances').select('exercice,donnees').eq('societe',soc);
+    for(const r of (data||[])){
+      if(r.donnees && Array.isArray(r.donnees.cv_exclus) && r.donnees.cv_exclus.length){
+        const don = r.donnees; don.cv_exclus = [];
+        await sb.from('societe_finances').update({donnees:don, updated_at:new Date().toISOString()}).eq('societe',soc).eq('exercice',r.exercice);
+      }
+    }
+    if(Array.isArray(SOC_FIN_CACHE[soc])) SOC_FIN_CACHE[soc].forEach(row=>{ if(row.donnees) row.donnees.cv_exclus=[]; });
+  } catch(e){ alert('Erreur : '+((e&&e.message)||'?')); return; }
+  try { await renderCoutVincent(); } catch(e){}
 };
 function renderVHConsolide(d, exercice){
   if(!d) return '';
