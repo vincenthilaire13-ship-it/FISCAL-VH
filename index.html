@@ -174,6 +174,50 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .bat-sub.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--success);}
 .status-dot.off{background:var(--danger);}
+
+/* ── BOUTON MENU MOBILE (caché sur ordinateur) ── */
+.mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;font-size:22px;line-height:1;color:var(--text);padding:4px 8px;margin-right:4px;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(26,24,20,0.45);z-index:998;}
+
+/* ── MODE TÉLÉPHONE ── */
+@media (max-width:768px){
+  /* Le layout n'est plus en colonnes : tout sur une seule colonne */
+  .layout{grid-template-columns:1fr;}
+
+  /* La sidebar devient un tiroir coulissant masqué par défaut */
+  .sidebar{
+    position:fixed;top:0;left:0;height:100vh;width:248px;max-width:84vw;
+    z-index:999;transform:translateX(-100%);transition:transform .25s ease;
+    box-shadow:4px 0 24px rgba(0,0,0,0.3);
+  }
+  .sidebar.open{transform:translateX(0);}
+  .sidebar-overlay.show{display:block;}
+
+  /* Le bouton hamburger apparaît dans la barre du haut */
+  .mobile-menu-btn{display:block;}
+  .topbar{padding:10px 14px;gap:8px;}
+  .topbar h2{font-size:14px;}
+  .content{padding:14px 14px;}
+
+  /* Les grilles multi-colonnes passent en une seule colonne */
+  .g2,.g3,.g4{grid-template-columns:1fr;gap:12px;}
+  .kpi-grid,.cg{grid-template-columns:1fr !important;gap:12px;}
+  .soc-grid{grid-template-columns:1fr;}
+  .soc-nums{grid-template-columns:1fr 1fr;}
+
+  /* Les blocs côte à côte (déclaration / consolidé, etc.) s'empilent */
+  .content [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important;}
+
+  /* Cartes et chiffres un peu plus compacts */
+  .card{padding:14px 14px;border-radius:12px;}
+  .kpi-val,#tab-tresorerie .kpi-val{font-size:20px;}
+
+  /* Les tableaux larges deviennent défilables horizontalement */
+  table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;}
+
+  /* Les barres d'onglets / filtres horizontaux peuvent défiler */
+  .tabs,.filters,.bat-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+}
 </style>
 </head>
 <body>
@@ -252,9 +296,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   </div>
 </div>
 
+<!-- Overlay sombre derrière le tiroir mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="window.toggleMobileMenu(false)"></div>
+
 <!-- MAIN -->
 <div class="main">
 <div class="topbar">
+  <button class="mobile-menu-btn" aria-label="Menu" onclick="window.toggleMobileMenu()">☰</button>
   <h2 id="page-title">Vue d'ensemble</h2>
   <div class="topbar-r">
     <span id="perso-tags" style="display:flex;align-items:center;gap:8px;">
@@ -4637,7 +4685,19 @@ function sw(id, btn) {
   if (id === 'dashboard') { try { if(window.TRESO_INIT) window.TRESO_INIT(); renderDashboardTreso(); } catch(e){ console.error(e); } }
   if (id === 'tresorerie') { try { if(window.TRESO_INIT) window.TRESO_INIT(); } catch(e){ console.error(e); } }
   if (id && id.indexOf('soc-')===0) { try { renderTresoSoc(id.slice(4)); } catch(e){ console.error(e); } }
+  // Sur téléphone, refermer le tiroir après le choix d'une rubrique
+  try { if(window.innerWidth<=768) window.toggleMobileMenu(false); } catch(e){}
 }
+
+// ── MENU MOBILE (tiroir coulissant) ──
+window.toggleMobileMenu = function(force){
+  var sb=document.querySelector('.sidebar');
+  var ov=document.getElementById('sidebarOverlay');
+  if(!sb) return;
+  var open = (typeof force==='boolean') ? force : !sb.classList.contains('open');
+  sb.classList.toggle('open', open);
+  if(ov) ov.classList.toggle('show', open);
+};
 
 // ── OPTIMISATION ──
 let optOpen = false;
