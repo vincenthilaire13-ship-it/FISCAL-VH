@@ -271,12 +271,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-section">Tableau de bord</div>
   <div class="sb-item active" onclick="sw('dashboard',this)"><span class="sb-ico">◈</span>Vue d'ensemble</div>
   <div class="sb-section">Sociétés</div>
-  <div class="sb-item" onclick="sw('soc-vh',this)"><span class="sb-ico">▣</span>VH Company<span class="sb-badge g" id="b-vh">✓</span></div>
-  <div class="sb-item" onclick="sw('soc-ba',this)"><span class="sb-ico">▣</span>Burger Avenue<span class="sb-badge g" id="b-ba">✓</span></div>
-  <div class="sb-item" onclick="sw('soc-bka',this)"><span class="sb-ico">▣</span>BK Avenue<span class="sb-badge g" id="b-bka">✓</span></div>
-  <div class="sb-item" onclick="sw('soc-bksj',this)"><span class="sb-ico">▣</span>BK Saint-Jean<span class="sb-badge g" id="b-bksj">✓</span></div>
+  <div class="sb-item" onclick="sw('soc-vh',this)"><span class="sb-ico">▣</span>VH Company<span class="sb-badge r" id="b-vh">!</span></div>
+  <div class="sb-item" onclick="sw('soc-ba',this)"><span class="sb-ico">▣</span>Burger Avenue<span class="sb-badge r" id="b-ba">!</span></div>
+  <div class="sb-item" onclick="sw('soc-bka',this)"><span class="sb-ico">▣</span>BK Avenue<span class="sb-badge r" id="b-bka">!</span></div>
+  <div class="sb-item" onclick="sw('soc-bksj',this)"><span class="sb-ico">▣</span>BK Saint-Jean<span class="sb-badge r" id="b-bksj">!</span></div>
   <div class="sb-item" onclick="sw('soc-fvh',this)"><span class="sb-ico">▣</span>FVH SARL<span class="sb-badge r" id="b-fvh">!</span></div>
-  <div class="sb-item" onclick="sw('soc-sci',this)"><span class="sb-ico">▣</span>SCI VH Immo<span class="sb-badge g" id="b-sci">✓</span></div>
+  <div class="sb-item" onclick="sw('soc-sci',this)"><span class="sb-ico">▣</span>SCI VH Immo<span class="sb-badge r" id="b-sci">!</span></div>
   <div class="sb-section">Patrimoine</div>
   <div class="sb-item" onclick="sw('batiments',this)"><span class="sb-ico">🏛</span>Bâtiments<span class="sb-badge" id="b-bat">0</span></div>
   <div class="sb-section">Trésorerie</div>
@@ -287,7 +287,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-item" onclick="sw('declaration',this)"><span class="sb-ico">📋</span>Ma déclaration</div>
   <div class="sb-item" onclick="sw('checklist',this)"><span class="sb-ico">☐</span>Checklist documents</div>
   <div class="sb-section">Assurances</div>
-  <div class="sb-item" onclick="sw('contrats',this)"><span class="sb-ico">🛡</span>Prévoyance & Retraite<span class="sb-badge g" id="b-contrats">6</span></div>
+  <div class="sb-item" onclick="sw('contrats',this)"><span class="sb-ico">🛡</span>Prévoyance & Retraite<span class="sb-badge" id="b-contrats">—</span></div>
   <div class="sb-item" onclick="sw('assur-bien',this)"><span class="sb-ico">🏠</span>Habitation & Véhicules<span class="sb-badge" id="b-bien">—</span></div>
   <div class="sb-item" onclick="sw('assur-pro',this)"><span class="sb-ico">🏢</span>Entreprise & Pro<span class="sb-badge" id="b-pro">—</span></div>
   <div class="sb-footer">
@@ -343,9 +343,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div id="dash-sarl-alert"></div>
 
   <!-- Sociétés du groupe -->
-  <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">Sociétés du groupe
-    <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--danger);border:1px solid var(--danger);background:none;border-radius:8px;cursor:pointer;" onclick="socPurgeAllExceptBA()">🗑 Effacer les bilans (sauf Burger Avenue)</button>
-  </div>
+  <div class="card-title">Sociétés du groupe</div>
   <div class="soc-grid" id="dash-soc-grid"></div>
 
   <!-- Aperçu fiscal (résumé, détail dans Ma déclaration) -->
@@ -552,11 +550,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
 <!-- MA DECLARATION 2026 -->
 <div id="tab-declaration" class="panel">
-  <div class="alert a-b"><span>📋</span><div><strong>Accompagnement déclaration 2026 (revenus 2025).</strong> Pré-rempli à partir de tes avis 2022, 2023 et 2024. Cette page t'aide à ne rien oublier — à valider avec ton expert-comptable.</div></div>
+  <div class="alert a-b"><span>📋</span><div><strong>Ma déclaration & mes impôts.</strong> Dépose ici ta déclaration de revenus et tes avis d'imposition : ils sont rangés dans Dropbox et lus automatiquement pour remplir l'historique (RFR, impôt net, TMI, plafond PER…).</div></div>
+
+  <!-- IMPORT DOCUMENTS FISCAUX (même système que les bilans) -->
+  <div class="docimp" data-key="fisc" data-folder="Fiscal_Perso" data-label="mes documents fiscaux" data-hint="Dépose ici ta <strong>déclaration de revenus</strong> (2042) et tes <strong>avis d'imposition</strong>. L'app lit l'année sur le document et range tout seul."></div>
 
   <div class="g4">
     <div class="kpi acc"><div class="kl">Échéance déclaration</div><div class="kv">Juin 2026</div><div class="ks">Dépt 34 · en ligne</div></div>
-    <div class="kpi dan"><div class="kl">Plafond retraite gâché/an</div><div class="kv">~115k€</div><div class="ks">≈ 10k€ d'impôt potentiel</div></div>
+    <div class="kpi dan"><div class="kl">Plafond retraite gâché/an</div><div class="kv">—</div><div class="ks">à compléter depuis l'avis</div></div>
     <div class="kpi"><div class="kl">Étape en cours</div><div class="kv" id="decl-step">0 / 6</div><div class="ks">Progression</div></div>
     <div class="kpi suc"><div class="kl">Foyer</div><div class="kv">2,5 parts</div><div class="ks">Marié · 1 enfant (Hugo)</div></div>
   </div>
@@ -611,307 +612,36 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
 <!-- CONTRATS & PREVOYANCE -->
 <div id="tab-contrats" class="panel">
-  <div class="alert a-b"><span>🛡</span><div><strong>Tous les contrats prévoyance, retraite et santé au même endroit.</strong> Assuré : Vincent Hilaire (né 13/02/1979) · 2 chemin Vieux, 34690 Fabrègues. Documents 2024-2026.</div></div>
+  <div class="alert a-b"><span>🛡</span><div><strong>Prévoyance, retraite & santé.</strong> Dépose ici tes contrats et avis (PDF) : ils sont rangés dans Dropbox et listés en bas. Tu peux les supprimer un par un. Le suivi des échéances et l’évolution des cotisations seront ajoutés à l’étape suivante, à partir des documents lus.</div></div>
 
-  <!-- KPIs cotisations annuelles -->
-  <div class="g4">
-    <div class="kpi acc"><div class="kl">Cotisations perso / an</div><div class="kv">—</div><div class="ks">GAN retraite + AREAS perso</div></div>
-    <div class="kpi war"><div class="kl">Cotisations via sociétés / an</div><div class="kv">—</div><div class="ks">AREAS 500 + Roederer (Burger Avenue)</div></div>
-    <div class="kpi suc"><div class="kl">Épargne GAN Retraite</div><div class="kv">—</div><div class="ks">Valeur au 01/01/2025</div></div>
-    <div class="kpi"><div class="kl">Contrats actifs</div><div class="kv">6</div><div class="ks">3 organismes · 1 mutuelle</div></div>
-  </div>
+  <div class="card-title">Mes contrats (base de rappel)</div>
+  <div class="soc-grid" id="list-retraite"></div>
 
-  <!-- Note Madelin / PER -->
-  <div class="alert a-w"><span>⚠</span><div><strong>À clarifier avec l'expert-comptable :</strong> les contrats GAN Retraite et AREAS Multisupport (via Burger Avenue) sont des contrats <strong>type retraite Madelin/PER</strong>. Vérifier l'articulation avec le levier « PER » du tableau de bord — enveloppe Madelin TNS vs PER individuel (cases 6OS).</div></div>
-
-  <!-- RETRAITE -->
-  <div class="card-title">Épargne retraite</div>
-  <div class="soc-grid">
-    <div class="soc-card imp">
-      <div class="soc-hdr"><div><div class="soc-name">GAN Retraite — PEP / Madelin</div><div class="soc-type">N° 113.943.199 J · Gan Prévoyance</div></div><span class="tag tag-g">Actif</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">Épargne 01/01/2025</div><div class="nv">—</div></div>
-        <div class="soc-num"><div class="nl">Cotisation</div><div class="nv">—</div></div>
-        <div class="soc-num"><div class="nl">Retraite au terme</div><div class="nv">—</div></div>
-        <div class="soc-num"><div class="nl">Terme</div><div class="nv">01/05/2044</div></div>
-      </div>
-    </div>
-    <div class="soc-card imp">
-      <div class="soc-hdr"><div><div class="soc-name">AREAS Arélia Multisupport</div><div class="soc-type">N° 104910-001 · via Burger Avenue 500</div></div><span class="tag tag-w">Pro</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">Cotisation</div><div class="nv">—</div></div>
-        <div class="soc-num"><div class="nl">Cotis. assoc.</div><div class="nv">—</div></div>
-        <div class="soc-num"><div class="nl">Payeur</div><div class="nv">SARL BA 500</div></div>
-        <div class="soc-num"><div class="nl">Fractionnt</div><div class="nv">Mensuel</div></div>
-      </div>
-    </div>
-    <div class="soc-card imp">
-      <div class="soc-hdr"><div><div class="soc-name">AREAS Multisupport 3</div><div class="soc-type">N° 104910-002 · perso</div></div><span class="tag tag-g">Perso</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">Cotisation</div><div class="nv">—</div></div>
-        <div class="soc-num"><div class="nl">Titulaire</div><div class="nv">V. Hilaire</div></div>
-        <div class="soc-num"><div class="nl">RUM</div><div class="nv">V1612000367</div></div>
-        <div class="soc-num"><div class="nl">Fractionnt</div><div class="nv">Mensuel</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="g2">
-    <!-- GAN détail -->
-    <div class="card">
-      <div class="card-title">GAN Retraite — détail du compte 2024</div>
-      <table class="tbl">
-        <tbody>
-          <tr><td colspan="2" style="text-align:center;color:var(--text3);font-size:13px;padding:14px;">En attente du relevé GAN. Importe-le et le détail du compte (épargne, cotisations, prélèvements, intérêts, valeur de rachat) se remplira ici.</td></tr>
-        </tbody>
-      </table>
-      <div class="alert a-b" style="margin-top:10px;"><span>📥</span><div>Capital constitutif décès, rente de réversion et taux garanti : à compléter depuis le relevé GAN.</div></div>
-    </div>
-    <!-- Echéancier GAN -->
-    <div class="card">
-      <div class="card-title">GAN — échéancier prélèvements</div>
-      <table class="tbl">
-        <thead><tr><th>Période</th><th class="r">Montant/mois</th><th class="r">Total</th></tr></thead>
-        <tbody>
-          <tr><td colspan="3" style="text-align:center;color:var(--text3);font-size:13px;padding:14px;">À compléter depuis l'échéancier GAN.</td></tr>
-        </tbody>
-      </table>
-      <div class="row" style="margin-top:8px;"><span class="rl">Compte débité</span><span class="rv">BPSUD Montpellier · 16607 00254</span></div>
-      <div class="row"><span class="rl">Cotisation perso totale / an</span><span class="rv b">—</span></div>
-    </div>
-  </div>
-
-  <!-- PREVOYANCE -->
-  <div class="card-title">Prévoyance</div>
-  <div class="card">
-    <div class="card-title">ROEDERER — Prévoyance TNS (Assureur Allianz)</div>
-    <table class="tbl">
-      <thead><tr><th>Garantie</th><th class="r">Assiette PMSS</th><th class="r">Taux</th><th class="r">Cotisation</th></tr></thead>
-      <tbody>
-        <tr><td colspan="4" style="text-align:center;color:var(--text3);font-size:13px;padding:14px;">À compléter depuis l'avis d'échéance Roederer (assiette, taux, cotisation).</td></tr>
-      </tbody>
-    </table>
-    <div class="row" style="margin-top:8px;"><span class="rl">Police</span><span class="rv">ST4000880000 · Client 294897</span></div>
-    <div class="row"><span class="rl">Catégorie</span><span class="rv">Travailleur non salarié (TNS)</span></div>
-    <div class="row"><span class="rl">Estimation annuelle</span><span class="rv b">—</span></div>
-  </div>
-
-  <!-- SANTE -->
-  <div class="card-title">Mutuelle santé</div>
-  <div class="card">
-    <div class="card-title">MUTA SANTÉ — Tiers payant SP Santé</div>
-    <div class="g2">
-      <div>
-        <div class="stitle">Contrat</div>
-        <div class="row"><span class="rl">N° contrat</span><span class="rv">0509000006231000</span></div>
-        <div class="row"><span class="rl">N° AMC</span><span class="rv">68119619</span></div>
-        <div class="row"><span class="rl">Identifiant espace assuré</span><span class="rv">1196258</span></div>
-        <div class="row"><span class="rl">Validité</span><span class="rv">01/01 → 31/12/2025</span></div>
-      </div>
-      <div>
-        <div class="stitle">Bénéficiaires</div>
-        <div class="row"><span class="rl">Vincent Hilaire</span><span class="rv">13/02/1979</span></div>
-        <div class="row"><span class="rl">Émilie Hilaire</span><span class="rv">13/11/1988</span></div>
-        <div class="row"><span class="rl">Florian Hilaire</span><span class="rv">13/12/2004</span></div>
-        <div class="row"><span class="rl">Hugo Hilaire</span><span class="rv">17/03/2017</span></div>
-      </div>
-    </div>
-    <div class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Couverture 100% : pharmacie, médecin, hospitalisation, optique, dentaire, audio. Tiers payant SP Santé actif.</div></div>
-  </div>
-
-  <!-- RECAP -->
-  <div class="card">
-    <div class="card-title">Récapitulatif des cotisations</div>
-    <table class="tbl">
-      <thead><tr><th>Contrat</th><th>Type</th><th>Payeur</th><th class="r">Cotisation/an</th></tr></thead>
-      <tbody>
-        <tr><td>GAN Retraite 113.943.199 J</td><td><span class="tag tag-b">Retraite Madelin</span></td><td>Perso</td><td class="r">—</td></tr>
-        <tr><td>AREAS Multisupport 3 (104910-002)</td><td><span class="tag tag-b">Épargne/retraite</span></td><td>Perso</td><td class="r">—</td></tr>
-        <tr><td>AREAS Arélia (104910-001)</td><td><span class="tag tag-w">Retraite pro</span></td><td>Burger Avenue 500</td><td class="r">—</td></tr>
-        <tr><td>Roederer prévoyance (Allianz)</td><td><span class="tag tag-w">Prévoyance TNS</span></td><td>Burger Avenue 500</td><td class="r">—</td></tr>
-        <tr><td>Muta Santé (0509000006231000)</td><td><span class="tag tag-g">Mutuelle</span></td><td>—</td><td class="r">—</td></tr>
-        <tr class="tot"><td>Total identifiable</td><td></td><td></td><td class="r"><strong>—</strong></td></tr>
-      </tbody>
-    </table>
-    <div class="alert a-b" style="margin-top:10px;"><span>💡</span><div>Les contrats Madelin/prévoyance payés par la SARL et déductibles peuvent impacter le BNC (cases 5QC/DSCA) — à recouper avec la liasse 2035 de la checklist.</div></div>
-  </div>
-
-  <!-- IMPACT FISCAL -->
-  <div class="card-title">Impact fiscal — comment ça s'intègre dans les impôts</div>
-  <div class="alert a-b"><span>ℹ</span><div>Calcul indicatif basé sur le PASS 2026 (48 060€) et les règles Madelin/PER TNS. <strong>À valider avec l'expert-comptable</strong> — notamment la nature exacte de chaque contrat (Madelin case 6QS vs PER case 6OS) et la réintégration sociale.</div></div>
-
-  <div class="g2">
-    <!-- Calculateur déduction -->
-    <div class="card">
-      <div class="card-title">Calculateur — plafond & déduction retraite</div>
-      <div class="sim-row"><label>Bénéfice imposable TNS (€)</label><input type="number" class="sim-in" id="f-ben" value="0" oninput="calcFiscal()"></div>
-      <div class="sim-row"><label>Cotisations retraite versées (€)</label><input type="number" class="sim-in" id="f-cot" value="0" oninput="calcFiscal()"></div>
-      <div class="sim-row"><label>TMI (%)</label><input type="number" class="sim-in" id="f-tmi" value="41" oninput="calcFiscal()"></div>
-      <div id="f-res" style="background:var(--bg);border-radius:var(--r);padding:14px;margin-top:8px;"></div>
-    </div>
-    <!-- Où ça atterrit -->
-    <div class="card">
-      <div class="card-title">Où déclarer — cases concernées</div>
-      <table class="tbl">
-        <tbody>
-          <tr><td>Retraite <strong>Madelin</strong> (anciens contrats)</td><td class="r"><span class="tag tag-b">6QS / 6QT</span></td></tr>
-          <tr><td>Retraite <strong>PER</strong> (nouveaux contrats)</td><td class="r"><span class="tag tag-b">6OS / 6OT</span></td></tr>
-          <tr><td>Cotisations BNC (liasse pro)</td><td class="r"><span class="tag tag-gr">5QC / DSCA</span></td></tr>
-          <tr><td>Si versé par la SARL (charge IS)</td><td class="r"><span class="tag tag-gr">Compte 6411</span></td></tr>
-        </tbody>
-      </table>
-      <div class="alert a-w" style="margin-top:10px;"><span>⚠</span><div><strong>Madelin ≠ PER :</strong> le levier « PER » du dashboard vise la case 6OS. Vérifier si le GAN/AREAS sont en 6QS (Madelin) — enveloppe en partie distincte et déjà partiellement consommée par tes versements actuels.</div></div>
-      <button class="btn btn-p" style="margin-top:10px;" onclick="document.getElementById('sim-res').scrollIntoView({behavior:'smooth',block:'center'})">→ Aller au simulateur IR (plus bas)</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Synthèse — déductible vs non déductible</div>
-    <table class="tbl">
-      <thead><tr><th>Contrat</th><th class="r">Cotis./an</th><th class="r">Déductible IR ?</th><th class="r">Réint. sociale ?</th></tr></thead>
-      <tbody>
-        <tr><td>GAN Retraite (Madelin)</td><td class="r">—</td><td class="r"><span class="tag tag-g">Oui (plafond)</span></td><td class="r"><span class="tag tag-w">À vérifier</span></td></tr>
-        <tr><td>AREAS Arélia / Multisupport 3</td><td class="r">—</td><td class="r"><span class="tag tag-g">Oui (plafond)</span></td><td class="r"><span class="tag tag-w">À vérifier</span></td></tr>
-        <tr><td>Roederer prévoyance TNS</td><td class="r">—</td><td class="r"><span class="tag tag-g">Oui (plafond P/S)</span></td><td class="r"><span class="tag tag-gr">N/A</span></td></tr>
-        <tr><td>Muta Santé (mutuelle)</td><td class="r">—</td><td class="r"><span class="tag tag-w">Si Madelin santé</span></td><td class="r"><span class="tag tag-gr">N/A</span></td></tr>
-      </tbody>
-    </table>
-    <div class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Plafond prévoyance/santé Madelin distinct du plafond retraite : 3,75% du bénéfice + 7% du PASS, plafonné. Les deux enveloppes se cumulent.</div></div>
-  </div>
-
-  <!-- ===== OPTIMISATIONS (déplacé ici, sous la déclaration) ===== -->
-  <div class="card-title" style="font-size:18px;margin:28px 0 6px;">◎ Leviers d'optimisation</div>
-  <div class="alert a-b"><span>ℹ</span><div>Analyse indicative — à valider avec votre expert-comptable avant toute décision.</div></div>
-  <div class="g2">
-    <div class="card">
-      <div class="card-title">🏆 PER — Levier n°1</div>
-      <div class="row"><span class="rl">Plafond Vincent disponible</span><span class="rv b">—</span></div>
-      <div class="row"><span class="rl">Plafond Émilie disponible</span><span class="rv b">—</span></div>
-      <div class="row"><span class="rl">Économie sur 30k€ versés (41%)</span><span class="rv g">—</span></div>
-      <div class="row"><span class="rl">Économie sur 60k€ versés (41%)</span><span class="rv g">—</span></div>
-      <div class="row"><span class="rl">Économie sur 100k€ versés (41%)</span><span class="rv g">—</span></div>
-      <div class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Cases 6OS (Vincent TNS). Reports portés à 5 ans (LFI 2026). Verser avant 31/12/2025.</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">🚨 Dividendes SARL — Seuil TNS</div>
-      <div id="optim-tns"><div style="color:var(--text3);font-size:13px;padding:14px;text-align:center;">En attente du bilan VH Company (capital, compte courant, dividendes).</div></div>
-    </div>
-  </div>
-  <div class="g2">
-    <div class="card">
-      <div class="card-title">⚖️ PFU vs Barème sur dividendes</div>
-      <table class="tbl">
-        <thead><tr><th>Option</th><th class="r">Taux effectif</th><th class="r">Verdict</th></tr></thead>
-        <tbody>
-          <tr class="ok"><td>PFU 30% (flat tax)</td><td class="r">30%</td><td class="r"><span class="tag tag-g">✓ Optimal</span></td></tr>
-          <tr><td>Barème progressif</td><td class="r">~34-35%</td><td class="r"><span class="tag tag-r">✗ +5%</span></td></tr>
-          <tr class="hl"><td>Remontée rémunération</td><td class="r">55-65%</td><td class="r"><span class="tag tag-r">✗ Très coûteux</span></td></tr>
-        </tbody>
-      </table>
-      <div class="alert a-w" style="margin-top:10px;"><span>⚠</span><div>Ne pas cocher la case 2OP (barème progressif). Conserver le PFU.</div></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📊 CEHR — Seuil à surveiller</div>
-      <div class="row"><span class="rl">Seuil CEHR couple</span><span class="rv">500 000€</span></div>
-      <div class="row"><span class="rl">RFR</span><span class="rv g">—</span></div>
-      <div class="row"><span class="rl">Écart sous le seuil</span><span class="rv g">—</span></div>
-      <div class="row"><span class="rl">CEHR payée (historique)</span><span class="rv r">—</span></div>
-      <div class="alert a-b" style="margin-top:10px;"><span>📥</span><div>Le RFR et l'écart au seuil s'afficheront ici une fois tes avis importés.</div></div>
-    </div>
-  </div>
-
-  <!-- ===== SIMULATEUR (déplacé ici, sous la déclaration) ===== -->
-  <div class="card-title" style="font-size:18px;margin:28px 0 6px;">◐ Simulateur d'impôt</div>
-  <div class="card">
-    <div class="card-title">Simulateur IR 2025</div>
-    <div class="g2">
-      <div>
-        <div class="stitle">Revenus 2025 estimés</div>
-        <div class="sim-row"><label>Rémunération gérant (€)</label><input type="number" class="sim-in" id="s-rem" value="0" oninput="sim()"></div>
-        <div class="sim-row"><label>BNC bénéfices (€)</label><input type="number" class="sim-in" id="s-bnc" value="0" oninput="sim()"></div>
-        <div class="sim-row"><label>Dividendes PFU 30% (€)</label><input type="number" class="sim-in" id="s-div" value="0" oninput="sim()"></div>
-        <div class="sim-row"><label>Salaire Émilie (€)</label><input type="number" class="sim-in" id="s-sal" value="0" oninput="sim()"></div>
-        <div class="sim-row"><label>Revenus fonciers bruts (€)</label><input type="number" class="sim-in" id="s-fon" value="0" oninput="sim()"></div>
-        <div class="sim-row"><label>Aide à domicile (€)</label><input type="number" class="sim-in" id="s-dom" value="0" oninput="sim()"></div>
-      </div>
-      <div>
-        <div class="stitle">Optimisations</div>
-        <div class="sim-row"><label>PER Vincent (€)</label><input type="range" id="r-p1" min="0" max="200000" step="2000" value="0" oninput="sim()"><span class="so" id="op1">0€</span></div>
-        <div class="sim-row"><label>PER Émilie (€)</label><input type="range" id="r-p2" min="0" max="50000" step="500" value="0" oninput="sim()"><span class="so" id="op2">0€</span></div>
-        <div class="sim-row"><label>Déficit foncier réel (€)</label><input type="range" id="r-df" min="0" max="10700" step="100" value="0" oninput="sim()"><span class="so" id="odf">0€</span></div>
-      </div>
-    </div>
-    <div id="sim-res" style="background:var(--bg);border-radius:var(--r);padding:16px;margin-top:4px;"></div>
-  </div>
+  <!-- IMPORT DOCUMENTS PRÉVOYANCE / RETRAITE (même système que les bilans) -->
+  <div class="docimp" data-key="assur_retraite" data-folder="Assurance_Retraite" data-label="mes contrats prévoyance & retraite" data-hint="Dépose tes contrats, avis d’échéance et relevés de situation (GAN, AREAS, Roederer, mutuelle…)."></div>
 </div>
 
 
 <!-- ASSURANCES HABITATION & VEHICULES -->
 <div id="tab-assur-bien" class="panel">
-  <div class="alert a-b"><span>🏠</span><div><strong>Assurances habitation & véhicules.</strong> Dépose tes contrats dans le chat (PDF) et je remplis les cartes avec les vraies infos : assureur, n° de contrat, échéance, prime annuelle, garanties.</div></div>
+  <div class="alert a-b"><span>🏠</span><div><strong>Assurances habitation & véhicules.</strong> Dépose ici tes contrats et avis d’échéance (PDF) : ils sont rangés dans Dropbox et listés en bas, supprimables un par un. Le suivi des échéances et l’évolution des primes seront ajoutés à l’étape suivante.</div></div>
 
-  <div class="g4">
-    <div class="kpi"><div class="kl">Contrats biens</div><div class="kv" id="bien-count">0</div><div class="ks">Fiches enregistrées</div></div>
-    <div class="kpi"><div class="kl">Prime totale / an</div><div class="kv" id="bien-prime">—</div><div class="ks">Primes connues</div></div>
-    <div class="kpi war"><div class="kl">Prochaine échéance</div><div class="kv" id="bien-ech">—</div><div class="ks" id="bien-ech-sub">À surveiller</div></div>
-    <div class="kpi"><div class="kl">Sinistres en cours</div><div class="kv">0</div><div class="ks">—</div></div>
-  </div>
-
-  <div class="card-title">Habitation</div>
-  <div class="soc-grid">
-    <div class="soc-card miss" onclick="sw('assur-bien',null)">
-      <div class="soc-hdr"><div><div class="soc-name">Résidence principale</div><div class="soc-type">2 chemin Vieux · 34690 Fabrègues</div></div><span class="tag tag-gr">À compléter</span></div>
-      <div class="soc-nums">
-        <div class="soc-num"><div class="nl">Assureur</div><div class="nv" style="color:var(--warn)">→ Importer</div></div>
-        <div class="soc-num"><div class="nl">Prime/an</div><div class="nv" style="color:var(--warn)">—</div></div>
-        <div class="soc-num"><div class="nl">N° contrat</div><div class="nv">—</div></div>
-        <div class="soc-num"><div class="nl">Échéance</div><div class="nv">—</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card-title">Véhicules</div>
-  <div class="alert a-g"><span>✓</span><div><strong>5 véhicules assurés.</strong> Chez Allianz : Range Rover Sport III (Burger Avenue 500) et Range Rover Evoque II. Chez AXA : Renault Kangoo III (conducteur F. Pedrini), Ferrari Lusso GTC4 et Porsche Cayenne. Fiches détaillées ci-dessous. Toutes les primes sont renseignées. <em>Note : le Kangoo a quitté Allianz pour AXA en 09/2025 ; la prime Allianz est conservée dans son historique.</em></div></div>
-
-  <div class="card-title" style="margin-top:6px;">Mes fiches ajoutées</div>
+  <div class="card-title">Mes contrats (base de rappel)</div>
   <div class="soc-grid" id="list-bien"></div>
-  <div style="display:flex;align-items:center;gap:12px;">
-    <button class="btn btn-p" onclick="openFiche('bien')">+ Ajouter une assurance</button>
-    <span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="restoreHidden()">Restaurer les fiches supprimées</span>
-  </div>
+
+  <!-- IMPORT DOCUMENTS HABITATION & VÉHICULES -->
+  <div class="docimp" data-key="assur_bien" data-folder="Assurance_Habitation_Vehicules" data-label="mes assurances habitation & véhicules" data-hint="Dépose tes contrats habitation et auto (Range Rover, Ferrari, Kangoo, Porsche, résidence…), avis d’échéance et attestations."></div>
 </div>
 
 <!-- ASSURANCES ENTREPRISE & PRO -->
 <div id="tab-assur-pro" class="panel">
-  <div class="alert a-b"><span>🏢</span><div><strong>Assurances entreprise & professionnelles.</strong> Multirisque pro, RC pro, locaux des restaurants, flotte, etc. Dépose les contrats dans le chat pour remplir les cartes.</div></div>
+  <div class="alert a-b"><span>🏢</span><div><strong>Assurances entreprise & professionnelles.</strong> Multirisque pro, RC pro, locaux, flotte, employeur… Dépose ici les contrats et avis (PDF) : rangés dans Dropbox, listés en bas, supprimables un par un. Suivi des échéances et des primes à l’étape suivante.</div></div>
 
-  <div class="g4">
-    <div class="kpi"><div class="kl">Contrats pro</div><div class="kv" id="pro-count">0</div><div class="ks">Fiches enregistrées</div></div>
-    <div class="kpi"><div class="kl">Prime totale / an</div><div class="kv" id="pro-prime">—</div><div class="ks">Primes connues</div></div>
-    <div class="kpi war"><div class="kl">Prochaine échéance</div><div class="kv" id="pro-ech">—</div><div class="ks" id="pro-ech-sub">À surveiller</div></div>
-    <div class="kpi"><div class="kl">Sociétés couvertes</div><div class="kv">—</div><div class="ks">BA / BKA / BKSJ…</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">📅 Suivi des échéances — tous contrats</div>
-    <table class="tbl">
-      <thead><tr><th>Contrat</th><th>Assureur</th><th class="r">Prime</th><th class="r">Échéance</th><th class="r">Statut</th></tr></thead>
-      <tbody id="echeances-tbl">
-        <tr><td colspan="5" style="color:var(--text3);text-align:center;padding:14px;">Les contrats apparaîtront ici une fois chargés.</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card-title">Contrats professionnels</div>
-  <div class="alert a-g"><span>✓</span><div><strong>4 contrats pro enregistrés.</strong> Immeuble PNO Dinan (Allianz), local Poissonnerie Laverune (MMA), multirisque local Fabrègues (BPCE/Banque Populaire) et assurance Employeur VH Company (AIG). Fiches détaillées ci-dessous dans « Mes fiches ajoutées ». <em>Note : la multirisque des restaurants exploités (BA / BKA / BKSJ) n'est pas encore renseignée — envoie-moi les contrats si tu les as.</em></div></div>
-  <div class="alert a-w"><span>💡</span><div>La prévoyance TNS Roederer/Allianz et l'AREAS pro sont déjà dans « Prévoyance & Retraite ». Ici on met les assurances de biens et de responsabilité des sociétés.</div></div>
-
-  <div class="card-title" style="margin-top:6px;">Mes fiches ajoutées</div>
+  <div class="card-title">Mes contrats (base de rappel)</div>
   <div class="soc-grid" id="list-pro"></div>
-  <div style="display:flex;align-items:center;gap:12px;">
-    <button class="btn btn-p" onclick="openFiche('pro')">+ Ajouter une assurance</button>
-    <span style="font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;" onclick="restoreHidden()">Restaurer les fiches supprimées</span>
-  </div>
+
+  <!-- IMPORT DOCUMENTS ENTREPRISE & PRO -->
+  <div class="docimp" data-key="assur_pro" data-folder="Assurance_Pro" data-label="mes assurances entreprise & pro" data-hint="Dépose les multirisques pro, RC, locaux (Dinan, Laverune, Fabrègues…), assurance employeur, flotte des sociétés."></div>
 </div>
 
 <!-- TRESORERIE (intégrée nativement) -->
@@ -1051,7 +781,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 (function(){
 
 var TRESO_RELEVES = {};  // {societe:{periode:dropbox_path}} — relevés importés (lien + suppression)
-const RAW = {"BK 500":{"wanted":[{"label":"DÉC 2024","year":"2024","reel":true},{"label":"JAN 2025","year":"2025","reel":true},{"label":"FEV 2025","year":"2025","reel":true},{"label":"MAR 2025","year":"2025","reel":true},{"label":"AVR 2025","year":"2025","reel":true},{"label":"MAI 2025","year":"2025","reel":true},{"label":"JUI 2025","year":"2025","reel":false},{"label":"JUL 2025","year":"2025","reel":false},{"label":"AOU 2025","year":"2025","reel":false},{"label":"SEP 2025","year":"2025","reel":false},{"label":"OCT 2025","year":"2025","reel":false},{"label":"NOV 2025","year":"2025","reel":false},{"label":"DEC 2025","year":"2025","reel":false},{"label":"JAN 2026","year":"2026","reel":false},{"label":"FEV 2026","year":"2026","reel":false},{"label":"MAR 2026","year":"2026","reel":false},{"label":"AVR 2026","year":"2026","reel":false},{"label":"MAI 2026","year":"2026","reel":false}],"sorties":[{"label":"A","vals":{}},{"label":"AB CONSEIL","vals":{"DÉC 2024":1224}},{"label":"AC CONCEPT","vals":{"FEV 2025":1598.4}},{"label":"ACTISUD DERATISATION","vals":{"DÉC 2024":152.4}},{"label":"ADIENZ COMPACTEUR","vals":{"DÉC 2024":453.36,"JAN 2025":310.02,"FEV 2025":310.02,"MAR 2025":310.02,"AVR 2025":310.02,"SEP 2025":310.02,"OCT 2025":310.02,"NOV 2025":310.02,"DEC 2025":574.4,"JAN 2026":310.02,"FEV 2026":310.02,"MAR 2026":310.02}},{"label":"ADYEN","vals":{"MAI 2025":310.02,"JUI 2025":310.02,"JUL 2025":310.02,"AOU 2025":310.02}},{"label":"AES","vals":{"FEV 2025":360,"MAI 2025":366,"JUL 2025":360,"OCT 2025":366,"JAN 2026":366,"FEV 2026":238.32}},{"label":"AFTRAL","vals":{"FEV 2025":492}},{"label":"AIR LIQUIDE PRELEVEMENT","vals":{"DÉC 2024":384.22,"JAN 2025":170.4,"MAR 2025":926.35,"AVR 2025":170.4,"MAI 2025":388.16,"JUI 2025":388.16,"JUL 2025":170.4,"AOU 2025":475.02,"SEP 2025":170.4,"OCT 2025":534.24,"NOV 2025":170.4,"DEC 2025":491.32,"JAN 2026":178.8,"MAR 2026":741.18}},{"label":"AKTO FAFIH","vals":{"JAN 2025":109.99,"FEV 2026":110.9}},{"label":"ALLIANCE RANGE 510. 10/2023","vals":{"AOU 2025":2019.44}},{"label":"AREAS AIMES ASSURANCES MULTI RISQUES","vals":{"SEP 2025":3670}},{"label":"AREAS VIE RETRAITE","vals":{"DÉC 2024":569.18,"JAN 2025":605.92,"FEV 2025":599.92,"MAR 2025":599.92,"AVR 2025":599.92,"MAI 2025":599.92,"JUI 2025":599.92,"JUL 2025":599.92,"AOU 2025":599.92,"SEP 2025":599.92,"OCT 2025":599.92,"NOV 2025":599.92,"DEC 2025":599.92,"JAN 2026":615.4,"FEV 2026":609.4,"MAR 2026":609.4}},{"label":"ASM ABADIE","vals":{"JAN 2025":1120.06}},{"label":"AUTOROUTE PEAGE","vals":{"MAI 2025":103.28}},{"label":"AVENIR FRANCHISE","vals":{"SEP 2025":420}},{"label":"AVOCAT","vals":{"FEV 2026":190.63}},{"label":"B","vals":{}},{"label":"BACH UP","vals":{"FEV 2025":3744,"JAN 2026":1440,"FEV 2026":3744}},{"label":"BANQUE POP SUD FRAIS","vals":{"DÉC 2024":265.4,"JAN 2025":354.43,"AVR 2025":347.67,"JUL 2025":375.42,"OCT 2025":367.61,"NOV 2025":240,"DEC 2025":265.4,"JAN 2026":352.63,"FEV 2026":110.85}},{"label":"BP SUD FRAIS VIREMENT","vals":{"DÉC 2024":32.15,"JAN 2025":16.2,"FEV 2025":140.15,"MAR 2025":20.7,"AVR 2025":21.3,"MAI 2025":20.7,"JUI 2025":18,"JUL 2025":81.6,"AOU 2025":116.5,"SEP 2025":19.8,"OCT 2025":22.95,"NOV 2025":17.5,"DEC 2025":19.95,"JAN 2026":20.3,"FEV 2026":25.9,"MAR 2026":21.7}},{"label":"BP SUD COM CB","vals":{"DÉC 2024":778.55,"JAN 2025":774.93,"FEV 2025":778.3,"MAR 2025":832.46,"AVR 2025":776.6,"MAI 2025":729.29,"JUI 2025":770.43,"JUL 2025":951.44,"AOU 2025":916.1,"SEP 2025":817.13,"OCT 2025":814.39,"NOV 2025":836.95,"DEC 2025":1020.65,"JAN 2026":815.97,"FEV 2026":816.58,"MAR 2026":868.71}},{"label":"BANQUE PRÊT RENOV QUICK/BK 15/09/2025","vals":{"DÉC 2024":15069.42,"JAN 2025":15069.42,"FEV 2025":15069.42,"MAR 2025":15069.42,"AVR 2025":15069.42,"MAI 2025":15069.42,"JUI 2025":15069.42,"JUL 2025":15069.42,"AOU 2025":15069.42,"SEP 2025":15069.42,"OCT 2025":6973.77,"NOV 2025":6973.77}},{"label":"BANQUE PGE 24/04/2026","vals":{"DÉC 2024":13479.22,"JAN 2025":13479.22,"FEV 2025":13479.22,"MAR 2025":13479.22,"AVR 2025":13479.22,"MAI 2025":13479.22,"JUI 2025":13479.22,"JUL 2025":13479.22,"AOU 2025":13479.22,"SEP 2025":13479.22,"OCT 2025":13479.22,"NOV 2025":13479.22,"DEC 2025":13479.22,"JAN 2026":13479.22,"FEV 2026":13479.22,"MAR 2026":13479.22}},{"label":"BANQUE POP LAND ROVER P510. 29/07/2028","vals":{"DÉC 2024":2710.34,"JAN 2025":2710.34,"FEV 2025":2710.34,"MAR 2025":2710.34,"AVR 2025":2710.34,"MAI 2025":2710.34,"JUI 2025":2710.34,"JUL 2025":2710.34,"AOU 2025":2710.34,"SEP 2025":2710.34,"OCT 2025":2710.34,"DEC 2025":5420.68,"JAN 2026":2710.34,"MAR 2026":5420.68}},{"label":"BANQUE TITRE. PART SOC. BP","vals":{"OCT 2025":5925}},{"label":"BILL INNOVATION","vals":{"AOU 2025":1918.8}},{"label":"BK SAINT CLEMENT","vals":{"DEC 2025":11278.73}},{"label":"BK SAINT JEAN","vals":{"NOV 2025":5000}},{"label":"BKQ SERVICES","vals":{"DÉC 2024":1849.2,"JAN 2025":751.2,"FEV 2025":751.2,"MAR 2025":751.2,"AVR 2025":751.2,"MAI 2025":751.2,"JUI 2025":751.2,"JUL 2025":1710.79,"AOU 2025":775.2,"SEP 2025":1933.2,"OCT 2025":775.2,"NOV 2025":775.2,"DEC 2025":877.2,"JAN 2026":775.2,"FEV 2026":775.2,"MAR 2026":2028}},{"label":"BKR France","vals":{"DÉC 2024":102328.31,"JAN 2025":101098.51,"FEV 2025":107537.61,"MAR 2025":104545.77,"AVR 2025":111910.96,"MAI 2025":108835.43,"JUI 2025":104066.84,"JUL 2025":107529.46,"AOU 2025":123492.95,"SEP 2025":133345.94,"OCT 2025":103082.94,"NOV 2025":108515.09,"DEC 2025":113985.97,"JAN 2026":111026.36,"FEV 2026":108259.14,"MAR 2026":97038.12}},{"label":"BK INVEST","vals":{"OCT 2025":22738.8}},{"label":"C","vals":{}},{"label":"C2AI","vals":{"DÉC 2024":86.4,"AVR 2025":88.8,"JUL 2025":88.8,"JAN 2026":88.8}},{"label":"CEDEO","vals":{"AVR 2025":1456.8}},{"label":"CFCA","vals":{"MAI 2025":8511.6,"JUL 2025":907.64}},{"label":"CIG","vals":{"MAI 2025":819.6}},{"label":"COCA COLA","vals":{"FEV 2025":949.22,"MAI 2025":5069.08,"JUL 2025":336.19,"SEP 2025":120.01,"FEV 2026":667.39,"MAR 2026":386.06}},{"label":"COLONNA","vals":{"JAN 2025":1648.14,"AVR 2025":1934.28,"JUL 2025":1695.48,"OCT 2025":1695.48,"JAN 2026":1647.72}},{"label":"CORHOFI CITYCARE","vals":{"FEV 2025":66.08,"MAR 2025":70.8,"AVR 2025":70.8,"MAI 2025":70.8,"JUI 2025":70.8,"JUL 2025":70.8,"AOU 2025":70.8,"SEP 2025":70.8,"OCT 2025":70.8,"NOV 2025":70.8,"DEC 2025":70.8,"JAN 2026":70.8,"FEV 2026":70.8,"MAR 2026":70.8}},{"label":"COSYWEE","vals":{"NOV 2025":1456.2}},{"label":"COTIRES","vals":{"DÉC 2024":56.4,"FEV 2025":112.8}},{"label":"CRISTAL NET","vals":{"DÉC 2024":17280.83,"FEV 2025":1142.74,"MAR 2025":571.37,"AVR 2025":571.37,"MAI 2025":571.37}},{"label":"CSI","vals":{"MAR 2025":6202.2,"DEC 2025":2400}},{"label":"D","vals":{}},{"label":"DESAUTEL","vals":{"AVR 2025":882.12,"MAI 2025":365.74,"OCT 2025":401.35,"DEC 2025":669.6,"MAR 2026":360.61}},{"label":"E","vals":{}},{"label":"ECO SUD","vals":{"DÉC 2024":371.32,"FEV 2025":1110,"MAR 2025":615.6,"MAI 2025":1623.42,"JUI 2025":390,"JUL 2025":390,"SEP 2025":780,"OCT 2025":582,"DEC 2025":780,"MAR 2026":495.95}},{"label":"EDF","vals":{"DÉC 2024":531.08,"JAN 2025":535.51,"FEV 2025":533.24,"MAR 2025":534.26,"MAI 2025":292.38,"JUI 2025":218.3,"JUL 2025":156.16,"AOU 2025":150.33,"SEP 2025":1141.6,"NOV 2025":453.76,"DEC 2025":340.45,"JAN 2026":8113.53,"FEV 2026":1178.58,"MAR 2026":736.68}},{"label":"ENSANTE salaries","vals":{"DÉC 2024":272.4,"JAN 2025":1617,"MAR 2025":1452,"AVR 2025":1425,"MAI 2025":813.6,"JUI 2025":135.6,"JUL 2025":1967.4,"AOU 2025":135.6,"OCT 2025":1425,"DEC 2025":2781}},{"label":"ERM","vals":{"MAR 2026":2208}},{"label":"F","vals":{}},{"label":"FABIEN PEDRINI BK TECH","vals":{"DÉC 2024":239.79,"FEV 2025":176.2,"MAR 2025":137.76,"AVR 2025":117.04,"JUL 2025":38.02,"SEP 2025":87.58,"OCT 2025":126.42,"NOV 2025":117.34,"FEV 2026":21.52}},{"label":"FRANKE","vals":{"DÉC 2024":149.76,"FEV 2025":491.49,"MAR 2025":2181.71,"AVR 2025":1596.81,"JUI 2025":21071.08,"JUL 2025":351.64,"SEP 2025":963.45,"OCT 2025":138.84,"DEC 2025":647.85,"FEV 2026":1005.16,"MAR 2026":206.28}},{"label":"G","vals":{}},{"label":"GDM RACING","vals":{"MAI 2025":36000,"OCT 2025":36000}},{"label":"GREFFE TRIBUNAL DE COMMERCE","vals":{"AOU 2025":44.62}},{"label":"GROUPAMA GAN REUNIMA (retraite complémentaire Gérant)","vals":{"DÉC 2024":327.74,"JAN 2025":332.98,"FEV 2025":332.98,"MAR 2025":332.98,"AVR 2025":332.98,"MAI 2025":332.98,"JUI 2025":332.98,"JUL 2025":332.98,"AOU 2025":332.98,"SEP 2025":332.98,"OCT 2025":332.98,"NOV 2025":332.98,"DEC 2025":332.98,"JAN 2026":339.64,"FEV 2026":339.64,"MAR 2026":339.64}},{"label":"H","vals":{}},{"label":"HOBART GARANTIE 02/25","vals":{"MAI 2025":2210.29,"SEP 2025":107.56,"MAR 2026":2009.06}},{"label":"HONORAIRES AVOCAT AFF. AREAS","vals":{"DÉC 2024":90}},{"label":"I","vals":{}},{"label":"IDERIA PRELEV","vals":{"DÉC 2024":227.28}},{"label":"IMPOT CFE Cotisation fonciere des entreprises","vals":{"DÉC 2024":6073,"JUI 2025":5800,"DEC 2025":6510}},{"label":"IMPOT CVAE","vals":{"JUI 2025":2456,"SEP 2025":4501}},{"label":"IMPOT DSN","vals":{"DÉC 2024":671,"JAN 2025":701,"FEV 2025":576,"MAR 2025":403,"AVR 2025":377,"MAI 2025":385,"JUI 2025":423,"JUL 2025":440,"AOU 2025":358,"SEP 2025":425,"OCT 2025":374,"NOV 2025":369,"DEC 2025":862,"JAN 2026":429,"FEV 2026":412,"MAR 2026":393}},{"label":"IMPOT SOCIETE","vals":{"DÉC 2024":982,"MAR 2025":982,"MAI 2025":5393,"JUI 2025":4879,"SEP 2025":2931,"DEC 2025":2931,"MAR 2026":2931}},{"label":"IMPOT TLPE","vals":{"FEV 2025":62.4,"AVR 2025":1906.2,"JAN 2026":62.4,"MAR 2026":1906.2}},{"label":"IMPRIM2000","vals":{"JUL 2025":471.24}},{"label":"IRIS","vals":{"AVR 2025":2203.84}},{"label":"J","vals":{}},{"label":"JARDIN CONSEIL","vals":{"NOV 2025":4130}},{"label":"JCDECAUX","vals":{"FEV 2025":16232.8,"MAI 2025":4506,"JUI 2025":6090,"JAN 2026":16394.9}},{"label":"K","vals":{}},{"label":"KLESIA (retraite complémentaire salarié)","vals":{"DÉC 2024":5207.69,"JAN 2025":6950.52,"FEV 2025":6111.37,"MAR 2025":5129.17,"AVR 2025":4881.19,"MAI 2025":5784.38,"JUI 2025":5231.41,"JUL 2025":7217.21,"AOU 2025":4600.06,"SEP 2025":5959.85,"OCT 2025":5406.22,"NOV 2025":3432.75,"DEC 2025":5655.33,"JAN 2026":4489.59,"FEV 2026":4002.07,"MAR 2026":3568.63}},{"label":"L","vals":{}},{"label":"LAUMACOM","vals":{"MAI 2025":263.88,"FEV 2026":186}},{"label":"L B P","vals":{"OCT 2025":548.37,"DEC 2025":6958.02}},{"label":"LOCAM CRT","vals":{"DÉC 2024":109.53,"JAN 2025":109.53,"FEV 2025":109.53,"MAR 2025":109.53,"AVR 2025":109.53,"MAI 2025":109.53,"JUI 2025":109.53,"JUL 2025":109.53,"AOU 2025":328.59}},{"label":"LOCAM DEFIBRILATEUR","vals":{"DÉC 2024":73.99,"JAN 2025":73.99}},{"label":"LOOMIS PRELEV","vals":{"DÉC 2024":956.74,"JAN 2025":478.37,"FEV 2025":493.96,"MAR 2025":493.96,"AVR 2025":497.22,"JUI 2025":987.76,"JUL 2025":500.34,"SEP 2025":987.92,"OCT 2025":493.96,"DEC 2025":987.72,"FEV 2026":497.08,"MAR 2026":1014.67}},{"label":"LUCIA","vals":{"DÉC 2024":7517.72,"JAN 2025":12046.4,"FEV 2025":12870.53,"AVR 2025":25838.51,"MAI 2025":10142.51,"JUI 2025":5271.41,"JUL 2025":6866.39,"AOU 2025":7956.61,"SEP 2025":7982.52,"OCT 2025":7379.32,"NOV 2025":6153.53,"DEC 2025":8702.78,"JAN 2026":12738.48}},{"label":"LYRECO","vals":{"FEV 2025":176.03,"AVR 2025":188.46,"JUL 2025":146.36,"SEP 2025":93.95,"MAR 2026":114.8}},{"label":"M","vals":{}},{"label":"MAJIE","vals":{"MAR 2025":991.2}},{"label":"MBS CAMPUS","vals":{"MAR 2025":756}},{"label":"MELITTA","vals":{"FEV 2025":1145.35,"MAR 2025":264.17}},{"label":"MERIEUX PRELEV","vals":{"NOV 2025":658.02}},{"label":"MERIM","vals":{"FEV 2025":5652,"JAN 2026":5100}},{"label":"MIROITERIE","vals":{"AVR 2025":353.24,"NOV 2025":4537.24}},{"label":"MONNAIE","vals":{"DÉC 2024":2240,"JAN 2025":2530,"FEV 2025":3470,"MAR 2025":2730,"MAI 2025":2700,"JUI 2025":4615,"AOU 2025":2620,"SEP 2025":3190,"OCT 2025":2800,"DEC 2025":4230,"JAN 2026":2110,"FEV 2026":1450,"MAR 2026":2205}},{"label":"MOTEUR REDUCTEUR PETIT SARL","vals":{"AVR 2025":697.2}},{"label":"MT DECORATION","vals":{"DÉC 2024":700,"AVR 2025":700,"OCT 2025":780,"DEC 2025":780}},{"label":"MUTA SANTE(complement securite sociale)","vals":{"DÉC 2024":302.5,"JAN 2025":317.6,"FEV 2025":317.6,"MAR 2025":317.6,"AVR 2025":317.6,"MAI 2025":317.6,"JUI 2025":317.6,"JUL 2025":317.6,"AOU 2025":317.6,"SEP 2025":317.6,"OCT 2025":317.6,"NOV 2025":317.6,"DEC 2025":317.6,"JAN 2026":328.7,"FEV 2026":328.7,"MAR 2026":328.7}},{"label":"N","vals":{}},{"label":"NEPTING","vals":{"JAN 2026":2526.8,"FEV 2026":1539.72}},{"label":"NICOLLIN","vals":{"DÉC 2024":1527.84,"FEV 2025":1301.48,"MAR 2025":1976.68,"AVR 2025":903.29,"MAI 2025":868.32,"JUI 2025":1010.18,"JUL 2025":930.01,"SEP 2025":2055.05,"OCT 2025":1088.36,"DEC 2025":1135.82,"JAN 2026":2128.07,"FEV 2026":1088.47,"MAR 2026":952.9}},{"label":"O","vals":{}},{"label":"OXBRIDGE","vals":{"DÉC 2024":7653.87,"FEV 2025":667.01,"MAI 2025":2568.85,"SEP 2025":1786.98,"OCT 2025":620.02,"JAN 2026":290}},{"label":"P","vals":{}},{"label":"PERFORMANCE FORMATION","vals":{"FEV 2025":1400}},{"label":"POSTE","vals":{"MAR 2025":15.06,"AVR 2025":7.53,"MAI 2025":7.53,"SEP 2025":7.53,"DEC 2025":7.53}},{"label":"( PREVOYANCE salarié)","vals":{"JAN 2026":1474.01}},{"label":"Q","vals":{}},{"label":"QUATRA","vals":{"MAR 2025":1794.24,"JUI 2025":174.72,"OCT 2025":435.36,"JAN 2026":455.76,"MAR 2026":424.8}},{"label":"QSL STEF","vals":{"DÉC 2024":130356,"JAN 2025":117116.83,"FEV 2025":73769.25,"MAR 2025":136842,"AVR 2025":124763.57,"MAI 2025":113566.09,"JUI 2025":96610.2,"JUL 2025":109739.94,"AOU 2025":90661.56,"SEP 2025":170002.99,"OCT 2025":114062.06,"NOV 2025":69573.36,"DEC 2025":172139.85,"JAN 2026":123304.61,"FEV 2026":65206.11,"MAR 2026":139879.57}},{"label":"R","vals":{}},{"label":"RDS 28/02/2023","vals":{"FEV 2025":1921.34,"MAR 2025":5967.16,"AVR 2025":623.32,"MAI 2025":755,"JUI 2025":623.32,"JUL 2025":623.32,"SEP 2025":1246.64,"OCT 2025":623.32,"DEC 2025":623.32,"JAN 2026":1270.64,"MAR 2026":1246.64}},{"label":"REGIE DES EAUX","vals":{"AVR 2025":3880.1,"SEP 2025":2835.91}},{"label":"REFLEX SERVICES","vals":{"FEV 2025":365.4,"MAR 2025":693.37,"AVR 2025":1156.61,"JUI 2025":604.8,"SEP 2025":478.2,"OCT 2025":238.2,"JAN 2026":996.97}},{"label":"REFOOD","vals":{"DÉC 2024":140.35}},{"label":"REMBOURSEMENT CB CLICK&COLLECT","vals":{"NOV 2025":142.9,"DEC 2025":529.29,"JAN 2026":304.85,"FEV 2026":277.75,"MAR 2026":446.05}},{"label":"REMBOURSEMENT CLIENT","vals":{"AVR 2025":20.2,"JAN 2026":33.1,"FEV 2026":15.75}},{"label":"REMBOURSEMENT Émilie","vals":{"DÉC 2024":7.8,"JUI 2025":69.85}},{"label":"REMBOURSEMENT Gaelle.S","vals":{"DÉC 2024":765,"MAI 2025":231.78}},{"label":"REMBOURSEMENT Salariés","vals":{"DÉC 2024":139.32,"JUL 2025":106.26,"SEP 2025":159.04,"FEV 2026":193.18,"MAR 2026":81.06}},{"label":"REMUNERATION","vals":{"DÉC 2024":2500,"JAN 2025":5000,"FEV 2025":5000,"MAR 2025":5000,"AVR 2025":5000,"MAI 2025":5000,"JUI 2025":5000,"JUL 2025":5000,"AOU 2025":5000,"SEP 2025":5000,"OCT 2025":5000,"NOV 2025":5000,"DEC 2025":5000,"JAN 2026":5000,"FEV 2026":5000,"MAR 2026":5000}},{"label":"RENTOKIL","vals":{"MAR 2025":960,"FEV 2026":828.8}},{"label":"RHIS PRELEV","vals":{"DÉC 2024":310.8,"JAN 2025":814.8,"FEV 2025":310.8,"MAR 2025":310.8,"AVR 2025":310.8,"MAI 2025":310.8,"JUI 2025":310.8,"JUL 2025":310.8,"AOU 2025":310.8,"SEP 2025":310.8,"OCT 2025":310.8,"NOV 2025":310.8,"DEC 2025":310.8,"JAN 2026":814.8,"FEV 2026":310.8,"MAR 2026":310.8}},{"label":"RICHARDSON","vals":{"JAN 2026":586.44}},{"label":"RICHIER","vals":{"DÉC 2024":7203.6}},{"label":"ROEDERER (prévoyance gérant)","vals":{"FEV 2025":625.25,"MAI 2025":630.25,"AOU 2025":625.25,"DEC 2025":625.25,"FEV 2026":682.45}},{"label":"S","vals":{}},{"label":"SACEM","vals":{"SEP 2025":717.99}},{"label":"SAFEXIS","vals":{"FEV 2025":1147.69,"JAN 2026":948,"FEV 2026":948}},{"label":"SALAIRE","vals":{"DÉC 2024":58312.47,"JAN 2025":57777.02,"FEV 2025":55738.17,"MAR 2025":55029.79,"AVR 2025":54594.71,"MAI 2025":56258.1,"JUI 2025":60720.95,"JUL 2025":51825.11,"AOU 2025":60363.29,"SEP 2025":54383.3,"OCT 2025":52945.05,"NOV 2025":49742.14,"DEC 2025":55907.63,"JAN 2026":56592.96,"FEV 2026":54970.64,"MAR 2026":51660.25}},{"label":"SAISIE SALARIÉS","vals":{"AVR 2025":147.86,"JUI 2025":250.79,"JUL 2025":130.19,"AOU 2025":139.31,"SEP 2025":149.52,"OCT 2025":96.33}},{"label":"STC","vals":{"DÉC 2024":4590.79,"JAN 2025":6242.72,"FEV 2025":346.84,"MAR 2025":5622.07,"AVR 2025":4603.53,"MAI 2025":1935.36,"JUI 2025":34630.42,"JUL 2025":11599.33,"AOU 2025":3308.24,"SEP 2025":10310.82,"OCT 2025":1662.47,"NOV 2025":1404.73,"DEC 2025":2436.78,"JAN 2026":4776.61,"FEV 2026":4019.58,"MAR 2026":3121.53}},{"label":"SAPIAN","vals":{"FEV 2025":584.76,"OCT 2025":476.28,"MAR 2026":478.8}},{"label":"SAPORTA","vals":{"FEV 2025":2790.03,"JUL 2025":1397.52,"SEP 2025":1397.59,"JAN 2026":1397.59,"MAR 2026":1428.77}},{"label":"SDI VENTILATION","vals":{"FEV 2025":835.38,"AVR 2025":835.38,"JUI 2025":835.38,"OCT 2025":835.38,"MAR 2026":835.38}},{"label":"SGE","vals":{"DÉC 2024":10000,"JAN 2025":5000,"FEV 2025":5000,"MAR 2025":5000,"AVR 2025":5000,"MAI 2025":5000,"JUI 2025":5000,"JUL 2025":5000,"AOU 2025":5000,"SEP 2025":5000,"OCT 2025":5000,"NOV 2025":5000,"DEC 2025":5000,"JAN 2026":5000,"FEV 2026":15000,"MAR 2026":10000}},{"label":"SILLIKER","vals":{"DÉC 2024":232.21,"JAN 2025":294.49,"AVR 2025":273.96,"JUI 2025":366.64,"SEP 2025":144,"JAN 2026":333.3}},{"label":"SNARR","vals":{"DÉC 2024":42,"DEC 2025":42}},{"label":"SPRE","vals":{"SEP 2025":705.02}},{"label":"SOCOTEC","vals":{"DÉC 2024":150.96,"FEV 2025":690.46,"JUI 2025":216,"SEP 2025":198,"OCT 2025":180,"DEC 2025":198,"JAN 2026":264,"FEV 2026":66}},{"label":"SOGEFER","vals":{"JAN 2025":792,"FEV 2025":462,"MAI 2025":525.6}},{"label":"SOPAC","vals":{"MAR 2025":412.8,"JUI 2025":136.8,"MAR 2026":136.8}},{"label":"STEEPLE","vals":{"MAR 2025":4321.2,"FEV 2026":1281.6}},{"label":"STIM PLUS","vals":{"DÉC 2024":2214,"MAR 2025":462}},{"label":"STRATEGIE GESTION EXPERTISE","vals":{"JUL 2025":5191.2}},{"label":"SUDE COMMUNICATION","vals":{"SEP 2025":1271.7,"FEV 2026":1271.7}},{"label":"SVP","vals":{"DÉC 2024":440.69,"JAN 2025":306.53,"FEV 2025":257.15,"MAR 2025":270.22,"AVR 2025":300.24,"MAI 2025":530.42,"JUI 2025":25.02,"JUL 2025":270.22,"AOU 2025":260.21,"SEP 2025":295.24,"OCT 2025":260.21,"NOV 2025":275.22,"DEC 2025":428.8,"JAN 2026":265.21,"FEV 2026":229.68,"MAR 2026":317.88}},{"label":"T","vals":{}},{"label":"TAXE BOISSON","vals":{"MAR 2025":1009,"JUI 2025":995,"AOU 2025":1113,"NOV 2025":970,"JAN 2026":986,"FEV 2026":1367,"MAR 2026":1230}},{"label":"TAXE VEHICULE","vals":{"JAN 2026":111}},{"label":"TVA","vals":{"DÉC 2024":952,"JAN 2025":1085,"FEV 2025":5755,"AVR 2025":5078,"MAI 2025":7499,"JUI 2025":76,"JUL 2025":998,"AOU 2025":1000,"SEP 2025":17196,"OCT 2025":911,"NOV 2025":3074,"DEC 2025":6928,"FEV 2026":69,"MAR 2026":1103}},{"label":"U","vals":{}},{"label":"UBER APPLI BK","vals":{"DÉC 2024":2539.75,"JAN 2025":2769.11,"FEV 2025":2860.24,"MAR 2025":2987.27,"AVR 2025":2692.09,"MAI 2025":4173.89,"JUI 2025":2782.47,"JUL 2025":3315.34,"AOU 2025":3816.36,"SEP 2025":2880.96,"OCT 2025":3069.77,"NOV 2025":3103.29,"DEC 2025":3717.8,"JAN 2026":5434.55,"FEV 2026":3742.79,"MAR 2026":3476.73}},{"label":"URSSAF","vals":{"DÉC 2024":28504,"JAN 2025":41349,"FEV 2025":22097,"MAR 2025":23619,"AVR 2025":21469,"MAI 2025":20661,"JUI 2025":23555,"JUL 2025":35738,"AOU 2025":20983,"SEP 2025":26583,"OCT 2025":18033,"NOV 2025":15939,"DEC 2025":27689,"JAN 2026":27482,"FEV 2026":21213,"MAR 2026":23129}},{"label":"URSSAF VINCENT","vals":{"FEV 2025":7702,"MAR 2025":7702,"AVR 2025":7702,"MAI 2025":7702,"JUI 2025":7702,"JUL 2025":6801,"AOU 2025":6803,"SEP 2025":6803,"OCT 2025":6803,"NOV 2025":6921,"DEC 2025":6814,"JAN 2026":2593,"FEV 2026":2593,"MAR 2026":2593}},{"label":"V","vals":{}},{"label":"VH COMPANY","vals":{"DEC 2025":10000}},{"label":"VINCI","vals":{"DÉC 2024":279.18,"JAN 2025":155.78,"FEV 2025":140.28,"MAR 2025":12.48,"AVR 2025":86.08,"JUI 2025":131.08,"JUL 2025":77.18,"AOU 2025":116.58,"SEP 2025":161.28,"OCT 2025":117.78,"NOV 2025":228.08,"DEC 2025":224.18,"JAN 2026":7.38,"FEV 2026":103.88,"MAR 2026":5.28}},{"label":"W","vals":{}},{"label":"X","vals":{}},{"label":"Y","vals":{}},{"label":"Z","vals":{}},{"label":"ZEN CONNECT","vals":{"DÉC 2024":1860,"JAN 2026":1860}},{"label":"TOTAL","vals":{"DÉC 2024":444485.55,"JAN 2025":402614.96,"FEV 2025":391470.43,"MAR 2025":423527.85,"AVR 2025":432141.31,"MAI 2025":457869.73,"JUI 2025":438390.44,"JUL 2025":404805.23,"AOU 2025":378298.72,"SEP 2025":514618.77,"OCT 2025":430341.13,"NOV 2025":320631.81,"DEC 2025":493728.62,"JAN 2026":431241.45,"FEV 2026":320848,"MAR 2026":387650.35}}],"entrees":[{"label":"BANQUE INTERET 2024","vals":{"MAI 2025":151.88}},{"label":"VERSEMENTS BANQUE","vals":{"DÉC 2024":47994.52,"JAN 2025":42293.94,"FEV 2025":38875.4,"MAR 2025":43578.22,"AVR 2025":44725.27,"MAI 2025":41654.22,"JUI 2025":46132.99,"JUL 2025":53174.85,"AOU 2025":51565.51,"SEP 2025":48666.64,"OCT 2025":44075.17,"NOV 2025":40411.98,"DEC 2025":47120.71,"JAN 2026":38125.93,"FEV 2026":34563.43,"MAR 2026":33041.49,"AVR 2026":40938.08}},{"label":"CB","vals":{"DÉC 2024":242912.87,"JAN 2025":238720.82,"FEV 2025":236204.92,"MAR 2025":265023.97,"AVR 2025":250079.27,"MAI 2025":234565.34,"JUI 2025":247225.61,"JUL 2025":300991.45,"AOU 2025":293259.27,"SEP 2025":263367.7,"OCT 2025":243087,"NOV 2025":227951,"DEC 2025":279454.17,"JAN 2026":224444.78,"FEV 2026":228079.19,"MAR 2026":242989.92,"AVR 2026":218238.26}},{"label":"CRT","vals":{"DÉC 2024":2388.82,"JAN 2025":7531.01,"MAR 2025":5252.36}},{"label":"TRD","vals":{"DÉC 2024":14888.12,"JAN 2025":16182.26,"FEV 2025":15256.59,"MAR 2025":13196.8,"AVR 2025":19065.03,"MAI 2025":11701.53,"JUI 2025":11989.75,"JUL 2025":12860.17,"AOU 2025":13763.54,"SEP 2025":12030.44,"OCT 2025":12768.55,"NOV 2025":11231.6,"DEC 2025":13560.51,"JAN 2026":13830.88,"FEV 2026":9608.97,"MAR 2026":11568.98,"AVR 2026":12531.14}},{"label":"ANCV","vals":{"DÉC 2024":4632.01,"JAN 2025":4519.09,"FEV 2025":369.61,"MAR 2025":4417.8,"AVR 2025":3418.41,"MAI 2025":761.25,"JUI 2025":1167.44,"JUL 2025":2111.9,"AOU 2025":2584.12,"SEP 2025":2995.44,"OCT 2025":1806.02,"NOV 2025":2222.53,"DEC 2025":2131.27,"JAN 2026":1037.79,"FEV 2026":975.35,"MAR 2026":1491.89,"AVR 2026":1453.14}},{"label":"BK AVENUE","vals":{"MAI 2025":49405}},{"label":"BK SAINT JEAN","vals":{"MAI 2025":33201,"JUI 2025":32629.81}},{"label":"BK SERVICES","vals":{"JAN 2025":10923.84}},{"label":"BK France","vals":{"DEC 2025":256.92}},{"label":"PERSO VH","vals":{"DEC 2025":10000}},{"label":"DRIFP AUEA","vals":{"DÉC 2024":500,"JAN 2025":500,"FEV 2025":500,"MAR 2025":500,"AVR 2025":500,"MAI 2025":500,"JUI 2025":6333.24,"JUL 2025":3416.62,"AOU 2025":2916.62,"SEP 2025":2499.96,"OCT 2025":2499.96,"NOV 2025":6183.24,"DEC 2025":6666.56,"JAN 2026":4999.92,"FEV 2026":4583.26,"MAR 2026":3749.94,"AVR 2026":4208.75}},{"label":"DRIFP TVA","vals":{"JAN 2025":1637,"MAR 2025":6130,"NOV 2025":2846}},{"label":"FVH CHARGE","vals":{"MAI 2025":14542}},{"label":"IMPOT CVAE","vals":{"NOV 2025":348}},{"label":"REMBOURSEMENT FRAIS BANQUE","vals":{"DEC 2025":240}},{"label":"AB CONSEIL RBST","vals":{"MAR 2025":1224}},{"label":"AKTO","vals":{"DÉC 2024":960,"JAN 2025":774,"FEV 2025":420,"MAR 2025":2229.6,"JUL 2025":420,"AOU 2025":805.06,"OCT 2025":36000,"NOV 2025":1260,"JAN 2026":102,"FEV 2026":1104,"AVR 2026":324}},{"label":"EDF RBST","vals":{"MAR 2025":441.65}},{"label":"KLESIA","vals":{"AVR 2026":1846.14}},{"label":"URSSAF","vals":{"JUI 2025":5393}},{"label":"QUATRA","vals":{"MAR 2025":1041.62,"JUI 2025":265.21,"SEP 2025":1389.28,"DEC 2025":1557.05,"MAR 2026":1356.8}},{"label":"CLICK AND COLLECT","vals":{"DÉC 2024":24706.1,"JAN 2025":24389.31,"FEV 2025":24989.31,"MAR 2025":30681.28,"AVR 2025":28604.62,"MAI 2025":26835.02,"JUI 2025":29507.53,"JUL 2025":32168.42,"AOU 2025":26005.54,"SEP 2025":31396.95,"OCT 2025":32296.83,"NOV 2025":36361.33,"DEC 2025":44029.86,"JAN 2026":33462.51,"FEV 2026":31895.26,"MAR 2026":32452.39,"AVR 2026":31063.65}},{"label":"DELIVROO","vals":{"DÉC 2024":13619.01,"JAN 2025":15111.08,"FEV 2025":13262.42,"MAR 2025":11097.31,"AVR 2025":9914.67,"MAI 2025":13580.02,"JUI 2025":9827.88,"JUL 2025":13786.2,"AOU 2025":10622.03,"SEP 2025":13762.89,"OCT 2025":14658.59,"NOV 2025":13784.08,"DEC 2025":16385.32,"JAN 2026":17220.06,"FEV 2026":12193.2,"MAR 2026":13533.06,"AVR 2026":15342.85}},{"label":"UBER EATS","vals":{"DÉC 2024":42746.29,"JAN 2025":36532.27,"FEV 2025":38723.59,"MAR 2025":44763.63,"AVR 2025":34146.21,"MAI 2025":31917.58,"JUI 2025":38321.08,"JUL 2025":32815.62,"AOU 2025":33540.92,"SEP 2025":48419.83,"OCT 2025":36547.7,"NOV 2025":38255.81,"DEC 2025":50780.98,"JAN 2026":39542.18,"FEV 2026":36262.87,"MAR 2026":44573.95,"AVR 2026":33572.8}},{"label":"SGE","vals":{"FEV 2026":10000,"MAR 2026":5000}},{"label":"SWILE","vals":{"DÉC 2024":3257.45,"JAN 2025":3306.23,"FEV 2025":3144.73,"MAR 2025":3033.14,"AVR 2025":3276.71,"MAI 2025":2858.42,"JUI 2025":2894.96,"JUL 2025":2317.43,"AOU 2025":2821.49,"SEP 2025":2678.35,"OCT 2025":3112.78,"NOV 2025":3247.72,"DEC 2025":4405.49,"JAN 2026":4033.42,"FEV 2026":3269.63,"MAR 2026":3102.34,"AVR 2026":3730.12}},{"label":"Autres","vals":{"AVR 2026":948}},{"label":"AUTRES LITIGE AREAS","vals":{"FEV 2025":42319.32}},{"label":"TOTAL","vals":{"DÉC 2024":398605.19,"JAN 2025":402420.85,"FEV 2025":414065.89,"MAR 2025":432611.38,"AVR 2025":393730.19,"MAI 2025":461673.26,"JUI 2025":431688.5,"JUL 2025":454062.66,"AOU 2025":437884.1,"SEP 2025":427207.48,"OCT 2025":426852.6,"NOV 2025":384103.29,"DEC 2025":476588.84,"JAN 2026":376799.47,"FEV 2026":372535.16,"MAR 2026":392860.76,"AVR 2026":364196.93}}],"soldes":{"DÉC 2024":153598.28,"JAN 2025":153404.17,"FEV 2025":175999.63,"MAR 2025":185083.16,"AVR 2025":146672.04,"MAI 2025":150475.57,"JUI 2025":143773.63,"JUL 2025":193031.06,"AOU 2025":252616.44,"SEP 2025":165205.15,"OCT 2025":161716.62,"NOV 2025":225188.1,"DEC 2025":208048.32,"JAN 2026":153606.34,"FEV 2026":205293.5,"MAR 2026":210503.91,"AVR 2026":154854.38,"MAI 2026":198224.78}},"BK 509":{"wanted":[{"label":"DÉC 2024","year":"2024","reel":true},{"label":"JAN 2025","year":"2025","reel":true},{"label":"FEV 2025","year":"2025","reel":true},{"label":"MAR 2025","year":"2025","reel":false},{"label":"AVR 2025","year":"2025","reel":true},{"label":"MAI 2025","year":"2025","reel":false},{"label":"JUI 2025","year":"2025","reel":false},{"label":"JUL 2025","year":"2025","reel":false},{"label":"AOU 2025","year":"2025","reel":false},{"label":"SEP 2025","year":"2025","reel":false},{"label":"OCT 2025","year":"2025","reel":false},{"label":"NOV 2025","year":"2025","reel":false},{"label":"DEC 2025","year":"2025","reel":false},{"label":"JAN 2026","year":"2026","reel":false},{"label":"FEV 2026","year":"2026","reel":false},{"label":"MAR 2026","year":"2026","reel":false},{"label":"AVR 2026","year":"2026","reel":false}],"sorties":[{"label":"TOTAL","vals":{}}],"entrees":[{"label":"TOTAL","vals":{}}],"soldes":{},"_vide":true},"BK 526":{"wanted":[{"label":"DÉC 2024","year":"2024","reel":true},{"label":"JAN 2025","year":"2025","reel":true},{"label":"FEV 2025","year":"2025","reel":true},{"label":"MAR 2025","year":"2025","reel":true},{"label":"AVR 2025","year":"2025","reel":true},{"label":"MAI 2025","year":"2025","reel":true},{"label":"JUI 2025","year":"2025","reel":false},{"label":"JUL 2025","year":"2025","reel":false},{"label":"AOU 2025","year":"2025","reel":false},{"label":"SEP 2025","year":"2025","reel":false},{"label":"OCT 2025","year":"2025","reel":false},{"label":"NOV 2025","year":"2025","reel":false},{"label":"DEC 2025","year":"2025","reel":false},{"label":"JAN 2026","year":"2026","reel":false},{"label":"FEV 2026","year":"2026","reel":false},{"label":"MAR 2026","year":"2026","reel":false},{"label":"AVR 2026","year":"2026","reel":false},{"label":"MAI 2026","year":"2026","reel":false}],"sorties":[{"label":"TOTAL","vals":{}}],"entrees":[{"label":"TOTAL","vals":{}}],"soldes":{},"_vide":true}};
+const RAW = {"BK 500":{"wanted":[{"label":"DÉC 2024","year":"2024","reel":true},{"label":"JAN 2025","year":"2025","reel":true},{"label":"FEV 2025","year":"2025","reel":true},{"label":"MAR 2025","year":"2025","reel":true},{"label":"AVR 2025","year":"2025","reel":true},{"label":"MAI 2025","year":"2025","reel":true},{"label":"JUI 2025","year":"2025","reel":false},{"label":"JUL 2025","year":"2025","reel":false},{"label":"AOU 2025","year":"2025","reel":false},{"label":"SEP 2025","year":"2025","reel":false},{"label":"OCT 2025","year":"2025","reel":false},{"label":"NOV 2025","year":"2025","reel":false},{"label":"DEC 2025","year":"2025","reel":false},{"label":"JAN 2026","year":"2026","reel":false},{"label":"FEV 2026","year":"2026","reel":false},{"label":"MAR 2026","year":"2026","reel":false},{"label":"AVR 2026","year":"2026","reel":false},{"label":"MAI 2026","year":"2026","reel":false}],"sorties":[{"label":"TOTAL","vals":{}}],"entrees":[{"label":"TOTAL","vals":{}}],"soldes":{},"_vide":true},"BK 509":{"wanted":[{"label":"DÉC 2024","year":"2024","reel":true},{"label":"JAN 2025","year":"2025","reel":true},{"label":"FEV 2025","year":"2025","reel":true},{"label":"MAR 2025","year":"2025","reel":false},{"label":"AVR 2025","year":"2025","reel":true},{"label":"MAI 2025","year":"2025","reel":false},{"label":"JUI 2025","year":"2025","reel":false},{"label":"JUL 2025","year":"2025","reel":false},{"label":"AOU 2025","year":"2025","reel":false},{"label":"SEP 2025","year":"2025","reel":false},{"label":"OCT 2025","year":"2025","reel":false},{"label":"NOV 2025","year":"2025","reel":false},{"label":"DEC 2025","year":"2025","reel":false},{"label":"JAN 2026","year":"2026","reel":false},{"label":"FEV 2026","year":"2026","reel":false},{"label":"MAR 2026","year":"2026","reel":false},{"label":"AVR 2026","year":"2026","reel":false}],"sorties":[{"label":"TOTAL","vals":{}}],"entrees":[{"label":"TOTAL","vals":{}}],"soldes":{},"_vide":true},"BK 526":{"wanted":[{"label":"DÉC 2024","year":"2024","reel":true},{"label":"JAN 2025","year":"2025","reel":true},{"label":"FEV 2025","year":"2025","reel":true},{"label":"MAR 2025","year":"2025","reel":true},{"label":"AVR 2025","year":"2025","reel":true},{"label":"MAI 2025","year":"2025","reel":true},{"label":"JUI 2025","year":"2025","reel":false},{"label":"JUL 2025","year":"2025","reel":false},{"label":"AOU 2025","year":"2025","reel":false},{"label":"SEP 2025","year":"2025","reel":false},{"label":"OCT 2025","year":"2025","reel":false},{"label":"NOV 2025","year":"2025","reel":false},{"label":"DEC 2025","year":"2025","reel":false},{"label":"JAN 2026","year":"2026","reel":false},{"label":"FEV 2026","year":"2026","reel":false},{"label":"MAR 2026","year":"2026","reel":false},{"label":"AVR 2026","year":"2026","reel":false},{"label":"MAI 2026","year":"2026","reel":false}],"sorties":[{"label":"TOTAL","vals":{}}],"entrees":[{"label":"TOTAL","vals":{}}],"soldes":{},"_vide":true}};
 // ── Sociétés du groupe : chaque société a sa propre trésorerie ──────────────
 // Les 3 BK ont leurs données réelles. On ajoute ici les autres sociétés du Hub
 // (VH Company, FVH, SCI VH Immo) avec une trésorerie vide « en attente ».
@@ -3978,7 +3708,7 @@ window.tresoSupprimerReleve = async function(soc, periode){
   alert('Relevé de '+periode+' supprimé.');
 };
 
-// HTML de la liste des relevés importés pour une société (lien + suppression)
+// HTML de la liste des relevés importés pour une société (lien + suppression individuelle)
 window.tresoRelevesListe = function(soc){
   var rel = TRESO_RELEVES[soc]||{};
   var mois = Object.keys(rel);
@@ -4652,6 +4382,7 @@ async function init() {
   // démarrer la trésorerie et remplir la vue d'ensemble (page active au boot)
   try{ if(window.TRESO_INIT) window.TRESO_INIT(); }catch(e){}
   try{ if(typeof renderDashboardTreso==='function') renderDashboardTreso(); }catch(e){}
+  try{ await refreshSocBadges(); }catch(e){}
 }
 
 async function setupTables() {
@@ -4828,7 +4559,7 @@ ${depasse?`<div style="font-size:11px;color:var(--warn);margin-top:6px;">⚠ Ver
 // ── FICHES ASSURANCE ──
 let ficheTarget = 'bien';
 let allFiches = [];
-const catToList = {'Habitation':'bien','Auto':'bien','Moto':'bien','Entreprise / Pro':'pro','Autre':'bien'};
+const catToList = {'Habitation':'bien','Auto':'bien','Moto':'bien','Entreprise / Pro':'pro','Retraite / Prévoyance':'retraite','Autre':'bien'};
 
 function openFiche(target) {
   ficheTarget = target;
@@ -4877,7 +4608,7 @@ function renderFiche(f, hist) {
   // Ne pas afficher une fiche seed (PDF) que l'utilisateur a supprimée
   if(f.id && f.id < 0 && hiddenSeeds.has(String(f.id))) return;
   allFiches.push(f);
-  const list = catToList[f.categorie]==='pro' ? 'list-pro' : 'list-bien';
+  const list = catToList[f.categorie]==='pro' ? 'list-pro' : (catToList[f.categorie]==='retraite' ? 'list-retraite' : 'list-bien');
   const wrap = document.getElementById(list);
   if(!wrap) return;
   const d = document.createElement('div');
@@ -4889,7 +4620,7 @@ function renderFiche(f, hist) {
   const isSeed = f.id && f.id < 0;
   const delBtn = `<span title="Supprimer cette fiche" style="cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:0 2px;" onclick="deleteFiche(${f.id},this)">×</span>`;
   const hdrRight = isSeed
-    ? `<div style="display:flex;align-items:center;gap:6px;"><span class="tag tag-g">PDF</span>${delBtn}</div>`
+    ? `<div style="display:flex;align-items:center;gap:6px;"><span class="tag tag-gr">base</span>${delBtn}</div>`
     : delBtn;
   d.innerHTML = `<div class="soc-hdr"><div><div class="soc-name">${f.nom}</div><div class="soc-type">${f.categorie}${f.assureur?' · '+f.assureur:''}</div></div>${hdrRight}</div>
 <div class="soc-nums">
@@ -4956,47 +4687,65 @@ async function restoreHidden() {
 
 // Assurances réelles (extraites des PDF) — affichées en dur
 const ASSUR_SEED = [
-  {id:-101, categorie:'Entreprise / Pro', nom:'Immeuble Boulanger — Digne-les-Bains', assureur:'AXA (Atouts Immeuble)', prime:1434.85, echeance:'19/09/2026',
-    explication:"Assurance de l'immeuble Boulanger (3 av. de St Christophe, Digne, 1 244 m²). Couvre incendie, dégâts des eaux, événements climatiques, catastrophes naturelles/technologiques, perte de loyer (2 ans) et RC propriétaire d'immeuble. Reconstruction garantie en valeur à neuf, plafond global 19,9 M€. Pas de franchise générale. Reconduction tacite. Note : document marqué « projet » du 19/09/2025 — vérifier l'attestation définitive.",
-    hist:[{annee:2025,montant:1434.85}]},
-  {id:-102, categorie:'Entreprise / Pro', nom:'Immeuble Funéraire — Pamiers', assureur:'Allianz Immeuble (n° 62418208)', prime:1566.52, echeance:'02/09/2026',
-    explication:"Assurance de l'immeuble Funéraire (Rte de Verniolle, Pamiers, 748 m², loué à OGF, usage pompes funèbres). Garanties : incendie, tempête/grêle/neige, attentats, dégâts des eaux, vol, bris de glaces, catastrophes naturelles, RC immeuble, défense pénale et recours, assistance. Franchise générale 500 €. Effet 02/09/2022, échéance annuelle au 02/09. ⚠ Prime en hausse de +22% en 3 ans (1 282€ → 1 567€) — candidat à renégociation.",
-    hist:[{annee:2022,montant:1281.86},{annee:2024,montant:1404.77},{annee:2025,montant:1566.52}]},
+  // Base de rappel des contrats (sans montants ni dates : se rempliront via l'import des PDF).
+  {id:-101, categorie:'Entreprise / Pro', nom:'Immeuble Boulanger — Digne-les-Bains', assureur:'AXA (Atouts Immeuble)', prime:null, echeance:null,
+    explication:"Assurance de l'immeuble Boulanger (3 av. de St Christophe, Digne, 1 244 m²). Couvre incendie, dégâts des eaux, événements climatiques, catastrophes naturelles/technologiques, perte de loyer et RC propriétaire d'immeuble. Reconstruction garantie en valeur à neuf. Reconduction tacite. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
+  {id:-102, categorie:'Entreprise / Pro', nom:'Immeuble Funéraire — Pamiers', assureur:'Allianz Immeuble (n° 62418208)', prime:null, echeance:null,
+    explication:"Assurance de l'immeuble Funéraire (Rte de Verniolle, Pamiers, 748 m², loué à OGF, usage pompes funèbres). Garanties : incendie, tempête/grêle/neige, attentats, dégâts des eaux, vol, bris de glaces, catastrophes naturelles, RC immeuble, défense pénale et recours, assistance. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
 
   // ── Immeubles / locaux (Entreprise / Pro) ──
-  {id:-103, categorie:'Entreprise / Pro', nom:'Immeuble PNO — Dinan (23 rue Thiers)', assureur:'Allianz Immeuble (n° 62418209)', prime:523.59, echeance:'02/09/2026',
-    explication:"Assurance Propriétaire Non Occupant de l'immeuble locatif « Des Acacias » (23 rue Thiers, 22100 Dinan, 397 m²), souscrit par la SCI VH Immo. Immeuble à usage habitation/bureau avec occupants multiples. Garanties : incendie, tempête/grêle/neige, attentats, dégâts des eaux, vol, bris de glaces, catastrophes naturelles, RC incendie/dégâts des eaux, RC immeuble, défense pénale et recours, assistance. Franchise générale 500 € (ne s'applique pas aux dommages corporels). Avenant 001 à effet du 15/09/2022, échéance principale au 02/09. Prélèvement mensuel le 5. ⚠ Prime en hausse de +11% en 1 an (471€ → 524€).",
-    hist:[{annee:2024,montant:471.39},{annee:2025,montant:523.59}]},
-  {id:-104, categorie:'Entreprise / Pro', nom:'Local Poissonnerie — Laverune', assureur:'MMA CARAT PNE (n° 149368100)', prime:274.00, echeance:'01/06/2026',
-    explication:"Multirisque Propriétaire Non Exploitant pour le bâtiment 2 avenue du Château, 34880 Laverune (51 m², activité poissonnerie), souscrit par la SCI VH Immo. Garanties de base : RC-Protection juridique Recours, dégâts des eaux exploitation, bris des glaces/verres/marbres, vol (détériorations immobilières), incendie et risques associés exploitation. Bâtiment en matériaux durs (clause n° 028). Aucune garantie habitation. Contrat à effet du 05/06/2024, échéance anniversaire au 01/06, paiement annuel. Aucun sinistre antérieur déclaré.",
-    hist:[{annee:2024,montant:274.00}]},
-  {id:-105, categorie:'Entreprise / Pro', nom:'Multirisque Pro — Local Fabrègues', assureur:'BPCE IARD / Banque Populaire (n° MCE 001)', prime:267.29, echeance:'01/01/2026',
-    explication:"ASSUR-BP Multirisque Pro pour le local 150 rue Gratien Saumade, 34690 Fabrègues (100 m², activité secrétariat, locataire), souscrit par Vincent Hilaire. Garanties : incendie, dommages électriques, dégâts des eaux, événements climatiques, bris des vitres/vitrines/enseignes, choc de véhicules, RC du fait des locaux, vol/tentative/vandalisme (contenu 1 500€), défense pénale-recours, catastrophes naturelles et attentats, assistance. Franchise sinistre locaux 300 €. Effet 17/12/2024. CA prévisionnel déclaré 200 000€. ⚠ Conseils non suivis : pertes d'exploitation, bris de matériel et dommages aux aménagements extérieurs non souscrits.",
-    hist:[{annee:2025,montant:267.29}]},
+  {id:-103, categorie:'Entreprise / Pro', nom:'Immeuble PNO — Dinan (23 rue Thiers)', assureur:'Allianz Immeuble (n° 62418209)', prime:null, echeance:null,
+    explication:"Assurance Propriétaire Non Occupant de l'immeuble locatif « Des Acacias » (23 rue Thiers, 22100 Dinan, 397 m²), souscrit par la SCI VH Immo. Garanties : incendie, tempête/grêle/neige, attentats, dégâts des eaux, vol, bris de glaces, catastrophes naturelles, RC, défense pénale et recours, assistance. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
+  {id:-104, categorie:'Entreprise / Pro', nom:'Local Poissonnerie — Laverune', assureur:'MMA CARAT PNE (n° 149368100)', prime:null, echeance:null,
+    explication:"Multirisque Propriétaire Non Exploitant pour le bâtiment 2 avenue du Château, 34880 Laverune (51 m², activité poissonnerie), souscrit par la SCI VH Immo. Garanties : RC-Protection juridique Recours, dégâts des eaux, bris des glaces, vol, incendie. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
+  {id:-105, categorie:'Entreprise / Pro', nom:'Multirisque Pro — Local Fabrègues', assureur:'BPCE IARD / Banque Populaire (n° MCE 001)', prime:null, echeance:null,
+    explication:"ASSUR-BP Multirisque Pro pour le local 150 rue Gratien Saumade, 34690 Fabrègues (100 m², activité secrétariat, locataire), souscrit par Vincent Hilaire. Garanties : incendie, dommages électriques, dégâts des eaux, événements climatiques, bris des vitres, choc de véhicules, RC, vol/vandalisme, défense pénale-recours, catastrophes naturelles. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
 
   // ── Responsabilité dirigeant / employeur (Entreprise / Pro) ──
-  {id:-106, categorie:'Entreprise / Pro', nom:'Assurance Employeur — VH Company', assureur:'AIG Risques Financiers (n° 0007991558)', prime:3939.60, echeance:'01/04/2026',
-    explication:"Assurance « Employeur » (responsabilité sociale) souscrite par VH Company auprès d'AIG Europe SA, via le courtier Assurances Nantaises (code 144039). Couvre les conséquences de la responsabilité pour violation sociale commise à l'encontre d'un assuré personne physique ou d'un postulant à l'emploi, pour le souscripteur et ses filiales. Plafond 500 000 € par période d'assurance. Applicabilité monde entier, hors réclamations fondées sur une violation sociale au sein d'une filiale immatriculée aux États-Unis. Période du 01/04/2025 au 01/04/2026. Prime nette 3 614,31€ + taxes 325,29€.",
-    hist:[{annee:2025,montant:3939.60}]},
+  {id:-106, categorie:'Entreprise / Pro', nom:'Assurance Employeur — VH Company', assureur:'AIG Risques Financiers (n° 0007991558)', prime:null, echeance:null,
+    explication:"Assurance « Employeur » (responsabilité sociale) souscrite par VH Company auprès d'AIG Europe SA, via le courtier Assurances Nantaises (code 144039). Couvre la responsabilité pour violation sociale, pour le souscripteur et ses filiales. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
 
   // ── Véhicules (Habitation & Véhicules) ──
-  {id:-107, categorie:'Auto', nom:'Range Rover Sport III (GQ-111-XJ)', assureur:'Allianz Auto (n° AF413090170)', prime:2019.44, echeance:'29/08/2026',
-    explication:"Assurance auto Allianz souscrite par Burger Avenue 500. Véhicule Land Rover Range Rover Sport III P510e plug-in hybride (valeur neuve 140 100 €), immatriculé GQ-111-XJ (1ère mise en circulation 16/06/2023). Conducteur déclaré : Vincent Hilaire (permis 1997). Formule Tous risques C3, sans forfait kilométrique. Bonus 50% (CRM 0,50). Date de souscription 29/08/2023, échéance annuelle au 29/08. Prime 2025-2026 : 2 019,44 € (avis d'échéance du 06/07/2025, prélèvement le 05/08). ⚠ Prime en hausse de +31% depuis la souscription (1 540 € → 2 019 €).",
-    hist:[{annee:2023,montant:1539.62},{annee:2025,montant:2019.44}]},
-  {id:-108, categorie:'Auto', nom:'Range Rover Evoque II (GH-299-WR)', assureur:'Allianz Auto (n° AF407490277)', prime:1654.28, echeance:'02/08/2026',
-    explication:"Assurance auto Allianz souscrite par Vincent Hilaire (2 chemin Vieux, 34690 Fabrègues). Véhicule Land Rover Evoque II P300 AWD R-Dynamic HSE, immatriculé GH-299-WR (1ère mise en circulation 01/08/2022). Conducteur déclaré : Vincent Hilaire (permis 1997). Formule Tous risques C3, sans forfait kilométrique. Bonus 50% (CRM 0,50). Souscription 02/08/2022, échéance annuelle au 02/08. Prime 2025-2026 : 1 654,28 € (avis d'échéance du 06/07/2025, prélèvement le 05/08). Tarif privilégié multi-contrats. ⚠ Prime en hausse de +15% depuis l'avenant 2024 (1 438 € → 1 654 €).",
-    hist:[{annee:2024,montant:1437.86},{annee:2025,montant:1654.28}]},
-  {id:-109, categorie:'Auto', nom:'Renault Kangoo III (GP-335-NA)', assureur:'AXA Auto (n° 0000022408099904)', prime:586.87, echeance:'01/09/2026',
-    explication:"Assurance auto AXA souscrite par Vincent Hilaire (agence Frerejean, Lyon), formule Tous risques Essentielle. Véhicule Renault Kangoo III Van 1.3 TCE 130, immatriculé GP-335-NA. Conducteur principal : Fabien Pedrini (né 27/06/1985, permis 2003). Bonus 50% (CRM 0,50). Forfait 10 000 km/an. Effet 23/09/2025, échéance principale au 01/09, prélèvement annuel le 05/09. Prime 586,87 €/an. ⚠ A REMPLACÉ le contrat Allianz AF413544927 — résiliation Allianz demandée dans les conditions AXA du 21/08/2025. Chez Allianz la prime était passée de 663 € (souscription 07/2024) à 821 € (échéance 07/2025) ; le passage chez AXA à 587 € fait baisser le coût. Historique conservé pour comparaison.",
-    hist:[{annee:2024,montant:663.21},{annee:2025,montant:586.87}]},
+  {id:-107, categorie:'Auto', nom:'Range Rover Sport III (GQ-111-XJ)', assureur:'Allianz Auto (n° AF413090170)', prime:null, echeance:null,
+    explication:"Assurance auto Allianz souscrite par Burger Avenue 500. Land Rover Range Rover Sport III P510e plug-in hybride, immatriculé GQ-111-XJ. Conducteur déclaré : Vincent Hilaire. Formule Tous risques C3. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
+  {id:-108, categorie:'Auto', nom:'Range Rover Evoque II (GH-299-WR)', assureur:'Allianz Auto (n° AF407490277)', prime:null, echeance:null,
+    explication:"Assurance auto Allianz souscrite par Vincent Hilaire. Land Rover Evoque II P300 AWD R-Dynamic HSE, immatriculé GH-299-WR. Conducteur déclaré : Vincent Hilaire. Formule Tous risques C3. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
+  {id:-109, categorie:'Auto', nom:'Renault Kangoo III (GP-335-NA)', assureur:'AXA Auto (n° 0000022408099904)', prime:null, echeance:null,
+    explication:"Assurance auto AXA souscrite par Vincent Hilaire (agence Frerejean, Lyon). Renault Kangoo III Van 1.3 TCE 130, immatriculé GP-335-NA. Conducteur principal : Fabien Pedrini. A remplacé un contrat Allianz. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
 
   // ── Ferrari & Porsche (AXA, perso Vincent) ──
-  {id:-110, categorie:'Auto', nom:'Ferrari Lusso GTC4 (FQ-651-HD)', assureur:'AXA Auto (n° 11274825304)', prime:1545.03, echeance:'01/07/2026',
-    explication:"Assurance auto AXA souscrite par Vincent Hilaire (agence Frerejean, Lyon), formule Auto des professionnels. Véhicule Ferrari Lusso GTC4 V12 6.3, immatriculé FQ-651-HD, puissance fiscale réelle 66 CV (1ère mise en circulation 06/2020), valeur à neuf 254 000 €. Conducteur principal : Vincent Hilaire. Usage privé, forfait 8 000 km/an. Bonus 50% (CRM 0,50). Effet 23/07/2024, échéance principale au 01/07. Prime 1 545,03 €/an. ⚠ Clause : véhicule devant être équipé d'un système de géolocalisation autonome (justificatif sous 30 j) et stationné en garage sécurisé (détecteurs de fumée + extincteurs), sinon indemnité réduite de 20%. Note : remplace le devis Ferrari Roma de 2022 (non retenu).",
-    hist:[{annee:2024,montant:1545.03}]},
-  {id:-111, categorie:'Auto', nom:'Porsche Cayenne Turbo E-Hybrid (GW-448-TG)', assureur:'AXA Auto (n° 11407443804)', prime:949.65, echeance:'01/08/2026',
-    explication:"Assurance auto AXA souscrite par Vincent Hilaire (agence Frerejean, Lyon), formule Auto des professionnels. Véhicule Porsche Cayenne 4.0 V8 Turbo E-Hybrid, immatriculé GW-448-TG, puissance fiscale 53 CV (1ère mise en circulation 05/2024), leasing. Conducteur principal : Vincent Hilaire. Usage privé + trajets domicile/travail, forfait 8 000 km/an. Bonus 50% (CRM 0,50). Effet 21/08/2025, échéance principale au 01/08, prélèvement le 05/09. Avantage Privépro (transfert de garanties sur autre véhicule AXA). Prime 949,65 €/an. ⚠ À vérifier : carte grise établie au nom de « MEIA MEIA » (08/2025) alors que le souscripteur du contrat est Vincent Hilaire. Clause géolocalisation obligatoire sous 30 j.",
-    hist:[{annee:2025,montant:949.65}]},
+  {id:-110, categorie:'Auto', nom:'Ferrari Lusso GTC4 (FQ-651-HD)', assureur:'AXA Auto (n° 11274825304)', prime:null, echeance:null,
+    explication:"Assurance auto AXA souscrite par Vincent Hilaire (agence Frerejean, Lyon). Ferrari Lusso GTC4 V12 6.3, immatriculé FQ-651-HD. Conducteur principal : Vincent Hilaire. Clause géolocalisation + garage sécurisé. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
+  {id:-111, categorie:'Auto', nom:'Porsche Cayenne Turbo E-Hybrid (GW-448-TG)', assureur:'AXA Auto (n° 11407443804)', prime:null, echeance:null,
+    explication:"Assurance auto AXA souscrite par Vincent Hilaire (agence Frerejean, Lyon). Porsche Cayenne 4.0 V8 Turbo E-Hybrid, immatriculé GW-448-TG, leasing. Conducteur principal : Vincent Hilaire. Clause géolocalisation obligatoire. À vérifier : nom sur carte grise. Montants et échéance : à compléter via le PDF.",
+    hist:[]},
+
+  // ── Prévoyance / Retraite (base de rappel) ──
+  {id:-201, categorie:'Retraite / Prévoyance', nom:'GAN Retraite — PEP / Madelin', assureur:'Gan Prévoyance (n° 113.943.199 J)', prime:null, echeance:null,
+    explication:"Contrat retraite type Madelin, assuré Vincent Hilaire. Terme au 01/05/2044. Épargne, cotisation, capital décès et valeurs : à compléter via le relevé GAN.",
+    hist:[]},
+  {id:-202, categorie:'Retraite / Prévoyance', nom:'AREAS Arélia — retraite pro', assureur:'Areas (n° 104910-001)', prime:null, echeance:null,
+    explication:"Contrat retraite professionnel souscrit via Burger Avenue 500. Cotisation et montants : à compléter via le PDF.",
+    hist:[]},
+  {id:-203, categorie:'Retraite / Prévoyance', nom:'AREAS Multisupport 3 — épargne/retraite', assureur:'Areas (n° 104910-002)', prime:null, echeance:null,
+    explication:"Contrat épargne/retraite perso, titulaire Vincent Hilaire (RUM V1612000367). Cotisation et montants : à compléter via le PDF.",
+    hist:[]},
+  {id:-204, categorie:'Retraite / Prévoyance', nom:'Roederer — prévoyance TNS', assureur:'Roederer / Allianz (police ST4000880000 · client 294897)', prime:null, echeance:null,
+    explication:"Prévoyance Travailleur Non Salarié souscrite via Burger Avenue 500. Assiette, taux et cotisation : à compléter via le PDF.",
+    hist:[]},
+  {id:-205, categorie:'Retraite / Prévoyance', nom:'Muta Santé — mutuelle', assureur:'Muta Santé (n° 0509000006231000)', prime:null, echeance:null,
+    explication:"Complémentaire santé. Cotisation et garanties : à compléter via le PDF.",
+    hist:[]},
 ];
 
 async function loadFiches() {
@@ -5501,6 +5250,29 @@ function updateSocBadge(name) {
 const IS_SOC_LABEL = {vh:'VH Company',ba:'Burger Avenue 500',bka:'BK Avenue 526',bksj:'BK Saint-Jean 509',fvh:'FVH SARL',sci:'SCI VH Immo'};
 const IS_SOC_FOLDER = {vh:'VH_Company',ba:'Burger_Avenue_500',bka:'BK_Avenue_526',bksj:'BK_Saint_Jean_509',fvh:'FVH',sci:'SCI_VH_Immo'};
 
+// Met à jour les pastilles du menu de gauche en fonction des bilans RÉELLEMENT présents.
+// ✓ vert = au moins un exercice enregistré ; ! rouge = aucun bilan (à compléter).
+async function refreshSocBadges(){
+  const socs = Object.keys(IS_SOC_LABEL); // vh, ba, bka, bksj, fvh, sci
+  for(const soc of socs){
+    let n = 0;
+    // On se base d'abord sur le cache si présent, sinon on interroge Supabase.
+    if(Array.isArray(SOC_FIN_CACHE[soc])){
+      n = SOC_FIN_CACHE[soc].length;
+    } else {
+      try {
+        const {data} = await sb.from('societe_finances').select('exercice').eq('societe',soc);
+        n = (data||[]).length;
+      } catch(e){ n = 0; }
+    }
+    const b = document.getElementById('b-'+soc);
+    if(!b) continue;
+    if(n>0){ b.className='sb-badge g'; b.textContent='✓'; }
+    else   { b.className='sb-badge r'; b.textContent='!'; }
+  }
+}
+window.refreshSocBadges = refreshSocBadges;
+
 // Remplit le sélecteur d'exercices (année courante → -6)
 function isFillYears() {
   const sel = document.getElementById('is-year');
@@ -5683,6 +5455,139 @@ function buildSocImports() {
     socImpRender(box);
   });
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+//  IMPORT DOCUMENTS GÉNÉRIQUE (.docimp) — MÊME SYSTÈME que les bilans.
+//  Dépôt PDF → Dropbox → liste avec suppression fichier par fichier.
+//  Chaque zone porte : data-key (clé d'index), data-folder (dossier Dropbox),
+//  data-label, data-hint, data-doctype. Table : societe_docs (societe=data-key).
+//  Sert pour : Fiscal_Perso, Assurance_Retraite, Assurance_Habitation_Vehicules, Assurance_Pro.
+// ══════════════════════════════════════════════════════════════════════════
+function buildDocImports(){
+  document.querySelectorAll('.docimp').forEach(box => {
+    const key   = box.dataset.key || 'docs';
+    const folder= box.dataset.folder || key;
+    const label = box.dataset.label || 'mes documents';
+    const hint  = box.dataset.hint  || '';
+    box.innerHTML = `
+      <div class="card" style="margin-top:4px;margin-bottom:16px;">
+        <div class="card-title">📥 Importer ${label}</div>
+        <div class="alert a-b" style="margin-bottom:12px;"><span>💡</span><div>${hint} Les fichiers sont rangés dans Dropbox « Fiscal Vincent » en <code>/${folder}/Année/</code> et listés ci-dessous (suppression possible un par un).</div></div>
+        <div class="drop doc-drop" style="padding:22px;">
+          <div style="font-size:28px;margin-bottom:6px;">📄📎</div>
+          <h3>Glisse ${label} ici</h3>
+          <p style="font-size:12px;">PDF · JPG — plusieurs fichiers acceptés</p>
+          <input type="file" class="doc-input" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+        </div>
+        <div class="doc-list" style="margin-top:12px;"></div>
+      </div>`;
+    const drop = box.querySelector('.doc-drop');
+    const input = box.querySelector('.doc-input');
+    drop.addEventListener('click', ()=>input.click());
+    drop.addEventListener('dragover', e=>{e.preventDefault();drop.classList.add('over');});
+    drop.addEventListener('dragleave', ()=>drop.classList.remove('over'));
+    drop.addEventListener('drop', e=>{e.preventDefault();drop.classList.remove('over');docImpHandle(box, e.dataTransfer.files);});
+    input.addEventListener('change', ()=>docImpHandle(box, input.files));
+    docImpRender(box);
+  });
+}
+
+function docDevineDoctype(nom, key){
+  const n = (nom||'').toLowerCase();
+  if(key==='fisc'){
+    if(/avis|imposition|impot|impôt/.test(n)) return 'Avis d\'imposition';
+    if(/2042|declaration|déclaration|revenus/.test(n)) return 'Déclaration de revenus';
+    return 'Document fiscal';
+  }
+  if(/echeance|échéance|avis/.test(n)) return 'Avis d\'échéance';
+  if(/cotisation|prime/.test(n)) return 'Appel de cotisation';
+  if(/releve|relevé|situation/.test(n)) return 'Relevé de situation';
+  if(/contrat|conditions/.test(n)) return 'Contrat / conditions';
+  if(/attestation/.test(n)) return 'Attestation';
+  return 'Document';
+}
+
+async function docImpHandle(box, files){
+  const key   = box.dataset.key || 'docs';
+  const folder= box.dataset.folder || key;
+  const dateStr = new Date().toISOString().slice(0,10);
+  const list = box.querySelector('.doc-list');
+  for(const f of Array.from(files)){
+    const ext = (f.name.split('.').pop()||'').toLowerCase();
+    const doctype = docDevineDoctype(f.name, key);
+    const year = String(devineAnnee(f.name));
+    const docClean = doctype.replace(/[^a-zA-Z0-9]/g,'_');
+    const niceName = `${docClean}_${year}_${dateStr}.${ext}`;
+    const dbxPath = `/${folder}/${year}/${niceName}`;
+    const tmp = socImpRow(list, {nom:f.name, type:ext.toUpperCase(), doctype, exercice:year, statut:'up'});
+    let url=null, ok=false, dropbox_path=dbxPath;
+    try {
+      const tok = await dbxToken();
+      const up = await fetch('https://content.dropboxapi.com/2/files/upload', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+tok,'Dropbox-API-Arg':dbxArg({path:dbxPath,mode:'add',autorename:true,mute:false}),'Content-Type':'application/octet-stream'},
+        body: f
+      });
+      if(up.ok){ const meta=await up.json(); dropbox_path=meta.path_lower||dbxPath; url=await dbxShareLink(tok,dropbox_path); ok=true; }
+      else { const st=tmp&&tmp.querySelector('.fst'); if(st){st.style.color='var(--danger)';st.textContent='Échec Dropbox';} }
+    } catch(e){ const st=tmp&&tmp.querySelector('.fst'); if(st){st.style.color='var(--danger)';st.textContent='Erreur Dropbox';} }
+    if(ok){
+      let dbErr=null;
+      try {
+        const res = await sb.from('societe_docs').insert({societe:key,exercice:parseInt(year),doctype,nom:f.name,type:ext.toUpperCase(),taille:f.size,dropbox_path,url,statut:'archive'}).select().single();
+        if(res && res.error) dbErr = res.error.message || JSON.stringify(res.error);
+      } catch(e){ dbErr=(e&&e.message)||'exception'; }
+      const st=tmp&&tmp.querySelector('.fst');
+      if(dbErr){ if(st){st.style.color='var(--warn)';st.textContent='Dropbox ✓ / index KO';} console.warn('docimp insert error:', dbErr); }
+      else { if(st){st.className='fst fst-ok';st.textContent='Dropbox ✓';} }
+    }
+  }
+  docImpRender(box);
+}
+
+async function docImpRender(box){
+  const key = box.dataset.key || 'docs';
+  const list = box.querySelector('.doc-list');
+  if(!list) return;
+  let docs = [];
+  try {
+    const {data} = await sb.from('societe_docs').select('*').eq('societe',key).order('exercice',{ascending:false}).order('created_at',{ascending:false});
+    docs = data||[];
+  } catch(e){}
+  list.innerHTML='';
+  // Met à jour la pastille du menu pour les pages assurances (nombre de PDF)
+  try {
+    const BADGE_OF = {assur_retraite:'b-contrats', assur_bien:'b-bien', assur_pro:'b-pro'};
+    const bid = BADGE_OF[key];
+    if(bid){ const bb=document.getElementById(bid); if(bb){ bb.textContent = docs.length || '—'; bb.className = 'sb-badge' + (docs.length?' g':''); } }
+  } catch(e){}
+  if(!docs.length){
+    list.innerHTML='<div style="font-size:12px;color:var(--text3);">Aucun document importé pour l\'instant. Dépose un fichier ci-dessus.</div>';
+    return;
+  }
+  docs.forEach(d=>{
+    const ext=(d.type||'').toUpperCase();
+    const dl = d.url ? `<a href="${d.url}" target="_blank" class="btn" style="font-size:11px;padding:3px 9px;">Ouvrir</a>` : '';
+    const safePath=(d.dropbox_path||'').replace(/'/g,"");
+    const del = d.id ? `<button class="btn" style="font-size:11px;padding:3px 9px;color:var(--danger);border-color:var(--danger);" onclick="docImpDelete(this,'${d.id}','${safePath}')">Suppr.</button>` : '';
+    const row=document.createElement('div');
+    row.className='fitem';
+    row.innerHTML=`<div class="fext ${ext==='CSV'?'csv':''}">${ext}</div>
+<div class="finfo"><div class="fname">${d.nom}</div><div class="fmeta">${d.doctype||''} · Année ${d.exercice||'?'}</div></div>
+<div style="display:flex;gap:6px;align-items:center;">${dl}${del}<span class="fst fst-ok">Dropbox ✓</span></div>`;
+    list.appendChild(row);
+  });
+}
+
+window.docImpDelete = async function(btn, id, dropbox_path){
+  if(!confirm('Supprimer ce document ?\n\nLe PDF dans Dropbox et son entrée seront supprimés. Action irréversible.')) return;
+  if(dropbox_path){
+    try{ const tok=await dbxToken(); await fetch('https://api.dropboxapi.com/2/files/delete_v2',{method:'POST',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({path:dropbox_path})}); }catch(e){}
+  }
+  try{ await sb.from('societe_docs').delete().eq('id', id); }catch(e){}
+  const box = btn.closest('.docimp'); if(box) docImpRender(box);
+};
+window.buildDocImports = buildDocImports;
 
 // Devine le type de document d'après le nom de fichier (l'IA confirmera pour les PDF)
 function devineDoctype(nom){
@@ -5953,39 +5858,6 @@ async function socPurge(soc){
   alert('✓ '+(IS_SOC_LABEL[soc]||soc)+' : tout a été effacé. Tu peux redéposer les bilans proprement.');
 }
 
-// Purge silencieuse d'UNE société (sans confirm ni alert individuels) — utilisée par la purge groupée.
-async function socPurgeSilent(soc){
-  try {
-    const {data:docs} = await sb.from('societe_docs').select('id,dropbox_path').eq('societe',soc);
-    if(docs && docs.length){
-      let tok=null; try{ tok=await dbxToken(); }catch(e){}
-      for(const d of docs){
-        if(d.dropbox_path && tok){
-          try{ await fetch('https://api.dropboxapi.com/2/files/delete_v2',{method:'POST',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({path:d.dropbox_path})}); }catch(e){}
-        }
-      }
-    }
-  } catch(e){}
-  try { await sb.from('societe_docs').delete().eq('societe',soc); } catch(e){}
-  try { await sb.from('societe_finances').delete().eq('societe',soc); } catch(e){}
-  delete SOC_FIN_CACHE[soc];
-  const box = document.querySelector('.socimp[data-soc=\"'+soc+'\"]'); if(box) socImpRender(box);
-  try { await renderSocFinances(soc); } catch(e){}
-}
-
-// Efface les bilans de TOUTES les sociétés SAUF Burger Avenue (ba / BK 500).
-async function socPurgeAllExceptBA(){
-  var cibles = ['vh','bka','bksj','fvh','sci']; // tout sauf 'ba' (Burger Avenue / BK 500)
-  var noms = cibles.map(function(s){ return IS_SOC_LABEL[s]||s; }).join(', ');
-  if(!confirm('Effacer les BILANS de toutes les sociétés SAUF Burger Avenue (BK 500) ?\n\nConcernées : '+noms+'.\n\nCela supprime leurs bilans/documents (Dropbox + index) et tous les chiffres extraits. La trésorerie n\'est PAS touchée. Burger Avenue (BK 500) est conservé. Action irréversible.')) return;
-  for(var i=0;i<cibles.length;i++){
-    try { await socPurgeSilent(cibles[i]); } catch(e){ console.error('purge',cibles[i],e); }
-  }
-  try { if(typeof renderCoutVincent==='function') renderCoutVincent(); } catch(e){}
-  try { renderDashboardGroupe(); } catch(e){}
-  alert('✓ Bilans effacés pour : '+noms+'.\nBurger Avenue (BK 500) conservé. Tu peux réimporter les bilans un par un.');
-}
-window.socPurgeAllExceptBA = socPurgeAllExceptBA;
 
 // ── CAHIER DE BORD : JOURNAL DES VIREMENTS DIVIDENDES (mère ↔ filles) ──
 // Dividendes versés par chaque filiale à VH — LUS dans le bilan de chaque filiale
@@ -7054,8 +6926,8 @@ const DASH_SOC_META = {
 // (Les 3 restaurants BK sont rattachés aux sociétés de restauration.)
 const TRESO_MAP_SOC = {
   ba:  'BK 500',        // Burger Avenue
-  bka: 'BK 509',        // BK Avenue (St-Clément)
-  bksj:'BK 526',        // BK Saint-Jean
+  bka: 'BK 526',        // BK Avenue (St-Clément)
+  bksj:'BK 509',        // BK Saint-Jean (St-Jean-de-Védas)
   vh:  'VH Company',
   fvh: 'FVH SARL',
   sci: 'SCI VH Immo'
@@ -7592,6 +7464,8 @@ async function renderDashboardGroupe(){
     setLev('lev3-desc','En attente du bilan VH Company.');
     setLev('lev6-desc','En attente du bilan VH Company.');
   }
+  // Met à jour les pastilles du menu (✓ / !) selon les bilans réellement présents.
+  try { await refreshSocBadges(); } catch(e){}
 }
 
 // ── Date « Mis à jour » : automatique, toujours l'heure réelle, jamais en dur ──
@@ -7611,6 +7485,7 @@ async function renderDashboardGroupe(){
 // ── START ──
 virRefreshAll();
 buildSocImports();
+buildDocImports();
 ['vh','ba','bka','bksj','fvh','sci'].forEach(s=>renderSocFinances(s));
 renderDashboardGroupe();
 loadTresoCategories();
