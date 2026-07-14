@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14e · diag sauvegarde</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14f · tréso repointée</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -2312,7 +2312,10 @@ function pdfImport(){
 // ── SUPABASE — PROJET n°1 « Trésorerie » (table tresorerie_edits) ───────────
 // ⚠️ Deux projets Supabase : _sb = tresorerie_edits (tydjzpguz…), sb = le reste
 // (wbhgseot…). Clé « anon » publique : sécurité réelle via RLS (SECURITE_RLS.md).
-const _sb = supabase.createClient('https://tydjzpguzwqkeqwsvvbo.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5ZGp6cGd1endxa2Vxd3N2dmJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzYyMzksImV4cCI6MjA5NDc1MjIzOX0.Z72dXuodyYw1CPhdndsfLPo_wz6-67Q2Y0LTsT0Vl7A');
+// ⚠️ CORRECTIF : l'ancien projet trésorerie (tydjzpguz…) n'existe plus (DNS mort).
+// On pointe la trésorerie vers le MÊME projet que le reste de l'appli (wbhgseot…),
+// qui est vivant et où la table tresorerie_edits doit exister (voir SQL_TRESO.sql).
+const _sb = supabase.createClient('https://wbhgseotvlipalgmxchy.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGdzZW90dmxpcGFsZ214Y2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjI0NTYsImV4cCI6MjA5NDgzODQ1Nn0.LoDkhHH56bFgRYwXAtX4IVb9qyx0_W2NAgzJ0x3Drpg');
 
 // Bandeau d'erreur visible (diagnostic) : affiche le message Supabase exact en haut de l'app.
 function tresoErrBanner(msg){
