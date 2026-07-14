@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14d · relevés gérables en haut</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14e · diag sauvegarde</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -2314,10 +2314,31 @@ function pdfImport(){
 // (wbhgseot…). Clé « anon » publique : sécurité réelle via RLS (SECURITE_RLS.md).
 const _sb = supabase.createClient('https://tydjzpguzwqkeqwsvvbo.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5ZGp6cGd1endxa2Vxd3N2dmJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzYyMzksImV4cCI6MjA5NDc1MjIzOX0.Z72dXuodyYw1CPhdndsfLPo_wz6-67Q2Y0LTsT0Vl7A');
 
+// Bandeau d'erreur visible (diagnostic) : affiche le message Supabase exact en haut de l'app.
+function tresoErrBanner(msg){
+  try{
+    var id='treso-err-banner', b=document.getElementById(id);
+    if(!b){
+      b=document.createElement('div'); b.id=id;
+      b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:100000;background:#C13030;color:#fff;font-family:sans-serif;font-size:13px;line-height:1.4;padding:10px 16px;box-shadow:0 2px 12px rgba(0,0,0,.35);display:flex;gap:12px;align-items:center;justify-content:center;text-align:center;';
+      var span=document.createElement('span'); span.id=id+'-txt'; span.style.flex='1';
+      var close=document.createElement('button'); close.textContent='✕';
+      close.style.cssText='background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:6px;padding:2px 9px;cursor:pointer;';
+      close.onclick=function(){ b.remove(); };
+      b.appendChild(span); b.appendChild(close); document.body.appendChild(b);
+    }
+    document.getElementById(id+'-txt').textContent='⚠ Trésorerie — '+msg;
+  }catch(e){}
+}
+function tresoErrTexte(error){
+  if(!error) return '?';
+  return (error.message||error.code||JSON.stringify(error))+(error.hint?(' · '+error.hint):'')+(error.details?(' · '+error.details):'');
+}
+
 // Charger toutes les modifications depuis Supabase au démarrage
 async function sbLoad(){
   const {data, error} = await _sb.from('tresorerie_edits').select('*').order('updated_at');
-  if(error){ console.error('Supabase load error:', error); render(); return; }
+  if(error){ console.error('Supabase load error:', error); tresoErrBanner('CHARGEMENT échoué : '+tresoErrTexte(error)); render(); return; }
   data.forEach(function(row){
     if(row.action==='releve' || row.section==='meta'){
       // archivage relevés : on mémorise le lien pour l'afficher (société + mois + chemin Dropbox)
@@ -2367,7 +2388,7 @@ async function sbSave(resto, section, label, vals, action){
     vals: vals,
     action: action
   });
-  if(error) console.error('Supabase save error:', error);
+  if(error){ console.error('Supabase save error:', error); tresoErrBanner('SAUVEGARDE échouée : '+tresoErrTexte(error)); }
 }
 
 // Expose les données de trésorerie au reste du Hub (lecture seule pour les branchements)
