@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14k · relevés listés en bas</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14l · détail des opérations</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1399,11 +1399,23 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
     var excBadge = o.exceptionnel ? '<span title="'+((o.commentaire||'').replace(/"/g,'&quot;'))+'" style="font-size:10px;color:#b3600f;background:#fff3d6;padding:1px 6px;border-radius:4px;margin-right:6px">⚡ exceptionnel</span>' : '';
     var chqBadge = o.cheque ? '<span style="font-size:10px;color:#e03a3a;background:#fdecec;padding:1px 6px;border-radius:4px;margin-right:6px">🧾 chèque</span>' : '';
     h+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f3f8">'
-      +'<div style="flex:1;font-size:12px">'+dateBadge+chqBadge+excBadge+(o.libelle||poste)+(o.groupe&&o.nb>1?' <span style="color:#7a90a8;font-size:10px">('+o.nb+' op. regroupées)</span>':'')+'</div>'
+      +'<div style="flex:1;font-size:12px">'+dateBadge+chqBadge+excBadge+(o.libelle||poste)+(o.groupe&&o.nb>1?' <span style="color:#7a90a8;font-size:10px">('+o.nb+' opérations regroupées)</span>':'')+'</div>'
       +'<div style="font-family:var(--mono);font-size:12px;font-weight:700;min-width:80px;text-align:right">'+(o.montant||0).toLocaleString('fr-FR')+' €</div>'
       +'<select id="det-sel-'+idx+'" style="font-size:11px;padding:4px 6px;border:1px solid #dce3ee;border-radius:6px"><option value="">→ déplacer vers…</option>'+opts+'<option value="__NEW__">➕ nouveau poste</option></select>'
       +'<button onclick="tresoReaffecte('+idx+')" style="font-size:11px;padding:5px 9px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">OK</button>'
       +'</div>';
+    // NOUVEAU : le détail des opérations regroupées (dates + montants individuels)
+    if(o.groupe && o.sousOps && o.sousOps.length>1){
+      h+='<div style="margin:0 0 8px;padding:6px 10px;background:#f8fafc;border-left:2px solid #cdd8e6;border-radius:0 6px 6px 0">';
+      o.sousOps.forEach(function(s){
+        var sd = s.date ? '<span style="font-family:var(--mono);font-size:10px;color:#1a6cf4;margin-right:8px">'+esc(s.date)+'</span>' : '';
+        h+='<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#5a6b7e;padding:2px 0">'
+          +'<span style="flex:1">'+sd+esc(s.libelle||'')+'</span>'
+          +'<span style="font-family:var(--mono);font-weight:600;white-space:nowrap">'+(s.montant||0).toLocaleString('fr-FR')+' €</span>'
+          +'</div>';
+      });
+      h+='</div>';
+    }
   });
   h+='<div style="margin-top:14px;text-align:right"><button onclick="tresoDetClose()" style="padding:8px 14px;background:#f0f3f8;border:none;border-radius:7px;cursor:pointer">Fermer</button></div>';
   box.innerHTML=h;
@@ -1949,10 +1961,12 @@ function pdfTraiteResultat(parsed, restoSel){
       });
     } else {
       var k = (o.type||'')+'||'+posteU;
-      if(!groupes[k]) groupes[k]={nom:poste, type:o.type||'sortie', total:0, nb:0, categorie:o.categorie||'autre', sur:true, dates:[]};
+      if(!groupes[k]) groupes[k]={nom:poste, type:o.type||'sortie', total:0, nb:0, categorie:o.categorie||'autre', sur:true, dates:[], ops:[]};
       groupes[k].total += montant;
       groupes[k].nb++;
       if(dateOp) groupes[k].dates.push(dateOp);
+      // on conserve chaque opération individuelle du groupe (pour l'afficher au clic)
+      groupes[k].ops.push({montant:montant, date:dateOp, libelle:(o.libelle||poste)});
     }
   });
   var postes = Object.keys(groupes).map(function(k){return groupes[k];}).concat(individuelles);
@@ -2234,6 +2248,7 @@ function pdfImport(){
       sec:sec, poste:nom, libelle:(p.libelle||p.nom||nom),
       montant: pdfNum(p.total), nb:(p.nb||1), groupe:!p.individuelle,
       date:(p.date||''), cheque:!!p.cheque,
+      sousOps: (p.ops && p.ops.length>1) ? p.ops : null,   // détail des opérations regroupées
       exceptionnel:exceptionnel, commentaire:commentaire
     });
 
