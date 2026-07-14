@@ -269,12 +269,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 })();
 </script>
 
-<!-- ── Helpers d'échappement globaux ──────────────────────────────────────────
-     Empêchent qu'un nom de document, de fournisseur ou une note contenant
-     < > & " ' ne casse l'affichage HTML ou un attribut onclick.
-     esc()  → texte inséré dans du HTML
-     escA() → valeur insérée dans un attribut (guillemets doubles)
-     escJs()→ chaîne passée en argument d'un onclick entre apostrophes         -->
+<!-- Helpers d'échappement globaux : empêchent qu'un nom contenant < > & " ' casse le HTML -->
 <script>
 (function(){
   function esc(v){
@@ -283,12 +278,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
   window.esc  = esc;
-  window.escA = esc; // même échappement, sémantique « attribut »
-  window.escJs = function(v){
-    return String(v==null?'':v)
-      .replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"')
-      .replace(/</g,'\\x3C').replace(/\r?\n/g,' ');
-  };
+  window.escA = esc;
 })();
 </script>
 
@@ -1614,6 +1604,35 @@ function pdfAnalyse(file){
     });
   }
 
+  // Variante « opérations » : renvoie {operations, tronque}.
+  // tronque = true si la réponse IA a été coupée (stop_reason = max_tokens),
+  // ce qui indique que des opérations manquent → le lecteur redécoupe et relit.
+  function lireBoutBrut(texte, role){
+    var prompt = pdfBuildPromptTexte(fournisseurs, role);
+    return fetch('/api/ia',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:8000,
+        messages:[{role:'user',content:[{type:'text',text:prompt+'\n\n=== TEXTE DU RELEVÉ ===\n'+texte}]}]})
+    }).then(function(r){
+      if(!r.ok) return r.json().then(function(j){throw new Error((j&&j.error)||('HTTP '+r.status));})
+        .catch(function(){throw new Error('Serveur IA HTTP '+r.status+' (ANTHROPIC_API_KEY configurée ?)');});
+      return r.json();
+    }).then(function(data){
+      if(data.error) throw new Error(data.error.message||data.error);
+      var txt=''; (data.content||[]).forEach(function(b){if(b.type==='text')txt+=b.text;});
+      var parsed = pdfParseJSON(txt)||{};
+      // Détection de troncature : on se fie d'abord au stop_reason renvoyé par
+      // l'IA ; s'il est absent (serveur qui ne le transmet pas), on regarde si
+      // le texte se termine bien par une accolade fermante (JSON complet).
+      var tronque;
+      if(data.stop_reason!=null){
+        tronque = (data.stop_reason==='max_tokens' || data.stop_reason==='length');
+      } else {
+        tronque = !/[}\]]\s*`?`?`?\s*$/.test((txt||'').trim());
+      }
+      return {operations:(parsed.operations||[]), tronque:tronque};
+    });
+  }
+
   pdfTextePages(file).then(function(pages){
     // séparer pages d'opérations (avant le récap SEPA) et pages de récap/totaux
     var reSepa = /D[EÉ]TAIL DE VOS (MOUVEMENTS|PR[EÉ]L[EÈ]VEMENTS|VIREMENTS) SEPA/i;
@@ -1637,20 +1656,53 @@ function pdfAnalyse(file){
     etat.phase='Lecture en-tête et totaux';
     var meta = lireBout((pages[0]||'')+'\n'+texteTotaux, 'meta');
 
-    // opérations : par groupes de 3 pages
-    var groupes=[]; for(var i=0;i<pagesOps.length;i+=3) groupes.push(pagesOps.slice(i,i+3).join('\n'));
+    // opérations : lecture ADAPTATIVE avec détection de troncature.
+    // On lit par paquets de 2 pages ; si la réponse IA est coupée (trop
+    // d'opérations pour la limite de sortie), on redécoupe le paquet en deux
+    // et on relit récursivement — d'abord par pages, puis par lignes si une
+    // seule page est trop dense. Aucune opération n'est perdue en silence.
     var seq = meta.then(function(m){
       _pdfMeta = m||{};
       var toutesOps=[];
-      var chain=Promise.resolve();
-      groupes.forEach(function(g,gi){
-        chain=chain.then(function(){
-          etat.phase='Lecture opérations '+(gi+1)+'/'+groupes.length;
-          return lireBout(g,'operations').then(function(res){
-            (res.operations||[]).forEach(function(o){toutesOps.push(o);});
-          });
+      var nbPaquets=0;
+
+      function lirePages(pagesArr, prof){
+        var texte = pagesArr.join('\n');
+        return lireBoutBrut(texte,'operations').then(function(res){
+          if(res.tronque && prof<9){
+            var moities=null;
+            if(pagesArr.length>1){
+              var mp=Math.ceil(pagesArr.length/2);
+              moities=[pagesArr.slice(0,mp), pagesArr.slice(mp)];
+            } else {
+              // une seule page trop dense : on coupe son texte en deux moitiés de lignes
+              var L=texte.split('\n');
+              if(L.length>4){
+                var ml=Math.ceil(L.length/2);
+                moities=[[L.slice(0,ml).join('\n')], [L.slice(ml).join('\n')]];
+              }
+            }
+            if(moities){
+              return lirePages(moities[0], prof+1).then(function(){
+                return lirePages(moities[1], prof+1);
+              });
+            }
+          }
+          // pas (ou plus) de troncature → on garde les opérations lues
+          (res.operations||[]).forEach(function(o){ toutesOps.push(o); });
         });
-      });
+      }
+
+      var chain=Promise.resolve();
+      for(var i=0;i<pagesOps.length;i+=2){
+        (function(slice){
+          chain=chain.then(function(){
+            nbPaquets++;
+            etat.phase='Lecture opérations (paquet '+nbPaquets+')';
+            return lirePages(slice, 0);
+          });
+        })(pagesOps.slice(i,i+2));
+      }
       return chain.then(function(){ return toutesOps; });
     });
 
@@ -1996,18 +2048,19 @@ function pdfTraiteResultat(parsed, restoSel){
 
     // ── CAS CHÈQUE : on bloque et on demande de préciser ce que c'est ──
     if(p.cheque){
+      var _stc = pdfDetecteSTC(p.libelle);
       var optCheque = ''
         + '<option value="">— Type de chèque —</option>'
-        + '<option value="Solde de tout compte">Solde de tout compte</option>'
+        + '<option value="Solde de tout compte"'+(_stc?' selected':'')+'>Solde de tout compte</option>'
         + '<option value="Autre">Autre</option>';
-      h += '<div class="tx-row tx-doute" data-i="'+i+'" data-cheque="1" style="flex-wrap:wrap;background:#fff3f3;border-left:3px solid #e03a3a;padding-left:8px;">'
-        + '<div class="tx-lbl" style="flex:1 1 100%">🧾 <strong>CHÈQUE à identifier</strong> — '+(p.libelle||'chèque')
-        + '<br><span style="color:#e03a3a;font-size:10px;font-weight:700">⚠ bloqué : précise ce que c\'est</span>'
+      h += '<div class="tx-row'+(_stc?'':' tx-doute')+'" data-i="'+i+'" data-cheque="1" style="flex-wrap:wrap;background:'+(_stc?'#effaf3':'#fff3f3')+';border-left:3px solid '+(_stc?'#0d9e6e':'#e03a3a')+';padding-left:8px;">'
+        + '<div class="tx-lbl" style="flex:1 1 100%">🧾 <strong>CHÈQUE'+(_stc?' — solde tout compte':' à identifier')+'</strong> — '+(p.libelle||'chèque')
+        + '<br>'+(_stc?'<span style="color:#0d9e6e;font-size:10px;font-weight:700">✓ STC détecté — vérifie le nom</span>':'<span style="color:#e03a3a;font-size:10px;font-weight:700">⚠ bloqué : précise ce que c\'est</span>')
         + ' <span style="color:#7a90a8;font-size:10px">1 op.'+dateTxt+'</span></div>'
         + '<div class="tx-amt" style="color:'+color+';flex:0 0 auto">'+(p.type==='sortie'?'- ':'+ ')+p.total.toLocaleString('fr-FR')+' €</div>'
         + '<div style="flex:1 1 100%;display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">'
         +   '<select class="tx-chq-type" data-i="'+i+'" onchange="pdfMajBouton()" style="flex:1;min-width:160px;padding:5px 8px;border:1px solid #f0b4b4;border-radius:6px;font-size:11px;background:#fff">'+optCheque+'</select>'
-        +   '<input class="tx-chq-nom" data-i="'+i+'" type="text" placeholder="Nom de la personne / bénéficiaire" oninput="pdfMajBouton()" style="flex:2;min-width:180px;padding:5px 8px;border:1px solid #f0b4b4;border-radius:6px;font-size:11px">'
+        +   '<input class="tx-chq-nom" data-i="'+i+'" type="text" value="'+(_stc?_stc.nom.replace(/"/g,'&quot;'):'')+'" placeholder="Nom de la personne / bénéficiaire" oninput="pdfMajBouton()" style="flex:2;min-width:180px;padding:5px 8px;border:1px solid #f0b4b4;border-radius:6px;font-size:11px">'
         + '</div>'
         + '</div>';
       return;
@@ -2078,6 +2131,21 @@ function pdfChoixPoste(sel){
   pdfMajBouton();
 }
 
+// Détection « solde tout compte » (STC) sur un libellé de chèque.
+// Renvoie {type,nom} si détecté (nom = bénéficiaire extrait), sinon null.
+function pdfDetecteSTC(lib){
+  var s=(lib||'').toUpperCase();
+  if(!/\bSTC\b/.test(s) && !/SOLDE\s+DE?\s+TOUT\s+COMPTE/.test(s)) return null;
+  var nom = s
+    .replace(/CH[EÈ]QUE/g,' ')
+    .replace(/SOLDE\s+DE?\s+TOUT\s+COMPTE/g,' ')
+    .replace(/\bSTC\b/g,' ')
+    .replace(/\d{3,}/g,' ')
+    .replace(/[^A-ZÀ-Ÿ '\-]/g,' ')
+    .replace(/\s+/g,' ').trim();
+  return {type:'Solde de tout compte', nom:nom};
+}
+
 // Active/désactive le bouton Importer selon qu'il reste des doutes non tranchés
 function pdfMajBouton(){
   var btn=document.getElementById('pdf-btn-import');
@@ -2140,8 +2208,9 @@ function pdfImport(){
       var t=row.querySelector('.tx-chq-type'), n=row.querySelector('.tx-chq-nom');
       var type=(t&&t.value)||'', benef=(n&&n.value.trim())||'';
       if(!type || !benef) return;            // sécurité : ne devrait pas arriver (bouton bloqué)
+      // STC → un poste unique groupé ; le nom du bénéficiaire reste dans le détail
       nom = type==='Solde de tout compte'
-        ? ('Solde de tout compte — '+benef)
+        ? 'Solde tout compte par chèque'
         : ('Chèque — '+benef);
       categorie = p.categorie||'autre';
     } else {
@@ -2247,15 +2316,9 @@ function pdfImport(){
 
 
 // ── SUPABASE — PROJET n°1 « Trésorerie » ────────────────────────────────────
-// ⚠️ ATTENTION : cette appli utilise DEUX projets Supabase différents.
-//   • _sb (ci-dessous) → projet « tydjzpguz… », UNIQUEMENT la table
-//     tresorerie_edits (montants/soldes des relevés bancaires importés).
-//   • sb  (plus bas)   → projet « wbhgseot… », TOUT le reste (fiches, biens,
-//     bâtiments, SCI, coches…).
-// Si ce n'est pas voulu, il faudra migrer tresorerie_edits vers le projet
-// principal puis remplacer _sb par sb. La clé ci-dessous est la clé PUBLIQUE
-// « anon » : ce n'est pas un secret, mais la sécurité réelle dépend du RLS
-// activé sur ce projet (voir SECURITE_RLS.md).
+// ⚠️ Cette appli utilise DEUX projets Supabase : _sb = table tresorerie_edits
+// (projet tydjzpguz…), sb = tout le reste (projet wbhgseot…). Clé « anon » publique :
+// la sécurité réelle dépend du RLS activé sur le projet (voir SECURITE_RLS.md).
 const _sb = supabase.createClient('https://tydjzpguzwqkeqwsvvbo.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5ZGp6cGd1endxa2Vxd3N2dmJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzYyMzksImV4cCI6MjA5NDc1MjIzOX0.Z72dXuodyYw1CPhdndsfLPo_wz6-67Q2Y0LTsT0Vl7A');
 
 // Charger toutes les modifications depuis Supabase au démarrage
@@ -2515,10 +2578,8 @@ window.tresoToggleExcDetail = tresoToggleExcDetail;
 </div>
 
 <script>
-// ── SUPABASE — PROJET n°2 « Principal » ──
-// sb → projet « wbhgseot… » : fiches, biens, bâtiments, SCI, coches, etc.
-// (Voir la note sur les deux projets plus haut, à la déclaration de _sb.)
-// Clé PUBLIQUE « anon » — sécurité réelle assurée par le RLS (SECURITE_RLS.md).
+// ── SUPABASE — PROJET n°2 « Principal » (fiches, biens, bâtiments, SCI…) ──
+// Voir la note sur les deux projets à la déclaration de _sb plus haut.
 const SUPA_URL = 'https://wbhgseotvlipalgmxchy.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGdzZW90dmxpcGFsZ214Y2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjI0NTYsImV4cCI6MjA5NDgzODQ1Nn0.LoDkhHH56bFgRYwXAtX4IVb9qyx0_W2NAgzJ0x3Drpg';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -4408,22 +4469,14 @@ async function loadHidden() {
 }
 
 async function init() {
-  // Chargement granulaire : chaque étape est isolée pour qu'une seule qui
-  // échoue ne fasse pas basculer toute l'appli « Hors ligne ». On compte les
-  // échecs et on affiche un état nuancé (connecté / partiel / hors ligne).
+  // Chargement granulaire : une étape qui échoue ne fait plus tout basculer hors ligne.
   const etapes = [
-    ['setupTables', setupTables],
-    ['loadHidden',  loadHidden],
-    ['loadState',   loadState],
-    ['loadFiches',  loadFiches],
-    ['loadBiens',   loadBiens],
-    ['loadBats',    loadBats],
-    ['loadSciFin',  loadSciFin],
+    ['setupTables', setupTables], ['loadHidden', loadHidden], ['loadState', loadState],
+    ['loadFiches', loadFiches], ['loadBiens', loadBiens], ['loadBats', loadBats], ['loadSciFin', loadSciFin],
   ];
   let echecs = 0;
   for (const [nom, fn] of etapes) {
-    try { await fn(); }
-    catch(e){ echecs++; console.error('init() — échec de '+nom+' :', e); }
+    try { await fn(); } catch(e){ echecs++; console.error('init() — échec de '+nom+' :', e); }
   }
   const dot = document.getElementById('db-dot');
   const status = document.getElementById('db-status');
