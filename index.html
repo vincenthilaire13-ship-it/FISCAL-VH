@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14i · postes rechargés</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14j · renommage appris</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1314,6 +1314,9 @@ function bkSave(){
     if(row) row.label = nl;
   }
   sbSave(resto, _bkSec, nl, _bkIsNew?{}:{old:_bkOldLbl}, _bkIsNew?'add':'rename');
+  // Apprentissage : en renommant, on redirige aussi les libellés bancaires appris
+  // vers le nouveau nom → les prochains relevés suivront automatiquement.
+  if(!_bkIsNew && window.tresoRenamePoste) window.tresoRenamePoste(resto, _bkOldLbl, nl);
   bkClose();
   render();
 }
@@ -7520,6 +7523,22 @@ window.tresoSavePoste = async function(soc, libelle, poste){
 window.tresoPosteAppris = function(soc, libelle){
   var lk = tresoLibelleKey(soc, libelle);
   return TRESO_POSTE_APPRIS[lk] || null;
+};
+
+// Renommer un poste = rediriger tous les libellés bancaires appris qui pointaient
+// vers l'ancien nom vers le nouveau. Ainsi les prochains relevés suivent le renommage.
+window.tresoRenamePoste = async function(soc, oldName, newName){
+  try{
+    if(!oldName || !newName || oldName===newName) return;
+    var aRemapper=[];
+    Object.keys(TRESO_POSTE_APPRIS).forEach(function(k){
+      if(TRESO_POSTE_APPRIS[k]===oldName){ TRESO_POSTE_APPRIS[k]=newName; aRemapper.push(k); }
+    });
+    for(const k of aRemapper){
+      const {error}=await sb.from('treso_categories').upsert({cle:'POSTE::'+k, categorie:newName}, {onConflict:'cle'});
+      if(error) console.warn('tresoRenamePoste:', error.message);
+    }
+  }catch(e){ console.warn('tresoRenamePoste:', e); }
 };
 
 // ── DÉTAIL DES OPÉRATIONS (pour cliquer sur un montant et voir/réaffecter) ──
