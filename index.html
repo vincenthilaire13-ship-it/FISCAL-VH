@@ -1032,7 +1032,7 @@ function renderDashboard(){
 
   if(chart){chart.destroy();chart=null;}
   chart=new Chart(document.getElementById('ch'),{
-    type:'bar',data:{labels:chartLbls,datasets:[{data:chartData,backgroundColor:bgC,borderColor:bdC,borderWidth:2,borderRadius:4}]},
+    type:'line',data:{labels:chartLbls,datasets:[{data:chartData,borderColor:'#1a6cf4',backgroundColor:'rgba(26,108,244,.12)',borderWidth:2,fill:true,tension:0.35,pointRadius:4,pointHoverRadius:6,pointBackgroundColor:bdC,pointBorderColor:bdC,spanGaps:true}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return fmt(c.raw);}}}},
       scales:{x:{ticks:{color:'#6b839a',font:{size:10},autoSkip:false,maxRotation:40},grid:{display:false}},
               y:{ticks:{color:'#6b839a',font:{size:10},callback:function(v){return fmtK(v);}},grid:{color:'rgba(0,0,0,.04)'}}}}
@@ -2291,6 +2291,10 @@ function pdfImport(){
     sbSave(restoSel, 'soldes', periode, {solde:soldeFin}, 'solde');
   }
 
+  // La société a désormais des données : on retire le marqueur « vide » pour que
+  // render() affiche le tableau + la courbe au lieu de l'écran d'accueil « Importez un relevé ».
+  if(RAW[restoSel]) RAW[restoSel]._vide=false;
+
   pdfStatus(imported+' poste(s) importé(s) pour '+periode+' — archivage du relevé…','ok');
 
   // Archivage du relevé PDF dans Dropbox + mémorisation du chemin dans Supabase
@@ -2337,6 +2341,7 @@ async function sbLoad(){
     }
     var r=RAW[row.resto];
     if(!r) return;
+    r._vide=false;   // cette société a des données enregistrées → elle n'est plus « vide »
     var sec=row.section;
     // soldes : objet {periode:montant}, pas un tableau de lignes
     if(row.action==='solde' || sec==='soldes'){
