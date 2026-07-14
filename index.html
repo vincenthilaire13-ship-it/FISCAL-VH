@@ -251,6 +251,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     if(inp && inp.value === CODE){ unlock(); }
     else { if(err) err.style.visibility='visible'; if(inp){ inp.value=''; inp.focus(); } }
   };
+  // Reverrouiller manuellement (bouton sidebar). Efface la session et réaffiche l'écran.
+  window.lockNow = function(){
+    try{ sessionStorage.removeItem(KEY); }catch(e){}
+    var ls = document.getElementById('lockScreen');
+    if(ls) ls.style.display = 'flex';
+    var inp = document.getElementById('lockInput');
+    if(inp){ inp.value=''; inp.focus(); }
+  };
   try{
     if(sessionStorage.getItem(KEY)==="1"){
       var ls=document.getElementById('lockScreen'); if(ls) ls.style.display='none';
@@ -258,6 +266,29 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       var i=document.getElementById('lockInput'); if(i) i.focus();
     }
   }catch(e){}
+})();
+</script>
+
+<!-- ── Helpers d'échappement globaux ──────────────────────────────────────────
+     Empêchent qu'un nom de document, de fournisseur ou une note contenant
+     < > & " ' ne casse l'affichage HTML ou un attribut onclick.
+     esc()  → texte inséré dans du HTML
+     escA() → valeur insérée dans un attribut (guillemets doubles)
+     escJs()→ chaîne passée en argument d'un onclick entre apostrophes         -->
+<script>
+(function(){
+  function esc(v){
+    return String(v==null?'':v)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  window.esc  = esc;
+  window.escA = esc; // même échappement, sémantique « attribut »
+  window.escJs = function(v){
+    return String(v==null?'':v)
+      .replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"')
+      .replace(/</g,'\\x3C').replace(/\r?\n/g,' ');
+  };
 })();
 </script>
 
@@ -293,6 +324,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
+    <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
+      style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
 </div>
 
@@ -2213,7 +2246,16 @@ function pdfImport(){
 }
 
 
-// ── SUPABASE ──────────────────────────────────────────────────────────────
+// ── SUPABASE — PROJET n°1 « Trésorerie » ────────────────────────────────────
+// ⚠️ ATTENTION : cette appli utilise DEUX projets Supabase différents.
+//   • _sb (ci-dessous) → projet « tydjzpguz… », UNIQUEMENT la table
+//     tresorerie_edits (montants/soldes des relevés bancaires importés).
+//   • sb  (plus bas)   → projet « wbhgseot… », TOUT le reste (fiches, biens,
+//     bâtiments, SCI, coches…).
+// Si ce n'est pas voulu, il faudra migrer tresorerie_edits vers le projet
+// principal puis remplacer _sb par sb. La clé ci-dessous est la clé PUBLIQUE
+// « anon » : ce n'est pas un secret, mais la sécurité réelle dépend du RLS
+// activé sur ce projet (voir SECURITE_RLS.md).
 const _sb = supabase.createClient('https://tydjzpguzwqkeqwsvvbo.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5ZGp6cGd1endxa2Vxd3N2dmJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzYyMzksImV4cCI6MjA5NDc1MjIzOX0.Z72dXuodyYw1CPhdndsfLPo_wz6-67Q2Y0LTsT0Vl7A');
 
 // Charger toutes les modifications depuis Supabase au démarrage
@@ -2473,7 +2515,10 @@ window.tresoToggleExcDetail = tresoToggleExcDetail;
 </div>
 
 <script>
-// ── SUPABASE ──
+// ── SUPABASE — PROJET n°2 « Principal » ──
+// sb → projet « wbhgseot… » : fiches, biens, bâtiments, SCI, coches, etc.
+// (Voir la note sur les deux projets plus haut, à la déclaration de _sb.)
+// Clé PUBLIQUE « anon » — sécurité réelle assurée par le RLS (SECURITE_RLS.md).
 const SUPA_URL = 'https://wbhgseotvlipalgmxchy.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGdzZW90dmxpcGFsZ214Y2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjI0NTYsImV4cCI6MjA5NDgzODQ1Nn0.LoDkhHH56bFgRYwXAtX4IVb9qyx0_W2NAgzJ0x3Drpg';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -2980,7 +3025,7 @@ function batDocsRecap(b){
     const relire = d.dropbox_path ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="batDocRelire(${gIdx},'${cat}')">🔄 Relire</button>` : '';
     return `<tr>
       <td><span class="tag tag-b" style="font-size:10px;">${catLbl}</span></td>
-      <td><strong>${d.titre||d.nom||'Document'}</strong> ${lu}${d.date_doc?`<div style="font-size:11px;color:var(--text3);">${d.date_doc}</div>`:''}</td>
+      <td><strong>${esc(d.titre||d.nom||'Document')}</strong> ${lu}${d.date_doc?`<div style="font-size:11px;color:var(--text3);">${esc(d.date_doc)}</div>`:''}</td>
       <td class="r" style="white-space:nowrap;">${ouvrir} ${relire} <span style="cursor:pointer;color:var(--danger);padding:0 4px;" title="Supprimer" onclick="batDocDelete(${gIdx})">×</span></td>
     </tr>`;
   }).join('');
@@ -3292,7 +3337,7 @@ function renderSyndic(b) {
       const lu = d.extrait ? '<span class="tag tag-g" style="font-size:10px;">✓ lu</span>' : '<span class="tag tag-w" style="font-size:10px;">⚠ non lu</span>';
       const ouvrir = d.url ? `<a href="${d.url}" target="_blank" rel="noopener" class="btn" style="font-size:11px;padding:3px 9px;">📄 Ouvrir</a>` : '';
       const relire = d.dropbox_path ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="batDocRelire(${gIdx},'syndic')">🔄 Relire</button>` : '';
-      return `<tr><td>📄 ${d.titre||d.nom||'Document'} ${lu}</td><td class="r" style="white-space:nowrap;">${ouvrir} ${relire} <span style="cursor:pointer;color:var(--danger);padding:0 4px;" onclick="batDocDelete(${gIdx})">×</span></td></tr>`;
+      return `<tr><td>📄 ${esc(d.titre||d.nom||'Document')} ${lu}</td><td class="r" style="white-space:nowrap;">${ouvrir} ${relire} <span style="cursor:pointer;color:var(--danger);padding:0 4px;" onclick="batDocDelete(${gIdx})">×</span></td></tr>`;
     }).join('');
     // appels de fonds de l'année
     const appelRows = aIdx.map(({a,i})=>{
@@ -3449,7 +3494,7 @@ function renderDocs(b) {
       ? `<span class="tag tag-g" style="font-size:10px;" title="Copié dans Dropbox">Dropbox ✓</span>`
       : (dbxOn ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="sendToDropbox(${i})">→ Dropbox</button>` : '');
     return `<tr>
-      <td><strong>${d.nom||'—'}</strong></td>
+      <td><strong>${esc(d.nom||'—')}</strong></td>
       <td><span class="tag tag-gr">${d.type||'Autre'}</span></td>
       <td class="r">${d.date||'—'}</td>
       <td class="r" style="white-space:nowrap;">${ouvrir} ${tele} ${dbxBadge} <span style="cursor:pointer;color:var(--danger);padding:0 4px;" onclick="delDoc(${i})">×</span></td>
@@ -4363,19 +4408,34 @@ async function loadHidden() {
 }
 
 async function init() {
-  try {
-    await setupTables();
-    await loadHidden();
-    await loadState();
-    await loadFiches();
-    await loadBiens();
-    await loadBats();
-    await loadSciFin();
-    document.getElementById('db-dot').classList.remove('off');
-    document.getElementById('db-status').textContent = 'Supabase connecté';
-  } catch(e) {
-    document.getElementById('db-dot').classList.add('off');
-    document.getElementById('db-status').textContent = 'Hors ligne';
+  // Chargement granulaire : chaque étape est isolée pour qu'une seule qui
+  // échoue ne fasse pas basculer toute l'appli « Hors ligne ». On compte les
+  // échecs et on affiche un état nuancé (connecté / partiel / hors ligne).
+  const etapes = [
+    ['setupTables', setupTables],
+    ['loadHidden',  loadHidden],
+    ['loadState',   loadState],
+    ['loadFiches',  loadFiches],
+    ['loadBiens',   loadBiens],
+    ['loadBats',    loadBats],
+    ['loadSciFin',  loadSciFin],
+  ];
+  let echecs = 0;
+  for (const [nom, fn] of etapes) {
+    try { await fn(); }
+    catch(e){ echecs++; console.error('init() — échec de '+nom+' :', e); }
+  }
+  const dot = document.getElementById('db-dot');
+  const status = document.getElementById('db-status');
+  if (echecs === 0) {
+    if(dot) dot.classList.remove('off');
+    if(status) status.textContent = 'Supabase connecté';
+  } else if (echecs < etapes.length) {
+    if(dot) dot.classList.remove('off');
+    if(status) status.textContent = 'Connecté (chargement partiel)';
+  } else {
+    if(dot) dot.classList.add('off');
+    if(status) status.textContent = 'Hors ligne';
   }
   sim();
   calcFiscal();
@@ -4622,7 +4682,7 @@ function renderFiche(f, hist) {
   const hdrRight = isSeed
     ? `<div style="display:flex;align-items:center;gap:6px;"><span class="tag tag-gr">base</span>${delBtn}</div>`
     : delBtn;
-  d.innerHTML = `<div class="soc-hdr"><div><div class="soc-name">${f.nom}</div><div class="soc-type">${f.categorie}${f.assureur?' · '+f.assureur:''}</div></div>${hdrRight}</div>
+  d.innerHTML = `<div class="soc-hdr"><div><div class="soc-name">${esc(f.nom)}</div><div class="soc-type">${esc(f.categorie)}${f.assureur?' · '+esc(f.assureur):''}</div></div>${hdrRight}</div>
 <div class="soc-nums">
   <div class="soc-num"><div class="nl">Prime actuelle</div><div class="nv">${prime}</div></div>
   <div class="soc-num"><div class="nl">Échéance</div><div class="nv">${f.echeance||'—'}</div></div>
@@ -4795,7 +4855,7 @@ function renderEcheances() {
     else if(days<=90) tag=`<span class="tag tag-w">Dans ${days}j</span>`;
     else tag='<span class="tag tag-g">OK</span>';
     const prime = f.prime?Math.round(f.prime).toLocaleString('fr-FR')+'€':'—';
-    return `<tr><td><strong>${f.nom}</strong></td><td>${f.assureur||'—'}</td><td class="r">${prime}</td><td class="r">${f.echeance}</td><td class="r">${tag}</td></tr>`;
+    return `<tr><td><strong>${esc(f.nom)}</strong></td><td>${esc(f.assureur||'—')}</td><td class="r">${prime}</td><td class="r">${esc(f.echeance)}</td><td class="r">${tag}</td></tr>`;
   }).join('');
 }
 
@@ -5372,7 +5432,7 @@ function isAddRow(d) {
   const dl = d.url ? `<a href="${d.url}" target="_blank" class="btn" style="font-size:11px;padding:3px 9px;">Ouvrir</a>` : '';
   const del = d.id ? `<button class="btn" style="font-size:11px;padding:3px 9px;" onclick="isDelete('${d.id}','${(d.dropbox_path||'').replace(/'/g,"")}')">Suppr.</button>` : '';
   row.innerHTML = `<div class="fext ${ext==='CSV'?'csv':''}">${ext}</div>
-<div class="finfo"><div class="fname">${d.nom}</div><div class="fmeta">${d.doctype||''} · Exercice ${d.year||d.exercice||''}</div></div>
+<div class="finfo"><div class="fname">${esc(d.nom)}</div><div class="fmeta">${esc(d.doctype||'')} · Exercice ${esc(d.year||d.exercice||'')}</div></div>
 <div style="display:flex;gap:6px;align-items:center;">${dl}${del}<span class="fst ${d.statut==='archive'?'fst-ok':'fst-p'}">${d.statut==='archive'?'Dropbox ✓':(d.statut==='up'?'…':'')}</span></div>`;
   list.prepend(row);
   return row;
@@ -5560,7 +5620,7 @@ async function docImpRender(box){
   if(!list) return;
   let docs = [];
   try {
-    const {data} = await sb.from('societe_docs').select('*').eq('societe',key).order('exercice',{ascending:true}).order('created_at',{ascending:true});
+    const {data} = await sb.from('societe_docs').select('*').eq('societe',key).order('exercice',{ascending:false}).order('created_at',{ascending:false});
     docs = data||[];
   } catch(e){}
   list.innerHTML='';
@@ -5582,7 +5642,7 @@ async function docImpRender(box){
     const row=document.createElement('div');
     row.className='fitem';
     row.innerHTML=`<div class="fext ${ext==='CSV'?'csv':''}">${ext}</div>
-<div class="finfo"><div class="fname">${d.nom}</div><div class="fmeta">${d.doctype||''} · Année ${d.exercice||'?'}</div></div>
+<div class="finfo"><div class="fname">${esc(d.nom)}</div><div class="fmeta">${esc(d.doctype||'')} · Année ${esc(d.exercice||'?')}</div></div>
 <div style="display:flex;gap:6px;align-items:center;">${dl}${del}<span class="fst fst-ok">Dropbox ✓</span></div>`;
     list.appendChild(row);
   });
@@ -5710,7 +5770,7 @@ function socImpRow(list, d, append) {
     yearSel = `<select class="si-rowyear" style="font-size:11px;padding:1px 4px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text2);font-family:var(--font);" onchange="socImpReclasse(this,'${d.id}','${safePath}','${d.societe||''}','${safeDoc}')">${opts}</select>`;
   }
   row.innerHTML = `<div class="fext ${ext==='CSV'?'csv':''}">${ext}</div>
-<div class="finfo"><div class="fname">${d.nom}</div><div class="fmeta" style="display:flex;align-items:center;gap:6px;">${d.doctype||''} · ${yearSel}</div></div>
+<div class="finfo"><div class="fname">${esc(d.nom)}</div><div class="fmeta" style="display:flex;align-items:center;gap:6px;">${esc(d.doctype||'')} · ${yearSel}</div></div>
 <div style="display:flex;gap:6px;align-items:center;">${dl}${relire}${del}<span class="fst ${d.statut==='archive'?'fst-ok':'fst-p'}">${d.statut==='archive'?'Dropbox ✓':(d.statut==='up'?'…':'')}</span></div>`;
   if(append) list.appendChild(row); else list.prepend(row);
   return row;
@@ -5809,7 +5869,27 @@ async function socImpRender(box) {
   if(readErr){ list.innerHTML='<div style="font-size:12px;color:var(--warn);padding:8px;text-align:center;">⚠ Impossible de lire l\'index des fichiers (table societe_docs). Détail : '+readErr+'</div>'; return; }
   if(!docs.length){ list.innerHTML='<div style="color:var(--text3);font-size:12px;padding:6px 0;text-align:center;">Aucun fichier encore — dépose les bilans des derniers exercices ci-dessus.</div>'; return; }
   list.innerHTML='';
-  Object.keys(byYear).sort((a,b)=>a-b).forEach(y=>{
+  // Récap permanent : pour chaque exercice dont le bilan a été lu, une ligne verte
+  // « ✓ Bilan <année> — résultat net X, capitaux propres Y » (lue depuis societe_finances).
+  try {
+    let finRows = SOC_FIN_CACHE[soc];
+    if(!finRows){
+      const {data} = await sb.from('societe_finances').select('exercice,donnees').eq('societe',soc).order('exercice',{ascending:true});
+      finRows = data||[];
+    }
+    finRows = (finRows||[]).slice().sort((a,b)=>(parseInt(b.exercice)||0)-(parseInt(a.exercice)||0));
+    const eur = n => (n!=null && !isNaN(Number(n))) ? Math.round(Number(n)).toLocaleString('fr-FR')+'€' : 'n.c.';
+    finRows.forEach(r=>{
+      const d = r.donnees||{};
+      if(d.resultat_net==null && d.capitaux_propres==null) return;
+      const cl = d.date_cloture ? (' <span style="color:var(--text3);">(clôture '+d.date_cloture+')</span>') : '';
+      const ligne = document.createElement('div');
+      ligne.style.cssText='font-size:12px;color:var(--success);background:var(--success-l);border:1px solid rgba(22,101,52,0.2);border-radius:8px;padding:7px 10px;margin-bottom:6px;';
+      ligne.innerHTML = '✓ <strong>Bilan '+r.exercice+'</strong> lu'+cl+' — résultat net : <strong>'+eur(d.resultat_net)+'</strong>, capitaux propres : <strong>'+eur(d.capitaux_propres)+'</strong>';
+      list.appendChild(ligne);
+    });
+  } catch(e){}
+  Object.keys(byYear).sort((a,b)=>b-a).forEach(y=>{
     const h=document.createElement('div');
     h.style.cssText='font-size:11px;font-weight:600;color:var(--text2);margin:10px 0 4px;letter-spacing:.5px;';
     h.textContent='EXERCICE '+y+' · '+byYear[y].length+' fichier'+(byYear[y].length>1?'s':'');
