@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14h · démarrage blindé 2</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14i · postes rechargés</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -2377,7 +2377,14 @@ async function sbLoad(){
       if(existing) existing.label=row.label;
     } else if(row.action==='update'){
       var existing=r[sec].find(function(x){return x.label===row.label;});
-      if(existing) Object.assign(existing.vals, row.vals||{});
+      if(existing){ Object.assign(existing.vals, row.vals||{}); }
+      else {
+        // CORRECTIF : au chargement à froid, le poste n'existe pas encore.
+        // On le CRÉE (au lieu de l'ignorer) pour que les fournisseurs reviennent.
+        var tiU=r[sec].findIndex(function(x){return (x.label||'').toUpperCase()==='TOTAL';});
+        var nrU={label:row.label, vals:row.vals||{}};
+        if(tiU>=0) r[sec].splice(tiU,0,nrU); else r[sec].push(nrU);
+      }
     }
   });
   render();
