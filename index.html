@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14j · renommage appris</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14k · relevés listés en bas</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1217,11 +1217,11 @@ function render(){
       var old=document.getElementById('treso-releves-bloc'); if(old) old.remove();
       var bloc=document.createElement('div');
       bloc.id='treso-releves-bloc';
-      bloc.style.cssText='margin:0 0 18px;background:#fff;border:1px solid #e6ecf5;border-radius:12px;padding:16px 18px;box-shadow:0 2px 10px rgba(15,28,46,.05)';
+      bloc.style.cssText='margin:28px 0 40px;background:#fff;border:1px solid #e6ecf5;border-radius:12px;padding:16px 18px;box-shadow:0 2px 10px rgba(15,28,46,.05)';
       bloc.innerHTML='<div style="font-size:15px;font-weight:700;color:#0f1c2e;margin-bottom:4px">📄 Relevés bancaires importés — '+resto+'</div>'
-        +'<div style="font-size:11px;color:#7a90a8;margin-bottom:12px">Tous les relevés téléchargés pour cette banque. « voir » ouvre le PDF dans Dropbox · « 🔄 relire » relance la lecture · « supprimer » efface le PDF, tous les montants du mois et le solde.</div>'
+        +'<div style="font-size:11px;color:#7a90a8;margin-bottom:12px">Chaque mois importé est listé ici. « voir » ouvre le PDF dans Dropbox · « 🔄 relire » relance la lecture · « supprimer » efface le mois (montants + solde) et le PDF sur Dropbox.</div>'
         +'<div id="treso-releves-liste">'+window.tresoRelevesListe(resto)+'</div>';
-      ct.insertBefore(bloc, ct.firstChild);
+      ct.appendChild(bloc);
       // aller chercher les PDF déjà rangés dans Dropbox (gratuit, sans IA) puis rafraîchir la liste
       if(window.tresoScanDropbox){
         var socScan=resto;
@@ -3844,9 +3844,14 @@ window.tresoSupprimerReleve = async function(soc, periode){
 // HTML de la liste des relevés importés pour une société (lien + suppression individuelle)
 window.tresoRelevesListe = function(soc){
   var rel = TRESO_RELEVES[soc]||{};
-  var mois = Object.keys(rel);
-  if(!mois.length) return '<div style="font-size:12px;color:#7a90a8">Aucun relevé importé pour l\'instant. Importe un relevé ci-dessus, il apparaîtra ici avec un lien.</div>';
-  // trier par année puis mois
+  var soldes = (RAW[soc] && RAW[soc].soldes) || {};
+  // union : mois archivés dans Dropbox + mois qui ont des données importées.
+  // Ainsi la liste marche même si l'archivage Dropbox a échoué.
+  var set={};
+  Object.keys(rel).forEach(function(p){ set[p]=true; });
+  Object.keys(soldes).forEach(function(p){ set[p]=true; });
+  var mois = Object.keys(set);
+  if(!mois.length) return '<div style="font-size:12px;color:#7a90a8">Aucun relevé importé pour l\'instant. Importe un relevé, il apparaîtra ici.</div>';
   var ordreMois={'JAN':1,'FEV':2,'MAR':3,'AVR':4,'MAI':5,'JUI':6,'JUL':7,'AOU':8,'SEP':9,'OCT':10,'NOV':11,'DEC':12,'DÉC':12};
   mois.sort(function(a,b){
     var ya=(a.match(/\d{4}/)||[0])[0], yb=(b.match(/\d{4}/)||[0])[0];
@@ -3856,12 +3861,18 @@ window.tresoRelevesListe = function(soc){
   });
   var h='';
   mois.forEach(function(p){
+    var soc_e=soc.replace(/'/g,"\\'"), p_e=p.replace(/'/g,"\\'");
+    var hasPdf=!!rel[p];
+    var boutons='';
+    if(hasPdf){
+      boutons+='<button onclick="tresoVoirReleve(\''+soc_e+'\',\''+p_e+'\')" style="font-size:11px;padding:4px 10px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">voir</button>'
+             +'<button onclick="tresoRelireReleve(\''+soc_e+'\',\''+p_e+'\')" style="font-size:11px;padding:4px 10px;background:#eef4ff;color:#1a6cf4;border:none;border-radius:6px;cursor:pointer">🔄 relire</button>';
+    } else {
+      boutons+='<span style="font-size:10px;color:#b08800;font-style:italic">PDF non archivé sur Dropbox</span>';
+    }
+    boutons+='<button onclick="tresoSupprimerReleve(\''+soc_e+'\',\''+p_e+'\')" style="font-size:11px;padding:4px 10px;background:#fdecec;color:#e03a3a;border:none;border-radius:6px;cursor:pointer">supprimer</button>';
     h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f3f8">'
-      +'<span style="flex:1;font-size:13px;font-weight:600">📄 '+p+'</span>'
-      +'<button onclick="tresoVoirReleve(\''+soc.replace(/'/g,"\\'")+'\',\''+p.replace(/'/g,"\\'")+'\')" style="font-size:11px;padding:4px 10px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">voir</button>'
-      +'<button onclick="tresoRelireReleve(\''+soc.replace(/'/g,"\\'")+'\',\''+p.replace(/'/g,"\\'")+'\')" style="font-size:11px;padding:4px 10px;background:#eef4ff;color:#1a6cf4;border:none;border-radius:6px;cursor:pointer">🔄 relire</button>'
-      +'<button onclick="tresoSupprimerReleve(\''+soc.replace(/'/g,"\\'")+'\',\''+p.replace(/'/g,"\\'")+'\')" style="font-size:11px;padding:4px 10px;background:#fdecec;color:#e03a3a;border:none;border-radius:6px;cursor:pointer">supprimer</button>'
-      +'</div>';
+      +'<span style="flex:1;font-size:13px;font-weight:600">📄 '+p+'</span>'+boutons+'</div>';
   });
   return h;
 };
