@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14p · bilan corrigeable</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14r · masquer des lignes</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -905,6 +905,19 @@ function buildSolde(cols){
   return h+'</tr></tbody></table>';
 }
 
+// Masquage de lignes (visuel, données conservées) — état partagé window.TRESO_MASQUES
+window.TRESO_MASQUES = window.TRESO_MASQUES || {};
+window.tresoToggleMasque = function(section, lblEnc){
+  var lbl=decodeURIComponent(lblEnc);
+  var key=resto+'||'+section+'||'+lbl;
+  var M=window.TRESO_MASQUES=window.TRESO_MASQUES||{};
+  var on;
+  if(M[key]){ delete M[key]; on=false; } else { M[key]=true; on=true; }
+  if(window.tresoPersistMasque) window.tresoPersistMasque('MASQUE::'+key, on);
+  render();
+};
+window.tresoToggleShowMasques = function(){ window._tresoShowMasques=!window._tresoShowMasques; render(); };
+
 function buildRows(rows, cols, section){
   var sign = section==='sorties' ? -1 : 1;
   var h='';
@@ -916,6 +929,7 @@ function buildRows(rows, cols, section){
     if(ta!==tb) return ta?1:-1;
     return la.localeCompare(lb,'fr',{sensitivity:'base'});
   });
+  var nbMasques=0, showM=!!window._tresoShowMasques, MSQ=window.TRESO_MASQUES||{};
   sorted.forEach(function(row){
     var lbl=row.label; if(!lbl) return;
     var isA=lbl.length===1&&/[A-Z]/.test(lbl);
@@ -923,10 +937,14 @@ function buildRows(rows, cols, section){
     if(!isA&&!isT&&sq&&!lbl.toLowerCase().includes(sq.toLowerCase())) return;
     if(!isA&&!isT&&!cols.some(function(c){return row.vals[c.label];})) return;
     if(isA) return;
+    // masquage : ligne cachée (données conservées). En mode « afficher », elle réapparaît grisée.
+    var estMasque = (!isT && MSQ[resto+'||'+section+'||'+lbl]);
+    if(estMasque){ nbMasques++; if(!showM) return; }
     var tc=isT?'tr':(section==='sorties'?'rs':'re');
     var displayLbl = isT ? (section==='sorties' ? 'TOTAL SORTIES' : 'TOTAL ENTRÉES') : lbl;
     var eb=!isT?'<button class="ebtn" data-lbl="'+encodeURIComponent(lbl)+'" data-sec="'+section+'" onclick="bkOpenEdit(this)">&#9998;</button>':'';
-    h+='<tr class="'+tc+'"><td>'+displayLbl+eb+'</td>';
+    var mBtn=!isT?'<span onclick="tresoToggleMasque(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="'+(estMasque?'réafficher cette ligne':'masquer cette ligne')+'" style="cursor:pointer;margin-left:6px;opacity:.5;font-size:11px">'+(estMasque?'👁':'🙈')+'</span>':'';
+    h+='<tr class="'+tc+'"'+(estMasque?' style="opacity:.55"':'')+'><td>'+displayLbl+eb+mBtn+'</td>';
     var s25=0,s26=0;
     cols.forEach(function(w){
       var v=row.vals[w.label]||null;
@@ -949,6 +967,11 @@ function buildRows(rows, cols, section){
     h+='<td style="font-weight:700;color:#0d9e6e;font-family:var(--mono)">'+(s26?fmt(s26*sign):'')+'</td>';
     h+='</tr>';
   });
+  // barre « N postes masqués — cliquer pour afficher/cacher »
+  if(nbMasques>0){
+    var nc=cols.length+3;
+    h+='<tr><td colspan="'+nc+'" onclick="tresoToggleShowMasques()" style="cursor:pointer;text-align:left;background:#eef2f7;color:#1a6cf4;font-size:11px;padding:6px 12px">🙈 '+nbMasques+' poste'+(nbMasques>1?'s':'')+' masqué'+(nbMasques>1?'s':'')+' — '+(showM?'cliquer pour cacher':'cliquer pour afficher')+'</td></tr>';
+  }
   return h;
 }
 
@@ -1383,26 +1406,30 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
   // opérations de ce poste pour ce mois
   var ops = detail.filter(function(o){ return o.poste===poste && o.sec===section; });
 
-  // liste des autres postes existants (pour réaffecter)
+  // liste des autres postes existants (pour réaffecter), triée A→Z
   var autres=[];
   if(RAW[soc] && RAW[soc][section]){
     RAW[soc][section].forEach(function(x){ if(x.label && x.label.toUpperCase()!=='TOTAL') autres.push(x.label); });
   }
+  autres.sort(function(a,b){return a.localeCompare(b,'fr',{sensitivity:'base'});});
+  // datalist partagée : tri A→Z + recherche en tapant (ex. « s » → tous les postes en S).
+  // Tu peux aussi taper un nom qui n'existe pas : il sera créé comme nouveau poste.
+  var dataList='<datalist id="det-postes-list">'+autres.filter(function(a){return a!==poste;}).map(function(a){return '<option value="'+esc(a)+'"></option>';}).join('')+'</datalist>';
 
   var h = bandeau
-    +'<div style="font-size:11px;color:#7a90a8;margin-bottom:12px">'+ops.length+' opération(s) — la date affichée est celle de la transaction sur le relevé · « déplacer » pour réaffecter</div>';
+    + dataList
+    +'<div style="font-size:11px;color:#7a90a8;margin-bottom:12px">'+ops.length+' opération(s) — la date est celle du relevé · dans « déplacer », tape une lettre pour filtrer les postes (triés A→Z)</div>';
   if(!ops.length){
     h+='<div style="font-size:13px;color:#6b839a">Aucune opération détaillée pour ce poste (il a pu être saisi à la main).</div>';
   }
   ops.forEach(function(o,idx){
-    var opts=autres.filter(function(a){return a!==poste;}).map(function(a){return '<option value="'+a.replace(/"/g,'')+'">'+a+'</option>';}).join('');
     var dateBadge = o.date ? '<span style="font-family:var(--mono);font-size:10px;color:#1a6cf4;background:#eef4ff;padding:1px 6px;border-radius:4px;margin-right:6px">'+o.date+'</span>' : '';
     var excBadge = o.exceptionnel ? '<span title="'+((o.commentaire||'').replace(/"/g,'&quot;'))+'" style="font-size:10px;color:#b3600f;background:#fff3d6;padding:1px 6px;border-radius:4px;margin-right:6px">⚡ exceptionnel</span>' : '';
     var chqBadge = o.cheque ? '<span style="font-size:10px;color:#e03a3a;background:#fdecec;padding:1px 6px;border-radius:4px;margin-right:6px">🧾 chèque</span>' : '';
     h+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f3f8">'
       +'<div style="flex:1;font-size:12px">'+dateBadge+chqBadge+excBadge+(o.libelle||poste)+(o.groupe&&o.nb>1?' <span style="color:#7a90a8;font-size:10px">('+o.nb+' opérations regroupées)</span>':'')+'</div>'
       +'<div style="font-family:var(--mono);font-size:12px;font-weight:700;min-width:80px;text-align:right">'+(o.montant||0).toLocaleString('fr-FR')+' €</div>'
-      +'<select id="det-sel-'+idx+'" style="font-size:11px;padding:4px 6px;border:1px solid #dce3ee;border-radius:6px"><option value="">→ déplacer vers…</option>'+opts+'<option value="__NEW__">➕ nouveau poste</option></select>'
+      +'<input list="det-postes-list" id="det-sel-'+idx+'" placeholder="déplacer / chercher…" style="font-size:11px;padding:4px 6px;border:1px solid #dce3ee;border-radius:6px;min-width:150px">'
       +'<button onclick="tresoReaffecte('+idx+')" style="font-size:11px;padding:5px 9px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">OK</button>'
       +'</div>';
     // NOUVEAU : détail des opérations regroupées — chacune déplaçable individuellement
@@ -1414,7 +1441,7 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
         h+='<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#5a6b7e;padding:3px 0;border-top:1px solid #eef2f7">'
           +'<span style="flex:1;min-width:0">'+sd+esc(s.libelle||'')+'</span>'
           +'<span style="font-family:var(--mono);font-weight:600;white-space:nowrap;min-width:66px;text-align:right">'+(s.montant||0).toLocaleString('fr-FR')+' €</span>'
-          +'<select id="det-sub-'+idx+'-'+si+'" style="font-size:10px;padding:3px 5px;border:1px solid #dce3ee;border-radius:5px"><option value="">→ déplacer…</option>'+opts+'<option value="__NEW__">➕ nouveau</option></select>'
+          +'<input list="det-postes-list" id="det-sub-'+idx+'-'+si+'" placeholder="déplacer…" style="font-size:10px;padding:3px 5px;border:1px solid #dce3ee;border-radius:5px;min-width:130px">'
           +'<button onclick="tresoReaffecteOp('+idx+','+si+')" style="font-size:10px;padding:4px 8px;background:#1a6cf4;color:#fff;border:none;border-radius:5px;cursor:pointer">OK</button>'
           +'</div>';
       });
@@ -1477,9 +1504,8 @@ function tresoDetClose(){ var ov=document.getElementById('det-ov'); if(ov) ov.cl
 // Réaffecter une opération vers un autre poste : recalcule les deux postes concernés
 function tresoReaffecte(idx){
   if(!_detailCtx) return;
-  var sel=document.getElementById('det-sel-'+idx); if(!sel||!sel.value) return;
-  var dest = sel.value;
-  if(dest==='__NEW__'){ dest=(prompt('Nom du nouveau poste :')||'').trim(); if(!dest) return; }
+  var sel=document.getElementById('det-sel-'+idx); if(!sel) return;
+  var dest=(sel.value||'').trim(); if(!dest) return;   // texte tapé = poste existant OU nouveau
   var ctx=_detailCtx, o=ctx.ops[idx]; if(!o) return;
   var soc=ctx.soc, periode=ctx.periode, section=ctx.section, montant=pdfNum(o.montant);
 
@@ -1512,9 +1538,8 @@ function tresoReaffecte(idx){
 // Réaffecter UNE SEULE opération d'un groupe vers un autre poste
 function tresoReaffecteOp(idx, subIdx){
   if(!_detailCtx) return;
-  var sel=document.getElementById('det-sub-'+idx+'-'+subIdx); if(!sel||!sel.value) return;
-  var dest=sel.value;
-  if(dest==='__NEW__'){ dest=(prompt('Nom du nouveau poste :')||'').trim(); if(!dest) return; }
+  var sel=document.getElementById('det-sub-'+idx+'-'+subIdx); if(!sel) return;
+  var dest=(sel.value||'').trim(); if(!dest) return;   // texte tapé = poste existant OU nouveau
   var ctx=_detailCtx, o=ctx.ops[idx]; if(!o||!o.sousOps) return;
   var s=o.sousOps[subIdx]; if(!s) return;
   var soc=ctx.soc, periode=ctx.periode, section=ctx.section, montant=pdfNum(s.montant);
@@ -7581,12 +7606,24 @@ async function loadTresoCategories(){
             if(arr){ var lg = arr.find(function(x){return x.label===parts[2];}); if(lg){ if(!lg.exc) lg.exc={}; lg.exc[parts[3]]={note:note}; } }
           }
         }catch(e){}
+      } else if(r.cle.indexOf('MASQUE::')===0){
+        // poste masqué (visuel) : "MASQUE::soc||sec||label"
+        window.TRESO_MASQUES = window.TRESO_MASQUES || {};
+        window.TRESO_MASQUES[r.cle.slice(8)] = true;
       } else if(r.categorie){
         TRESO_CAT_OVERRIDE[r.cle] = r.categorie;
       }
     });
   }catch(e){ console.warn('loadTresoCategories:', e); }
 }
+
+// Masquer / démasquer un poste : persiste dans treso_categories (préfixe MASQUE::).
+window.tresoPersistMasque = async function(cle, on){
+  try{
+    if(on) await sb.from('treso_categories').upsert({cle:cle, categorie:'1'}, {onConflict:'cle'});
+    else   await sb.from('treso_categories').delete().eq('cle',cle);
+  }catch(e){ console.warn('tresoPersistMasque:', e); }
+};
 
 // Mémoriser une catégorie apprise (apprentissage) : écrit dans Supabase + cache local.
 // Une fois appris, le système ne redemande plus jamais où va ce poste.
