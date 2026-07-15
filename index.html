@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14w · vue mensuelle triée</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14x · tableau de bord épuré</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1071,15 +1071,22 @@ function renderDashboard(){
     sortSum+=trow&&trow.vals[w.label]?trow.vals[w.label]:0;
     entSum+=erow&&erow.vals[w.label]?erow.vals[w.label]:0;
   });
-  var diff=latV-dec, diffP=((diff/Math.abs(dec))*100).toFixed(1);
+  var diff=latV-dec;
+  // entrées / sorties du dernier mois connu (somme des postes, hors ligne TOTAL)
+  function _sumSec(sec, mois){ var t=0; (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()!=='TOTAL' && x.vals && x.vals[mois]!=null) t+=Number(x.vals[mois])||0; }); return t; }
+  var entMois = latL ? _sumSec('entrees', latL) : 0;
+  var sorMois = latL ? _sumSec('sorties', latL) : 0;
 
-  var html='<div class="pt">'+resto+' — Suivi de Trésorerie</div>'
-    +'<div class="ps">Exercice 2025 – 2026</div>'
+  var html='<div class="pt">'+resto+' — Vue d\'ensemble</div>'
+    +'<div class="ps">Coup d\'œil · exercice 2025 – 2026</div>'
     +'<div class="kpi-grid">'
-    +'<div class="kpi"><div class="kpi-lbl">Solde actuel ('+latL+')</div><div class="kpi-val" style="color:'+(latV>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(latV)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">Solde actuel ('+(latL||'—')+')</div><div class="kpi-val" style="color:'+(latV>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(latV)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">Entrées ('+(latL||'—')+')</div><div class="kpi-val" style="color:#0d9e6e">'+fmt(entMois)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">Sorties ('+(latL||'—')+')</div><div class="kpi-val" style="color:#e03a3a">'+fmt(sorMois)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">Variation depuis Déc 2024</div><div class="kpi-val" style="color:'+(diff>=0?'#0d9e6e':'#e03a3a')+'">'+(diff>=0?'+ ':'')+fmt(diff)+'</div></div>'
     +'</div>';
 
-  // Chart
+  // Chart — le vrai plus du tableau de bord
   var chartLbls=cols.map(function(w){return w.label;});
   var chartData=cols.map(function(w){return d.soldes[w.label]||null;});
   var bgC=cols.map(function(w){return w.year==='2025'?'rgba(61,134,255,.3)':'rgba(19,196,135,.3)';});
@@ -1088,12 +1095,10 @@ function renderDashboard(){
   html+='<div class="chart-card"><div class="chart-hdr"><div class="chart-title">Évolution du solde</div>'
     +'<div class="legend"><div class="leg-item"><div class="leg-dot" style="background:#3d86ff"></div>2025</div>'
     +'<div class="leg-item"><div class="leg-dot" style="background:#13c487"></div>2026</div></div></div>'
-    +'<div style="position:relative;height:220px"><canvas id="ch" role="img" aria-label="Solde '+resto+'"></canvas></div></div>';
+    +'<div style="position:relative;height:260px"><canvas id="ch" role="img" aria-label="Solde '+resto+'"></canvas></div></div>';
 
-  html+='<div class="fb"><span class="fl">Recherche :</span>'
-    +'<input class="sb" type="text" placeholder="Filtrer fournisseur…" value="'+sq+'" oninput="sq=this.value;renderDashboard()"></div>';
-
-  html+=oneTable(d,cols);
+  // Détail poste par poste retiré d'ici : il vit dans « Vue mensuelle » et « Vue annuelle ».
+  html+='<div class="alert a-b" style="margin-top:8px;"><span>💡</span><div>Coup d\'œil : solde, entrées/sorties du mois et courbe. Le <strong>détail poste par poste</strong> est dans <strong>Vue mensuelle</strong> et <strong>Vue annuelle</strong>.</div></div>';
 
   document.getElementById('ct').innerHTML=html;
 
