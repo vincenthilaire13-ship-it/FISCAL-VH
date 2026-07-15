@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14l · détail des opérations</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14p · bilan corrigeable</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1357,11 +1357,12 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
   if(montantMois!=null){
     bandeau += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f5f8ff;border:1px solid #e2eaf6;border-radius:8px;padding:8px 12px;margin-bottom:12px">'
       + '<div style="font-size:12px;color:#0f1c2e">Montant enregistré ce mois : <strong style="font-family:var(--mono)">'+(signe<0?'- ':'+ ')+Math.abs(montantMois).toLocaleString('fr-FR')+' €</strong></div>'
-      + '<button onclick="tresoSupprimerMontant()" style="font-size:11px;padding:6px 11px;background:#fdecec;color:#e03a3a;border:1px solid #f7c1c1;border-radius:7px;cursor:pointer;font-weight:600">🗑 Supprimer ce montant</button>'
       + '</div>';
   }
 
-  // Marqueur EXCEPTIONNEL (bascule) pour ce poste/mois
+  // Marqueur EXCEPTIONNEL (bascule) — utile pour repérer un montant ponctuel
+  // (salaire exceptionnel, dividende, facture unique…) qui ne doit pas fausser
+  // la lecture des tendances. (Le bouton « Supprimer ce montant » a été retiré.)
   var excState = (window.tresoEstExceptionnel ? window.tresoEstExceptionnel(soc, section, poste, periode) : null)
                  || ((ligne && ligne.exc && ligne.exc[periode]) ? ligne.exc[periode] : null);
   var estExc = !!excState;
@@ -1369,7 +1370,7 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
     + '<label style="font-size:12px;color:#b3600f;display:flex;align-items:center;gap:6px;cursor:pointer">'
     +   '<input type="checkbox" id="det-exc" '+(estExc?'checked':'')+' onchange="tresoToggleExcDetail()" style="cursor:pointer"> ⚡ Marquer comme exceptionnel (non récurrent)'
     + '</label>'
-    + '<input id="det-exc-note" type="text" placeholder="Commentaire (ex. facture ponctuelle fournisseur…)" value="'+((excState&&excState.note)?String(excState.note).replace(/"/g,'&quot;'):'')+'" oninput="tresoToggleExcDetail()" style="display:'+(estExc?'block':'none')+';width:100%;margin-top:8px;padding:5px 8px;border:1px solid #f0cfa0;border-radius:6px;font-size:11px;background:#fffaf0;box-sizing:border-box">'
+    + '<input id="det-exc-note" type="text" placeholder="Commentaire (ex. salaire, dividende, facture ponctuelle…)" value="'+((excState&&excState.note)?String(excState.note).replace(/"/g,'&quot;'):'')+'" oninput="tresoToggleExcDetail()" style="display:'+(estExc?'block':'none')+';width:100%;margin-top:8px;padding:5px 8px;border:1px solid #f0cfa0;border-radius:6px;font-size:11px;background:#fffaf0;box-sizing:border-box">'
     + '</div>';
 
   if(!detail){
@@ -1404,14 +1405,17 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
       +'<select id="det-sel-'+idx+'" style="font-size:11px;padding:4px 6px;border:1px solid #dce3ee;border-radius:6px"><option value="">→ déplacer vers…</option>'+opts+'<option value="__NEW__">➕ nouveau poste</option></select>'
       +'<button onclick="tresoReaffecte('+idx+')" style="font-size:11px;padding:5px 9px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">OK</button>'
       +'</div>';
-    // NOUVEAU : le détail des opérations regroupées (dates + montants individuels)
+    // NOUVEAU : détail des opérations regroupées — chacune déplaçable individuellement
     if(o.groupe && o.sousOps && o.sousOps.length>1){
-      h+='<div style="margin:0 0 8px;padding:6px 10px;background:#f8fafc;border-left:2px solid #cdd8e6;border-radius:0 6px 6px 0">';
-      o.sousOps.forEach(function(s){
-        var sd = s.date ? '<span style="font-family:var(--mono);font-size:10px;color:#1a6cf4;margin-right:8px">'+esc(s.date)+'</span>' : '';
-        h+='<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#5a6b7e;padding:2px 0">'
-          +'<span style="flex:1">'+sd+esc(s.libelle||'')+'</span>'
-          +'<span style="font-family:var(--mono);font-weight:600;white-space:nowrap">'+(s.montant||0).toLocaleString('fr-FR')+' €</span>'
+      h+='<div style="margin:0 0 10px;padding:8px 10px;background:#f8fafc;border-left:2px solid #cdd8e6;border-radius:0 6px 6px 0">';
+      h+='<div style="font-size:10px;color:#7a90a8;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">Les '+o.sousOps.length+' opérations — tu peux en déplacer une seule</div>';
+      o.sousOps.forEach(function(s,si){
+        var sd = s.date ? '<span style="font-family:var(--mono);font-size:10px;color:#1a6cf4;margin-right:6px">'+esc(s.date)+'</span>' : '';
+        h+='<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#5a6b7e;padding:3px 0;border-top:1px solid #eef2f7">'
+          +'<span style="flex:1;min-width:0">'+sd+esc(s.libelle||'')+'</span>'
+          +'<span style="font-family:var(--mono);font-weight:600;white-space:nowrap;min-width:66px;text-align:right">'+(s.montant||0).toLocaleString('fr-FR')+' €</span>'
+          +'<select id="det-sub-'+idx+'-'+si+'" style="font-size:10px;padding:3px 5px;border:1px solid #dce3ee;border-radius:5px"><option value="">→ déplacer…</option>'+opts+'<option value="__NEW__">➕ nouveau</option></select>'
+          +'<button onclick="tresoReaffecteOp('+idx+','+si+')" style="font-size:10px;padding:4px 8px;background:#1a6cf4;color:#fff;border:none;border-radius:5px;cursor:pointer">OK</button>'
           +'</div>';
       });
       h+='</div>';
@@ -1503,6 +1507,44 @@ function tresoReaffecte(idx){
 
   render();
   tresoVoirDetail(encodeURIComponent(ctx.poste), section, encodeURIComponent(periode)); // rafraîchir la fenêtre
+}
+
+// Réaffecter UNE SEULE opération d'un groupe vers un autre poste
+function tresoReaffecteOp(idx, subIdx){
+  if(!_detailCtx) return;
+  var sel=document.getElementById('det-sub-'+idx+'-'+subIdx); if(!sel||!sel.value) return;
+  var dest=sel.value;
+  if(dest==='__NEW__'){ dest=(prompt('Nom du nouveau poste :')||'').trim(); if(!dest) return; }
+  var ctx=_detailCtx, o=ctx.ops[idx]; if(!o||!o.sousOps) return;
+  var s=o.sousOps[subIdx]; if(!s) return;
+  var soc=ctx.soc, periode=ctx.periode, section=ctx.section, montant=pdfNum(s.montant);
+  if(!RAW[soc]||!RAW[soc][section]) return;
+
+  // 1) retirer le montant du poste source
+  var src=RAW[soc][section].find(function(x){return x.label===ctx.poste;});
+  if(src && src.vals){ src.vals[periode]=(src.vals[periode]||0)-montant; if(Math.abs(src.vals[periode])<0.005) src.vals[periode]=0; }
+  // 2) ajouter au poste destination (créer si besoin, avant TOTAL)
+  var dst=RAW[soc][section].find(function(x){return x.label===dest;});
+  if(!dst){ var ti=RAW[soc][section].findIndex(function(x){return (x.label||'').toUpperCase()==='TOTAL';}); dst={label:dest,vals:{}}; if(ti>=0)RAW[soc][section].splice(ti,0,dst); else RAW[soc][section].push(dst); }
+  if(!dst.vals)dst.vals={};
+  dst.vals[periode]=(dst.vals[periode]||0)+montant;
+
+  // 3) détail : retirer la sous-op du groupe, réduire son total, créer une opération pour la destination
+  o.sousOps.splice(subIdx,1);
+  o.nb=(o.nb||1)-1;
+  o.montant=pdfNum(o.montant)-montant;
+  var full=window.tresoGetDetail ? (window.tresoGetDetail(soc,periode)||[]) : [];
+  full.push({sec:section, poste:dest, libelle:(s.libelle||dest), montant:montant, nb:1, groupe:false, date:(s.date||''), cheque:false, sousOps:null, exceptionnel:false, commentaire:''});
+  if(window.tresoSaveDetail) window.tresoSaveDetail(soc,periode,full);
+
+  // 4) sauvegarder les deux postes dans Supabase
+  var vS={}; vS[periode]=src?src.vals[periode]:0; sbSave(soc,section,ctx.poste,vS,'update');
+  var vD={}; vD[periode]=dst.vals[periode]; sbSave(soc,section,dest,vD,'update');
+  // 5) apprentissage : ce libellé ira désormais vers dest
+  if(s.libelle && window.tresoSavePoste) window.tresoSavePoste(soc,s.libelle,dest);
+
+  render();
+  tresoVoirDetail(encodeURIComponent(ctx.poste), section, encodeURIComponent(periode));
 }
 
 function pdfOpen(){
@@ -2448,6 +2490,7 @@ window.pdfToggleExc = pdfToggleExc;
 window.tresoVoirDetail = tresoVoirDetail;
 window.tresoDetClose = tresoDetClose;
 window.tresoReaffecte = tresoReaffecte;
+window.tresoReaffecteOp = tresoReaffecteOp;
 window.tresoSupprimerMontant = tresoSupprimerMontant;
 window.tresoToggleExcDetail = tresoToggleExcDetail;
 
@@ -6974,19 +7017,19 @@ window.cvCellDetail = function(poste, soc){
   if(!rows.length){
     inner = '<div style="color:var(--text3);font-size:13px;padding:10px;">Aucun détail disponible pour ce montant.</div>';
   } else {
-    inner = '<table class="tbl"><thead><tr><th>Exercice</th>'+(poste==='_autres'?'<th>Libellé lu dans le bilan</th>':'')+'<th class="r">Montant</th>'+(poste==='_autres'?'<th></th>':'')+'</tr></thead><tbody>';
+    inner = '<table class="tbl"><thead><tr><th>Exercice</th>'+(poste==='_autres'?'<th>Libellé lu dans le bilan</th>':'')+'<th class="r">Montant</th><th></th></tr></thead><tbody>';
     rows.forEach(r=>{
-      const exclBtn = (poste==='_autres')
-        ? '<td class="r"><button class="btn" style="font-size:11px;padding:3px 8px;color:var(--danger);border-color:var(--danger);" onclick="cvExclure(\''+soc+'\',\''+r.exercice+'\',\''+String(r.libelle||'').replace(/'/g,"\\'").replace(/"/g,'')+'\')">Exclure</button></td>'
-        : '';
-      inner += '<tr><td>'+r.exercice+'</td>'+(poste==='_autres'?('<td>'+(r.libelle||'—')+'</td>'):'')+'<td class="r">'+eurF(r.montant)+'</td>'+exclBtn+'</tr>';
+      const actBtn = (poste==='_autres')
+        ? '<button class="btn" style="font-size:11px;padding:3px 8px;color:var(--danger);border-color:var(--danger);" onclick="cvExclure(\''+soc+'\',\''+r.exercice+'\',\''+String(r.libelle||'').replace(/'/g,"\\'").replace(/"/g,'')+'\')">Exclure</button>'
+        : '<button class="btn" style="font-size:11px;padding:3px 8px;" onclick="cvCorriger(\''+soc+'\',\''+r.exercice+'\',\''+poste+'\')">✏️ corriger</button>';
+      inner += '<tr><td>'+r.exercice+'</td>'+(poste==='_autres'?('<td>'+(r.libelle||'—')+'</td>'):'')+'<td class="r">'+eurF(r.montant)+'</td><td class="r">'+actBtn+'</td></tr>';
     });
-    inner += '<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;"'+(poste==='_autres'?' colspan="2"':'')+'>Total</td><td class="r" style="font-weight:700;">'+eurF(total)+'</td>'+(poste==='_autres'?'<td></td>':'')+'</tr>';
+    inner += '<tr style="border-top:2px solid var(--border2);"><td style="font-weight:700;"'+(poste==='_autres'?' colspan="2"':'')+'>Total</td><td class="r" style="font-weight:700;">'+eurF(total)+'</td><td></td></tr>';
     inner += '</tbody></table>';
   }
   const aide = (poste==='_autres')
     ? '<div class="alert a-w" style="margin:10px 0 0;"><span>⚠</span><div>Ces lignes ont été rattachées au gérant par la lecture automatique. Si une ligne n\'a <strong>rien à voir avec Vincent</strong> (ex. publicité, Uber Eats, Deliveroo, frais CB… = charges du restaurant), clique <strong>« Exclure »</strong> : elle ne comptera plus dans le coût du dirigeant. C\'est réversible (bouton « Restaurer les exclusions » en bas du tableau).</div></div>'
-    : '<div class="alert a-b" style="margin:10px 0 0;"><span>💡</span><div>Ce montant vient des bilans lus automatiquement. Si un chiffre te paraît faux, va sur la page de la société et clique « Relire le bilan » dans le panneau de contrôle en haut du Coût Vincent.</div></div>';
+    : '<div class="alert a-b" style="margin:10px 0 0;"><span>💡</span><div>Ce montant vient des bilans lus automatiquement. Si un chiffre est faux, clique <strong>« ✏️ corriger »</strong> sur la ligne pour le remplacer à la main. (Tu peux aussi « Relire le bilan » depuis le panneau de contrôle en haut pour relancer la lecture IA.)</div></div>';
   let ov = document.getElementById('cv-detail-ov');
   if(!ov){
     ov = document.createElement('div');
@@ -7002,6 +7045,32 @@ window.cvCellDetail = function(poste, soc){
     + '</div>'
     + '<div style="font-size:12px;color:#7a90a8;margin-bottom:10px;">Décomposition par exercice de ce montant cumulé.</div>'
     + inner + aide + '</div>';
+};
+
+// Corriger à la main un montant du coût dirigeant lu dans un bilan (remplace la
+// valeur de l'IA pour cette société + cet exercice, et enregistre dans Supabase).
+window.cvCorriger = async function(soc, exercice, poste){
+  var lab = (window.CV_POSTE_LABELS && window.CV_POSTE_LABELS[poste]) || poste;
+  var cur = null;
+  try {
+    var res = await sb.from('societe_finances').select('donnees').eq('societe',soc).eq('exercice',exercice).maybeSingle();
+    if(res && res.data && res.data.donnees) cur = res.data.donnees[poste];
+  } catch(e){}
+  var saisie = prompt('Corriger « '+lab+' » ('+exercice+')\n\nMontant en € (laisse vide pour effacer ce poste) :', (cur!=null?cur:''));
+  if(saisie===null) return;
+  saisie = String(saisie).replace(/[^0-9,.\-]/g,'').replace(',','.');
+  var val = (saisie==='') ? null : Number(saisie);
+  if(saisie!=='' && isNaN(val)){ alert('Montant invalide.'); return; }
+  try {
+    var prev = await sb.from('societe_finances').select('donnees').eq('societe',soc).eq('exercice',exercice).maybeSingle();
+    var don = (prev && prev.data && prev.data.donnees) ? Object.assign({}, prev.data.donnees) : {};
+    don[poste] = val;
+    var up = await sb.from('societe_finances').upsert({societe:soc, exercice:exercice, donnees:don, updated_at:new Date().toISOString()}, {onConflict:'societe,exercice'});
+    if(up && up.error){ alert('Enregistrement refusé : '+up.error.message); return; }
+    delete SOC_FIN_CACHE[soc];
+    var ov=document.getElementById('cv-detail-ov'); if(ov) ov.remove();
+    if(typeof renderCoutVincent==='function') renderCoutVincent();
+  } catch(e){ alert('Erreur d\'enregistrement : '+((e&&e.message)||e)); }
 };
 
 // Exclut une ligne « autres frais » du coût Vincent : ajoute le libellé à donnees.cv_exclus
