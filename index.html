@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14u · anti-doublon + centimes</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14v · CC restos via bilan VH</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -7300,8 +7300,30 @@ function renderCCavecVH(soc, d, exercice){
     if(d.cc_associes_passif_total!=null) lignes.push({nom:'VH Company / associés', passif:true, montant:Math.abs(Number(d.cc_associes_passif_total))});
     if(d.cc_groupe_actif_total!=null) lignes.push({nom:'Groupe (créances)', passif:false, montant:Math.abs(Number(d.cc_groupe_actif_total))});
   }
+  // Repli : si le bilan de CE restaurant ne chiffre pas le compte courant (souvent 0
+  // car mal présenté dans les bilans de filiales), on le DÉDUIT du bilan de VH Company,
+  // qui, lui, liste toutes les relations mère↔filles.
+  var srcVH=false;
+  var aMontant = lignes.some(function(l){ return Math.abs(l.montant)>0.005; });
+  if(!aMontant && soc!=='vh'){
+    var vhRows = SOC_FIN_CACHE['vh'];
+    var vhD = (vhRows && vhRows.length) ? vhRows.slice().sort(function(a,b){return (parseInt(b.exercice)||0)-(parseInt(a.exercice)||0);})[0].donnees : null;
+    var SOC_MATCH = { ba:/\b500\b|burger\s*avenue/i, bka:/\b526\b|bk\s*avenue/i, bksj:/\b509\b|saint[\s-]*jean|st[\s-]*jean/i, fvh:/\bfvh\b/i, sci:/\bsci\b|vh\s*immo/i };
+    var pat = SOC_MATCH[soc];
+    if(vhD && pat && Array.isArray(vhD.comptes_courants_detail)){
+      var found=[];
+      vhD.comptes_courants_detail.forEach(function(cc){
+        var m=Number(cc && cc.montant); if(isNaN(m)||Math.abs(m)<0.005) return;
+        if(pat.test(String((cc&&cc.nom)||''))){
+          var vhActif=(cc.sens||'').toLowerCase().startsWith('a'); // VH a une créance ⇒ le resto DOIT à VH
+          found.push({nom:'VH Company', passif:vhActif, montant:Math.abs(m)});
+        }
+      });
+      if(found.length){ lignes=found; srcVH=true; }
+    }
+  }
   if(!lignes.length) return ''; // rien de lu → pas de carte
-  const dc = d.date_cloture || ('exercice '+exercice);
+  const dc = srcVH ? 'd\'après le bilan de VH Company' : (d.date_cloture || ('exercice '+exercice));
   let rows = lignes.map(l=>{
     // passif = la société DOIT à VH ; actif = VH doit à la société
     const doitAVH = l.passif;
@@ -7310,8 +7332,8 @@ function renderCCavecVH(soc, d, exercice){
     return `<tr><td><strong>${l.nom}</strong></td><td>${tag}</td><td class="r ${cls}">${eurF(l.montant)}</td></tr>`;
   }).join('');
   return `<div class="card">
-    <div class="card-title">🔄 Compte courant avec VH Company au ${dc}</div>
-    <div class="alert a-b" style="margin-bottom:12px;"><span>↔</span><div>Lu automatiquement dans le bilan. « Doit à VH » = dette envers la holding ; « VH doit » = créance sur la holding.</div></div>
+    <div class="card-title">🔄 Compte courant avec VH Company ${srcVH?'':'au '}${dc}</div>
+    <div class="alert a-b" style="margin-bottom:12px;"><span>↔</span><div>${srcVH?'Ce compte courant n\'était pas chiffré dans le bilan de cette société : <strong>repris automatiquement du bilan de VH Company</strong>. ':'Lu automatiquement dans le bilan. '}« Doit à VH » = dette envers la holding ; « VH doit » = créance sur la holding.</div></div>
     <table class="tbl">
       <thead><tr><th>Relation</th><th>Sens</th><th class="r">Montant</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -7356,6 +7378,14 @@ async function renderSocFinances(soc) {
   const last = rows[0];
   const d = last.donnees || {};
   SOC_FIN_CACHE[soc] = rows; // pour la pop-up « coût du dirigeant »
+  // Pour dériver le compte courant d'un restaurant depuis le bilan de VH Company
+  // (voir renderCCavecVH), on s'assure que le bilan de VH est bien en mémoire.
+  if(soc!=='vh' && !(SOC_FIN_CACHE['vh'] && SOC_FIN_CACHE['vh'].length)){
+    try{
+      const {data:vhData}=await sb.from('societe_finances').select('*').eq('societe','vh').order('exercice',{ascending:false});
+      if(vhData && vhData.length){ vhData.forEach(r=>{ if(r&&r.donnees) r.donnees=completerCC(r.donnees); }); SOC_FIN_CACHE['vh']=vhData; }
+    }catch(e){}
+  }
   if(soc==='vh'){
     const st=document.getElementById('vh-bilan-statut');
     if(st) st.innerHTML='Chiffres lus dans le bilan <strong>'+(d.date_cloture||('exercice '+last.exercice))+'</strong>.';
