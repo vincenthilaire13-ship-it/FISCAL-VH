@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14x · tableau de bord épuré</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14z · courbes par année + récap</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -956,6 +956,18 @@ function tresoOpenMasques(){
 }
 window.tresoOpenMasques=tresoOpenMasques;
 
+// Marquage « coût Vincent » (👤) — état partagé window.TRESO_CV
+window.TRESO_CV = window.TRESO_CV || {};
+window.tresoToggleCV = function(section, lblEnc){
+  var lbl=decodeURIComponent(lblEnc);
+  var key=resto+'||'+section+'||'+lbl;
+  var C=window.TRESO_CV=window.TRESO_CV||{};
+  var on;
+  if(C[key]){ delete C[key]; on=false; } else { C[key]=true; on=true; }
+  if(window.tresoPersistCV) window.tresoPersistCV('CVTAG::'+key, on);
+  render();
+};
+
 function buildRows(rows, cols, section){
   var sign = section==='sorties' ? -1 : 1;
   var h='';
@@ -981,7 +993,9 @@ function buildRows(rows, cols, section){
     var displayLbl = isT ? (section==='sorties' ? 'TOTAL SORTIES' : 'TOTAL ENTRÉES') : lbl;
     var eb=!isT?'<button class="ebtn" data-lbl="'+encodeURIComponent(lbl)+'" data-sec="'+section+'" onclick="bkOpenEdit(this)">&#9998;</button>':'';
     var mBtn=!isT?'<span onclick="tresoToggleMasque(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="masquer cette ligne" style="cursor:pointer;margin-left:6px;opacity:.45;font-size:12px">👁</span>':'';
-    h+='<tr class="'+tc+'"><td>'+displayLbl+eb+mBtn+'</td>';
+    var estCV=(!isT && window.TRESO_CV && window.TRESO_CV[resto+'||'+section+'||'+lbl]);
+    var cvBtn=!isT?'<span onclick="tresoToggleCV(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="'+(estCV?'retirer du coût Vincent':'marquer comme coût Vincent')+'" style="cursor:pointer;margin-left:5px;font-size:12px;'+(estCV?'':'opacity:.35')+'">👤</span>':'';
+    h+='<tr class="'+tc+'"><td>'+displayLbl+eb+mBtn+cvBtn+'</td>';
     var s25=0,s26=0;
     cols.forEach(function(w){
       var v=row.vals[w.label]||null;
@@ -1076,6 +1090,10 @@ function renderDashboard(){
   function _sumSec(sec, mois){ var t=0; (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()!=='TOTAL' && x.vals && x.vals[mois]!=null) t+=Number(x.vals[mois])||0; }); return t; }
   var entMois = latL ? _sumSec('entrees', latL) : 0;
   var sorMois = latL ? _sumSec('sorties', latL) : 0;
+  // Coût Vincent (postes marqués 👤) — cumul par année
+  var _CV=window.TRESO_CV||{};
+  function _cvSum(an){ var t=0; ['sorties','entrees'].forEach(function(sec){ (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(!_CV[resto+'||'+sec+'||'+x.label]) return; (d.wanted||[]).forEach(function(w){ if(w.year===an && x.vals && x.vals[w.label]!=null) t+=Number(x.vals[w.label])||0; }); }); }); return t; }
+  var cv2025=_cvSum('2025'), cv2026=_cvSum('2026');
 
   var html='<div class="pt">'+resto+' — Vue d\'ensemble</div>'
     +'<div class="ps">Coup d\'œil · exercice 2025 – 2026</div>'
@@ -1084,29 +1102,50 @@ function renderDashboard(){
     +'<div class="kpi"><div class="kpi-lbl">Entrées ('+(latL||'—')+')</div><div class="kpi-val" style="color:#0d9e6e">'+fmt(entMois)+'</div></div>'
     +'<div class="kpi"><div class="kpi-lbl">Sorties ('+(latL||'—')+')</div><div class="kpi-val" style="color:#e03a3a">'+fmt(sorMois)+'</div></div>'
     +'<div class="kpi"><div class="kpi-lbl">Variation depuis Déc 2024</div><div class="kpi-val" style="color:'+(diff>=0?'#0d9e6e':'#e03a3a')+'">'+(diff>=0?'+ ':'')+fmt(diff)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent 2025</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'<div style="font-size:11px;color:var(--text3);margin-top:2px">postes marqués 👤 dans le tableau</div>')+'</div>'
     +'</div>';
 
-  // Chart — le vrai plus du tableau de bord
-  var chartLbls=cols.map(function(w){return w.label;});
-  var chartData=cols.map(function(w){return d.soldes[w.label]||null;});
-  var bgC=cols.map(function(w){return w.year==='2025'?'rgba(61,134,255,.3)':'rgba(19,196,135,.3)';});
-  var bdC=cols.map(function(w){return w.year==='2025'?'#3d86ff':'#13c487';});
+  // ── Courbe PAR ANNÉE, superposées sur le même axe des mois (JAN → DEC) ──
+  var yrColors = {'2024':'#94a3b8','2025':'#3d86ff','2026':'#13c487','2027':'#f59e0b','2028':'#a78bfa','2029':'#ef4444'};
+  var years=[]; (d.wanted||[]).forEach(function(w){ if(w.year && w.year!=='2024' && years.indexOf(w.year)<0) years.push(w.year); });
+  years.sort();
+  var datasets = years.map(function(y){
+    return { label:y, data: MS.map(function(m){ var v=d.soldes[m+' '+y]; return (v==null?null:v); }),
+             borderColor:(yrColors[y]||'#888'), backgroundColor:(yrColors[y]||'#888')+'22',
+             borderWidth:2.5, tension:.35, pointRadius:3, pointHoverRadius:6, fill:false, spanGaps:true };
+  });
 
-  html+='<div class="chart-card"><div class="chart-hdr"><div class="chart-title">Évolution du solde</div>'
-    +'<div class="legend"><div class="leg-item"><div class="leg-dot" style="background:#3d86ff"></div>2025</div>'
-    +'<div class="leg-item"><div class="leg-dot" style="background:#13c487"></div>2026</div></div></div>'
-    +'<div style="position:relative;height:260px"><canvas id="ch" role="img" aria-label="Solde '+resto+'"></canvas></div></div>';
+  // récap annuel : entrées, sorties, net (positif/négatif) par année
+  function _annuel(sec, y){ var t=0; (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; MS.forEach(function(m){ var v=x.vals && x.vals[m+' '+y]; if(v!=null) t+=Number(v)||0; }); }); return t; }
+  var recap='<table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:12px">'
+    +'<thead><tr style="border-bottom:1px solid var(--gray2)"><th style="text-align:left;padding:6px 8px">Année</th><th style="text-align:right;padding:6px 8px">Entrées</th><th style="text-align:right;padding:6px 8px">Sorties</th><th style="text-align:right;padding:6px 8px">Net (entrées − sorties)</th></tr></thead><tbody>';
+  years.forEach(function(y){
+    var ent=_annuel('entrees',y), sor=_annuel('sorties',y), net=ent-sor;
+    recap+='<tr style="border-bottom:1px solid var(--gray2)"><td style="padding:6px 8px;font-weight:600"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+(yrColors[y]||'#888')+';margin-right:6px"></span>'+y+'</td>'
+      +'<td style="text-align:right;padding:6px 8px;color:#0d9e6e;font-family:var(--mono)">'+fmt(ent)+'</td>'
+      +'<td style="text-align:right;padding:6px 8px;color:#e03a3a;font-family:var(--mono)">'+fmt(sor)+'</td>'
+      +'<td style="text-align:right;padding:6px 8px;font-weight:700;font-family:var(--mono);color:'+(net>=0?'#0d9e6e':'#e03a3a')+'">'+(net>=0?'+ ':'')+fmt(net)+'</td></tr>';
+  });
+  recap+='</tbody></table>';
 
-  // Détail poste par poste retiré d'ici : il vit dans « Vue mensuelle » et « Vue annuelle ».
-  html+='<div class="alert a-b" style="margin-top:8px;"><span>💡</span><div>Coup d\'œil : solde, entrées/sorties du mois et courbe. Le <strong>détail poste par poste</strong> est dans <strong>Vue mensuelle</strong> et <strong>Vue annuelle</strong>.</div></div>';
+  html+='<div class="chart-card">'
+    +'<div class="chart-hdr"><div class="chart-title">Évolution du solde — comparaison par année</div>'
+    +'<div class="legend">'+years.map(function(y){return '<div class="leg-item"><div class="leg-dot" style="background:'+(yrColors[y]||'#888')+'"></div>'+y+'</div>';}).join('')+'</div></div>'
+    +'<div style="position:relative;height:260px"><canvas id="ch" role="img" aria-label="Solde '+resto+' par année"></canvas></div>'
+    + recap
+    +'</div>';
+
+  html+='<div class="alert a-b" style="margin-top:8px;"><span>💡</span><div>Chaque année est une courbe (superposées pour comparer). Le <strong>détail poste par poste</strong> est dans <strong>Vue mensuelle</strong> et <strong>Vue annuelle</strong>.</div></div>';
 
   document.getElementById('ct').innerHTML=html;
 
   if(chart){chart.destroy();chart=null;}
   chart=new Chart(document.getElementById('ch'),{
-    type:'line',data:{labels:chartLbls,datasets:[{data:chartData,borderColor:'#1a6cf4',backgroundColor:'rgba(26,108,244,.12)',borderWidth:2,fill:true,tension:0.35,pointRadius:4,pointHoverRadius:6,pointBackgroundColor:bdC,pointBorderColor:bdC,spanGaps:true}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return fmt(c.raw);}}}},
-      scales:{x:{ticks:{color:'#6b839a',font:{size:10},autoSkip:false,maxRotation:40},grid:{display:false}},
+    type:'line',
+    data:{labels:MS, datasets:datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return (c.dataset.label?c.dataset.label+' : ':'')+fmt(c.raw);}}}},
+      scales:{x:{ticks:{color:'#6b839a',font:{size:10},autoSkip:false},grid:{display:false}},
               y:{ticks:{color:'#6b839a',font:{size:10},callback:function(v){return fmtK(v);}},grid:{color:'rgba(0,0,0,.04)'}}}}
   });
 }
@@ -1200,7 +1239,9 @@ function renderMensuel(){
       var s25=0,s26=0;
       var meb=!isT?'<button class="ebtn" data-lbl="'+encodeURIComponent(lbl)+'" data-sec="'+section+'" onclick="bkOpenEdit(this)">&#9998;</button>':'';
       var mBtn=!isT?'<span onclick="tresoToggleMasque(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="masquer cette ligne" style="cursor:pointer;margin-left:6px;opacity:.45;font-size:12px">👁</span>':'';
-      h+='<tr class="'+tc+'"><td>'+dlbl+meb+mBtn+'</td>';
+      var estCV=(!isT && window.TRESO_CV && window.TRESO_CV[resto+'||'+section+'||'+lbl]);
+      var cvBtn=!isT?'<span onclick="tresoToggleCV(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="'+(estCV?'retirer du coût Vincent':'marquer comme coût Vincent')+'" style="cursor:pointer;margin-left:5px;font-size:12px;'+(estCV?'':'opacity:.35')+'">👤</span>':'';
+      h+='<tr class="'+tc+'"><td>'+dlbl+meb+mBtn+cvBtn+'</td>';
       cols.forEach(function(w){
         var v=row.vals[w.label]||null;
         var dc=!isA?tdCls(w,isA,isT):'';
@@ -7742,6 +7783,10 @@ async function loadTresoCategories(){
         // poste masqué (visuel) : "MASQUE::soc||sec||label"
         window.TRESO_MASQUES = window.TRESO_MASQUES || {};
         window.TRESO_MASQUES[r.cle.slice(8)] = true;
+      } else if(r.cle.indexOf('CVTAG::')===0){
+        // poste marqué « coût Vincent » : "CVTAG::soc||sec||label"
+        window.TRESO_CV = window.TRESO_CV || {};
+        window.TRESO_CV[r.cle.slice(7)] = true;
       } else if(r.categorie){
         TRESO_CAT_OVERRIDE[r.cle] = r.categorie;
       }
@@ -7755,6 +7800,13 @@ window.tresoPersistMasque = async function(cle, on){
     if(on) await sb.from('treso_categories').upsert({cle:cle, categorie:'1'}, {onConflict:'cle'});
     else   await sb.from('treso_categories').delete().eq('cle',cle);
   }catch(e){ console.warn('tresoPersistMasque:', e); }
+};
+// Marquer / retirer « coût Vincent » sur un poste : préfixe CVTAG::.
+window.tresoPersistCV = async function(cle, on){
+  try{
+    if(on) await sb.from('treso_categories').upsert({cle:cle, categorie:'1'}, {onConflict:'cle'});
+    else   await sb.from('treso_categories').delete().eq('cle',cle);
+  }catch(e){ console.warn('tresoPersistCV:', e); }
 };
 
 // Mémoriser une catégorie apprise (apprentissage) : écrit dans Supabase + cache local.
