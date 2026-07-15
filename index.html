@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14z · courbes par année + récap</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-15a · groupe complet + 👤 vert</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -721,7 +721,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 </div>
 <div class="main">
   <div class="sidebar">
-    <div class="sb-sec">Restaurants BK</div>
+    <div class="sb-sec">Vue globale</div>
+    <div class="sb-item" onclick="setResto('__GROUPE__',this)"><div class="dot" style="background:#a855f7"></div>💰 Groupe complet</div>
+    <div class="sb-sec" style="margin-top:16px">Restaurants BK</div>
     <div class="sb-item active" onclick="setResto('BK 500',this)"><div class="dot" style="background:#3d86ff"></div>BK 500</div>
     <div class="sb-item" onclick="setResto('BK 509',this)"><div class="dot" style="background:#13c487"></div>BK 509</div>
     <div class="sb-item" onclick="setResto('BK 526',this)"><div class="dot" style="background:#f5b942"></div>BK 526</div>
@@ -994,7 +996,7 @@ function buildRows(rows, cols, section){
     var eb=!isT?'<button class="ebtn" data-lbl="'+encodeURIComponent(lbl)+'" data-sec="'+section+'" onclick="bkOpenEdit(this)">&#9998;</button>':'';
     var mBtn=!isT?'<span onclick="tresoToggleMasque(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="masquer cette ligne" style="cursor:pointer;margin-left:6px;opacity:.45;font-size:12px">👁</span>':'';
     var estCV=(!isT && window.TRESO_CV && window.TRESO_CV[resto+'||'+section+'||'+lbl]);
-    var cvBtn=!isT?'<span onclick="tresoToggleCV(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="'+(estCV?'retirer du coût Vincent':'marquer comme coût Vincent')+'" style="cursor:pointer;margin-left:5px;font-size:12px;'+(estCV?'':'opacity:.35')+'">👤</span>':'';
+    var cvBtn=!isT?'<span onclick="tresoToggleCV(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="'+(estCV?'retirer du coût Vincent':'marquer comme coût Vincent')+'" style="cursor:pointer;margin-left:5px;font-size:12px;'+(estCV?'background:#0d9e6e;border-radius:4px;padding:1px 3px':'opacity:.35')+'">👤</span>'+(estCV?'<span style="color:#0d9e6e;font-size:10px;font-weight:700;margin-left:3px">Vincent</span>':''):'';
     h+='<tr class="'+tc+'"><td>'+displayLbl+eb+mBtn+cvBtn+'</td>';
     var s25=0,s26=0;
     cols.forEach(function(w){
@@ -1150,6 +1152,53 @@ function renderDashboard(){
   });
 }
 
+// ── TRÉSORERIE DU GROUPE COMPLET : agrège toutes les sociétés ──
+function renderGroupe(){
+  var ct=document.getElementById('ct'); if(!ct) return;
+  var socs = Object.keys(RAW).filter(function(k){ return RAW[k] && !RAW[k]._vide; });
+  if(!socs.length){ ct.innerHTML='<div style="max-width:560px;margin:60px auto;text-align:center;color:var(--text3);font-size:14px">Aucune donnée de trésorerie pour le groupe. Importe des relevés dans les sociétés.</div>'; if(chart){chart.destroy();chart=null;} return; }
+  var years=[]; socs.forEach(function(s){ (RAW[s].wanted||[]).forEach(function(w){ if(w.year && w.year!=='2024' && years.indexOf(w.year)<0) years.push(w.year); }); }); years.sort();
+  var yrColors={'2024':'#94a3b8','2025':'#3d86ff','2026':'#13c487','2027':'#f59e0b','2028':'#a78bfa','2029':'#ef4444'};
+  var allLabels=[]; years.forEach(function(y){ MS.forEach(function(m){ allLabels.push(m+' '+y); }); });
+
+  function grpSolde(label){ var t=0,any=false; socs.forEach(function(s){ var v=RAW[s].soldes && RAW[s].soldes[label]; if(v!=null){ t+=Number(v)||0; any=true; } }); return any?t:null; }
+  function grpSec(sec,label){ var t=0; socs.forEach(function(s){ (RAW[s][sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(x.vals&&x.vals[label]!=null) t+=Number(x.vals[label])||0; }); }); return t; }
+
+  var latV=null, latL=null;
+  for(var i=allLabels.length-1;i>=0;i--){ var gv=grpSolde(allLabels[i]); if(gv!=null){ latV=gv; latL=allLabels[i]; break; } }
+  var entMois=latL?grpSec('entrees',latL):0, sorMois=latL?grpSec('sorties',latL):0;
+
+  var _CV=window.TRESO_CV||{};
+  function cvGrp(an){ var t=0; socs.forEach(function(s){ ['sorties','entrees'].forEach(function(sec){ (RAW[s][sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(!_CV[s+'||'+sec+'||'+x.label]) return; MS.forEach(function(m){ var v=x.vals&&x.vals[m+' '+an]; if(v!=null) t+=Number(v)||0; }); }); }); }); return t; }
+  var cv2025=cvGrp('2025'), cv2026=cvGrp('2026');
+
+  var html='<div class="pt">💰 Trésorerie du groupe complet</div><div class="ps">Toutes les sociétés cumulées ('+socs.length+')</div>'
+    +'<div class="kpi-grid">'
+    +'<div class="kpi"><div class="kpi-lbl">Solde groupe ('+(latL||'—')+')</div><div class="kpi-val" style="color:'+((latV||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(latV)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">Entrées ('+(latL||'—')+')</div><div class="kpi-val" style="color:#0d9e6e">'+fmt(entMois)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">Sorties ('+(latL||'—')+')</div><div class="kpi-val" style="color:#e03a3a">'+fmt(sorMois)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent 2025 (groupe)</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'')+'</div>'
+    +'</div>';
+
+  var datasets = years.map(function(y){ return { label:y, data: MS.map(function(m){ var v=grpSolde(m+' '+y); return (v==null?null:v); }), borderColor:(yrColors[y]||'#888'), backgroundColor:(yrColors[y]||'#888')+'22', borderWidth:2.5, tension:.35, pointRadius:3, pointHoverRadius:6, fill:false, spanGaps:true }; });
+  var recap='<table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:12px"><thead><tr style="border-bottom:1px solid var(--gray2)"><th style="text-align:left;padding:6px 8px">Année</th><th style="text-align:right;padding:6px 8px">Entrées</th><th style="text-align:right;padding:6px 8px">Sorties</th><th style="text-align:right;padding:6px 8px">Net</th></tr></thead><tbody>';
+  years.forEach(function(y){ var ent=0,sor=0; MS.forEach(function(m){ ent+=grpSec('entrees',m+' '+y); sor+=grpSec('sorties',m+' '+y); }); var net=ent-sor; recap+='<tr style="border-bottom:1px solid var(--gray2)"><td style="padding:6px 8px;font-weight:600"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+(yrColors[y]||'#888')+';margin-right:6px"></span>'+y+'</td><td style="text-align:right;padding:6px 8px;color:#0d9e6e;font-family:var(--mono)">'+fmt(ent)+'</td><td style="text-align:right;padding:6px 8px;color:#e03a3a;font-family:var(--mono)">'+fmt(sor)+'</td><td style="text-align:right;padding:6px 8px;font-weight:700;font-family:var(--mono);color:'+(net>=0?'#0d9e6e':'#e03a3a')+'">'+(net>=0?'+ ':'')+fmt(net)+'</td></tr>'; });
+  recap+='</tbody></table>';
+
+  html+='<div class="chart-card"><div class="chart-hdr"><div class="chart-title">Solde du groupe — comparaison par année</div>'
+    +'<div class="legend">'+years.map(function(y){return '<div class="leg-item"><div class="leg-dot" style="background:'+(yrColors[y]||'#888')+'"></div>'+y+'</div>';}).join('')+'</div></div>'
+    +'<div style="position:relative;height:260px"><canvas id="ch" role="img" aria-label="Solde groupe par année"></canvas></div>'+recap+'</div>';
+
+  // détail par société (dernier solde connu)
+  html+='<div class="chart-card"><div class="chart-title" style="margin-bottom:10px">Par société — dernier solde connu</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>';
+  socs.forEach(function(s){ var lv=null,ll=null; for(var j=allLabels.length-1;j>=0;j--){ var v=RAW[s].soldes&&RAW[s].soldes[allLabels[j]]; if(v!=null){lv=v;ll=allLabels[j];break;} } html+='<tr style="border-bottom:1px solid var(--gray2)"><td style="padding:6px 8px;font-weight:600">'+s+'</td><td style="padding:6px 8px;color:var(--text3)">'+(ll||'—')+'</td><td style="text-align:right;padding:6px 8px;font-family:var(--mono);font-weight:700;color:'+((lv||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(lv)+'</td></tr>'; });
+  html+='</tbody></table></div>';
+
+  ct.innerHTML=html;
+  if(chart){chart.destroy();chart=null;}
+  chart=new Chart(document.getElementById('ch'),{ type:'line', data:{labels:MS,datasets:datasets}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return (c.dataset.label?c.dataset.label+' : ':'')+fmt(c.raw);}}}},scales:{x:{ticks:{color:'#6b839a',font:{size:10},autoSkip:false},grid:{display:false}},y:{ticks:{color:'#6b839a',font:{size:10},callback:function(v){return fmtK(v);}},grid:{color:'rgba(0,0,0,.04)'}}}} });
+}
+
 function renderCompare(){
   var html='<div class="pt">Comparaison — 3 Restaurants</div><div class="ps">Soldes et indicateurs clés</div><div class="cg">';
   RESTOS.forEach(function(r){
@@ -1240,7 +1289,7 @@ function renderMensuel(){
       var meb=!isT?'<button class="ebtn" data-lbl="'+encodeURIComponent(lbl)+'" data-sec="'+section+'" onclick="bkOpenEdit(this)">&#9998;</button>':'';
       var mBtn=!isT?'<span onclick="tresoToggleMasque(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="masquer cette ligne" style="cursor:pointer;margin-left:6px;opacity:.45;font-size:12px">👁</span>':'';
       var estCV=(!isT && window.TRESO_CV && window.TRESO_CV[resto+'||'+section+'||'+lbl]);
-      var cvBtn=!isT?'<span onclick="tresoToggleCV(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="'+(estCV?'retirer du coût Vincent':'marquer comme coût Vincent')+'" style="cursor:pointer;margin-left:5px;font-size:12px;'+(estCV?'':'opacity:.35')+'">👤</span>':'';
+      var cvBtn=!isT?'<span onclick="tresoToggleCV(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="'+(estCV?'retirer du coût Vincent':'marquer comme coût Vincent')+'" style="cursor:pointer;margin-left:5px;font-size:12px;'+(estCV?'background:#0d9e6e;border-radius:4px;padding:1px 3px':'opacity:.35')+'">👤</span>'+(estCV?'<span style="color:#0d9e6e;font-size:10px;font-weight:700;margin-left:3px">Vincent</span>':''):'';
       h+='<tr class="'+tc+'"><td>'+dlbl+meb+mBtn+cvBtn+'</td>';
       cols.forEach(function(w){
         var v=row.vals[w.label]||null;
@@ -1306,6 +1355,7 @@ function renderMensuel(){
 }
 
 function render(){
+  if(resto==='__GROUPE__'){ try{ renderGroupe(); }catch(e){ console.error('renderGroupe:', e); } return; }
   var d = RAW[resto];
   if(d && d._vide){
     document.getElementById('ct').innerHTML =
