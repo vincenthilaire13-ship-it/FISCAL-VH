@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14v · CC restos via bilan VH</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14w · vue mensuelle triée</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1179,18 +1179,23 @@ function renderMensuel(){
   function mRows(rows, section){
     var sign=section==='sorties'?-1:1;
     var h='';
-    rows.forEach(function(row){
+    // tri alphabétique A→Z (TOTAL en bas), comme les autres vues
+    var sorted=rows.slice().sort(function(a,b){ var la=(a.label||''),lb=(b.label||''); var ta=la.toUpperCase()==='TOTAL',tb=lb.toUpperCase()==='TOTAL'; if(ta!==tb) return ta?1:-1; return la.localeCompare(lb,'fr',{sensitivity:'base'}); });
+    var nbMasques=0, MSQ=window.TRESO_MASQUES||{};
+    sorted.forEach(function(row){
       var lbl=row.label; if(!lbl) return;
       var isA=lbl.length===1&&/[A-Z]/.test(lbl);
       var isT=lbl.toUpperCase()==='TOTAL';
       if(!isA&&!isT&&sq&&!lbl.toLowerCase().includes(sq.toLowerCase())) return;
       if(!isA&&!isT&&!cols.some(function(c){return row.vals[c.label];})) return;
       if(isA) return;
+      if(!isT && MSQ[resto+'||'+section+'||'+lbl]){ nbMasques++; return; }
     var tc=isT?'tr':(section==='sorties'?'rs':'re');
       var dlbl=isT?(section==='sorties'?'TOTAL SORTIES':'TOTAL ENTRÉES'):lbl;
       var s25=0,s26=0;
       var meb=!isT?'<button class="ebtn" data-lbl="'+encodeURIComponent(lbl)+'" data-sec="'+section+'" onclick="bkOpenEdit(this)">&#9998;</button>':'';
-      h+='<tr class="'+tc+'"><td>'+dlbl+meb+'</td>';
+      var mBtn=!isT?'<span onclick="tresoToggleMasque(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="masquer cette ligne" style="cursor:pointer;margin-left:6px;opacity:.45;font-size:12px">👁</span>':'';
+      h+='<tr class="'+tc+'"><td>'+dlbl+meb+mBtn+'</td>';
       cols.forEach(function(w){
         var v=row.vals[w.label]||null;
         var dc=!isA?tdCls(w,isA,isT):'';
@@ -1207,6 +1212,7 @@ function renderMensuel(){
       h+='<td style="font-weight:700;color:#0d9e6e;font-family:var(--mono)">'+(s26?fmt(s26*sign):'')+'</td>';
       h+='</tr>';
     });
+    if(nbMasques>0){ var ncc=cols.length+3; h+='<tr><td colspan="'+ncc+'" onclick="tresoOpenMasques()" style="cursor:pointer;text-align:left;background:#eef2f7;color:#1a6cf4;font-size:11px;padding:6px 12px">🙈 '+nbMasques+' poste'+(nbMasques>1?'s':'')+' masqué'+(nbMasques>1?'s':'')+' — cliquer pour les gérer</td></tr>'; }
     return h;
   }
 
