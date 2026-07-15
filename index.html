@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14r · masquer des lignes</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14s · masquage œil + liste</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -916,7 +916,44 @@ window.tresoToggleMasque = function(section, lblEnc){
   if(window.tresoPersistMasque) window.tresoPersistMasque('MASQUE::'+key, on);
   render();
 };
-window.tresoToggleShowMasques = function(){ window._tresoShowMasques=!window._tresoShowMasques; render(); };
+// Réafficher UN poste masqué (depuis la liste)
+window.tresoDemasquer = function(section, lblEnc){
+  var lbl=decodeURIComponent(lblEnc);
+  var key=resto+'||'+section+'||'+lbl;
+  var M=window.TRESO_MASQUES||{};
+  if(M[key]){ delete M[key]; if(window.tresoPersistMasque) window.tresoPersistMasque('MASQUE::'+key,false); }
+  render();
+  tresoOpenMasques();   // rafraîchir la liste (se ferme si plus rien)
+};
+// Petite fenêtre listant les postes masqués de la société, à réafficher un par un
+function tresoOpenMasques(){
+  var M=window.TRESO_MASQUES||{};
+  var items=[];
+  Object.keys(M).forEach(function(k){ var p=k.split('||'); if(p[0]===resto){ items.push({sec:p[1], label:p.slice(2).join('||')}); } });
+  items.sort(function(a,b){ return a.label.localeCompare(b.label,'fr',{sensitivity:'base'}); });
+  var ov=document.getElementById('masq-ov');
+  if(!items.length){ if(ov) ov.remove(); return; }
+  if(!ov){
+    ov=document.createElement('div'); ov.id='masq-ov';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(15,28,46,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
+  var rows=items.map(function(it){
+    var badge=it.sec==='entrees'?'<span style="font-size:10px;color:#0d9e6e;background:#e6f9f1;padding:1px 6px;border-radius:4px;margin-right:6px">entrée</span>':'<span style="font-size:10px;color:#e03a3a;background:#fdecec;padding:1px 6px;border-radius:4px;margin-right:6px">sortie</span>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f3f8">'
+      +'<span style="flex:1;font-size:13px">'+badge+esc(it.label)+'</span>'
+      +'<button onclick="tresoDemasquer(\''+it.sec+'\',\''+encodeURIComponent(it.label)+'\')" style="font-size:11px;padding:4px 10px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">👁 réafficher</button>'
+      +'</div>';
+  }).join('');
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3)">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    +'<div style="font-size:15px;font-weight:700;color:#0f1c2e">Postes masqués — '+resto+'</div>'
+    +'<button onclick="document.getElementById(\'masq-ov\').remove()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#7a90a8;line-height:1">×</button></div>'
+    +'<div style="font-size:12px;color:#7a90a8;margin-bottom:10px">Clique « réafficher » uniquement sur celui que tu veux ressortir.</div>'
+    +rows+'</div>';
+}
+window.tresoOpenMasques=tresoOpenMasques;
 
 function buildRows(rows, cols, section){
   var sign = section==='sorties' ? -1 : 1;
@@ -929,7 +966,7 @@ function buildRows(rows, cols, section){
     if(ta!==tb) return ta?1:-1;
     return la.localeCompare(lb,'fr',{sensitivity:'base'});
   });
-  var nbMasques=0, showM=!!window._tresoShowMasques, MSQ=window.TRESO_MASQUES||{};
+  var nbMasques=0, MSQ=window.TRESO_MASQUES||{};
   sorted.forEach(function(row){
     var lbl=row.label; if(!lbl) return;
     var isA=lbl.length===1&&/[A-Z]/.test(lbl);
@@ -937,14 +974,13 @@ function buildRows(rows, cols, section){
     if(!isA&&!isT&&sq&&!lbl.toLowerCase().includes(sq.toLowerCase())) return;
     if(!isA&&!isT&&!cols.some(function(c){return row.vals[c.label];})) return;
     if(isA) return;
-    // masquage : ligne cachée (données conservées). En mode « afficher », elle réapparaît grisée.
-    var estMasque = (!isT && MSQ[resto+'||'+section+'||'+lbl]);
-    if(estMasque){ nbMasques++; if(!showM) return; }
+    // masquage : ligne cachée (données conservées) ; on la ressort via la liste des masqués.
+    if(!isT && MSQ[resto+'||'+section+'||'+lbl]){ nbMasques++; return; }
     var tc=isT?'tr':(section==='sorties'?'rs':'re');
     var displayLbl = isT ? (section==='sorties' ? 'TOTAL SORTIES' : 'TOTAL ENTRÉES') : lbl;
     var eb=!isT?'<button class="ebtn" data-lbl="'+encodeURIComponent(lbl)+'" data-sec="'+section+'" onclick="bkOpenEdit(this)">&#9998;</button>':'';
-    var mBtn=!isT?'<span onclick="tresoToggleMasque(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="'+(estMasque?'réafficher cette ligne':'masquer cette ligne')+'" style="cursor:pointer;margin-left:6px;opacity:.5;font-size:11px">'+(estMasque?'👁':'🙈')+'</span>':'';
-    h+='<tr class="'+tc+'"'+(estMasque?' style="opacity:.55"':'')+'><td>'+displayLbl+eb+mBtn+'</td>';
+    var mBtn=!isT?'<span onclick="tresoToggleMasque(\''+section+'\',\''+encodeURIComponent(lbl)+'\')" title="masquer cette ligne" style="cursor:pointer;margin-left:6px;opacity:.45;font-size:12px">👁</span>':'';
+    h+='<tr class="'+tc+'"><td>'+displayLbl+eb+mBtn+'</td>';
     var s25=0,s26=0;
     cols.forEach(function(w){
       var v=row.vals[w.label]||null;
@@ -970,7 +1006,7 @@ function buildRows(rows, cols, section){
   // barre « N postes masqués — cliquer pour afficher/cacher »
   if(nbMasques>0){
     var nc=cols.length+3;
-    h+='<tr><td colspan="'+nc+'" onclick="tresoToggleShowMasques()" style="cursor:pointer;text-align:left;background:#eef2f7;color:#1a6cf4;font-size:11px;padding:6px 12px">🙈 '+nbMasques+' poste'+(nbMasques>1?'s':'')+' masqué'+(nbMasques>1?'s':'')+' — '+(showM?'cliquer pour cacher':'cliquer pour afficher')+'</td></tr>';
+    h+='<tr><td colspan="'+nc+'" onclick="tresoOpenMasques()" style="cursor:pointer;text-align:left;background:#eef2f7;color:#1a6cf4;font-size:11px;padding:6px 12px">🙈 '+nbMasques+' poste'+(nbMasques>1?'s':'')+' masqué'+(nbMasques>1?'s':'')+' — cliquer pour les gérer</td></tr>';
   }
   return h;
 }
