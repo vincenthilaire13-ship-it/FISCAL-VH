@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14s · masquage œil + liste</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-14u · anti-doublon + centimes</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -838,7 +838,8 @@ var chart=null, midx=0;
 
 function fmt(v){
   if(v===null||v===undefined) return '—';
-  var abs=Math.abs(v).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:0});
+  // centimes conservés : 2 chiffres après la virgule, pas d'arrondi à l'euro
+  var abs=Math.abs(v).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
   return (v<0?'- ':'')+abs+' €';
 }
 function fmtK(v){
@@ -1467,6 +1468,7 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
       +'<div style="font-family:var(--mono);font-size:12px;font-weight:700;min-width:80px;text-align:right">'+(o.montant||0).toLocaleString('fr-FR')+' €</div>'
       +'<input list="det-postes-list" id="det-sel-'+idx+'" placeholder="déplacer / chercher…" style="font-size:11px;padding:4px 6px;border:1px solid #dce3ee;border-radius:6px;min-width:150px">'
       +'<button onclick="tresoReaffecte('+idx+')" style="font-size:11px;padding:5px 9px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer">OK</button>'
+      +'<button onclick="tresoRetirerOp('+idx+')" title="retirer cette opération (ex. doublon)" style="font-size:11px;padding:5px 8px;background:#fdecec;color:#e03a3a;border:none;border-radius:6px;cursor:pointer;margin-left:2px">🗑</button>'
       +'</div>';
     // NOUVEAU : détail des opérations regroupées — chacune déplaçable individuellement
     if(o.groupe && o.sousOps && o.sousOps.length>1){
@@ -1479,6 +1481,7 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
           +'<span style="font-family:var(--mono);font-weight:600;white-space:nowrap;min-width:66px;text-align:right">'+(s.montant||0).toLocaleString('fr-FR')+' €</span>'
           +'<input list="det-postes-list" id="det-sub-'+idx+'-'+si+'" placeholder="déplacer…" style="font-size:10px;padding:3px 5px;border:1px solid #dce3ee;border-radius:5px;min-width:130px">'
           +'<button onclick="tresoReaffecteOp('+idx+','+si+')" style="font-size:10px;padding:4px 8px;background:#1a6cf4;color:#fff;border:none;border-radius:5px;cursor:pointer">OK</button>'
+          +'<button onclick="tresoRetirerSousOp('+idx+','+si+')" title="retirer (doublon)" style="font-size:10px;padding:4px 6px;background:#fdecec;color:#e03a3a;border:none;border-radius:5px;cursor:pointer;margin-left:2px">🗑</button>'
           +'</div>';
       });
       h+='</div>';
@@ -1604,6 +1607,43 @@ function tresoReaffecteOp(idx, subIdx){
   // 5) apprentissage : ce libellé ira désormais vers dest
   if(s.libelle && window.tresoSavePoste) window.tresoSavePoste(soc,s.libelle,dest);
 
+  render();
+  tresoVoirDetail(encodeURIComponent(ctx.poste), section, encodeURIComponent(periode));
+}
+
+// Retirer une opération entière (ex. doublon) : baisse le montant du poste d'autant
+function tresoRetirerOp(idx){
+  if(!_detailCtx) return;
+  var ctx=_detailCtx, o=ctx.ops[idx]; if(!o) return;
+  var montant=pdfNum(o.montant);
+  if(!confirm('Retirer cette opération de « '+ctx.poste+' » ('+montant.toLocaleString('fr-FR')+' €) ?\n\nLe montant du mois est réduit d\'autant. À utiliser pour un doublon.')) return;
+  var soc=ctx.soc, periode=ctx.periode, section=ctx.section;
+  if(!RAW[soc]||!RAW[soc][section]) return;
+  var src=RAW[soc][section].find(function(x){return x.label===ctx.poste;});
+  if(src && src.vals){ src.vals[periode]=(src.vals[periode]||0)-montant; if(Math.abs(src.vals[periode])<0.005) src.vals[periode]=0; }
+  var full=window.tresoGetDetail ? (window.tresoGetDetail(soc,periode)||[]) : [];
+  var pos=full.indexOf(o); if(pos>=0) full.splice(pos,1);
+  if(window.tresoSaveDetail) window.tresoSaveDetail(soc,periode,full);
+  var vS={}; vS[periode]=src?src.vals[periode]:0; sbSave(soc,section,ctx.poste,vS,'update');
+  render();
+  tresoVoirDetail(encodeURIComponent(ctx.poste), section, encodeURIComponent(periode));
+}
+
+// Retirer UNE sous-opération d'un groupe (ex. doublon dans un regroupement)
+function tresoRetirerSousOp(idx, subIdx){
+  if(!_detailCtx) return;
+  var ctx=_detailCtx, o=ctx.ops[idx]; if(!o||!o.sousOps) return;
+  var s=o.sousOps[subIdx]; if(!s) return;
+  var montant=pdfNum(s.montant);
+  if(!confirm('Retirer cette opération ('+montant.toLocaleString('fr-FR')+' €) ?\n\nLe montant du mois est réduit d\'autant. À utiliser pour un doublon.')) return;
+  var soc=ctx.soc, periode=ctx.periode, section=ctx.section;
+  if(!RAW[soc]||!RAW[soc][section]) return;
+  var src=RAW[soc][section].find(function(x){return x.label===ctx.poste;});
+  if(src && src.vals){ src.vals[periode]=(src.vals[periode]||0)-montant; if(Math.abs(src.vals[periode])<0.005) src.vals[periode]=0; }
+  o.sousOps.splice(subIdx,1); o.nb=(o.nb||1)-1; o.montant=pdfNum(o.montant)-montant;
+  var full=window.tresoGetDetail ? (window.tresoGetDetail(soc,periode)||[]) : [];
+  if(window.tresoSaveDetail) window.tresoSaveDetail(soc,periode,full);
+  var vS={}; vS[periode]=src?src.vals[periode]:0; sbSave(soc,section,ctx.poste,vS,'update');
   render();
   tresoVoirDetail(encodeURIComponent(ctx.poste), section, encodeURIComponent(periode));
 }
@@ -2011,6 +2051,19 @@ function pdfTraiteResultat(parsed, restoSel){
   _pdfRestoSel = restoSel;
   var ops = parsed.operations || parsed.postes || [];  // compat
   if(!ops.length){ pdfStatus('Aucune opération lue dans ce relevé.','err'); return; }
+
+  // ── DÉDOUBLONNAGE (côté app) ──────────────────────────────────────────────
+  // La relecture des pages denses peut lire DEUX FOIS la même opération.
+  // On retire les doublons EXACTS : même date + même montant (au centime) + même libellé.
+  (function(){
+    var vus={}, uniq=[], nbDup=0;
+    ops.forEach(function(o){
+      var cle=(o.date||'')+'|'+Math.round(pdfNum(o.montant)*100)+'|'+String(o.libelle||o.poste||'').toUpperCase().replace(/\s+/g,' ').trim();
+      if(vus[cle]){ nbDup++; return; }
+      vus[cle]=true; uniq.push(o);
+    });
+    if(nbDup>0){ console.log('[import] '+nbDup+' doublon(s) exact(s) retiré(s) automatiquement'); ops=uniq; }
+  })();
 
   var periode = (parsed.periode||'').toUpperCase().trim();
 
@@ -2552,6 +2605,8 @@ window.tresoVoirDetail = tresoVoirDetail;
 window.tresoDetClose = tresoDetClose;
 window.tresoReaffecte = tresoReaffecte;
 window.tresoReaffecteOp = tresoReaffecteOp;
+window.tresoRetirerOp = tresoRetirerOp;
+window.tresoRetirerSousOp = tresoRetirerSousOp;
 window.tresoSupprimerMontant = tresoSupprimerMontant;
 window.tresoToggleExcDetail = tresoToggleExcDetail;
 
