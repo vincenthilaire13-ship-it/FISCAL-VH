@@ -1535,8 +1535,25 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
     + '<input id="det-exc-note" type="text" placeholder="Commentaire (ex. salaire, dividende, facture ponctuelle…)" value="'+((excState&&excState.note)?String(excState.note).replace(/"/g,'&quot;'):'')+'" oninput="tresoToggleExcDetail()" style="display:'+(estExc?'block':'none')+';width:100%;margin-top:8px;padding:5px 8px;border:1px solid #f0cfa0;border-radius:6px;font-size:11px;background:#fffaf0;box-sizing:border-box">'
     + '</div>';
 
+  // Postes existants (datalist de recherche + cible de regroupement), triés A→Z
+  var autres=[];
+  if(RAW[soc] && RAW[soc][section]){
+    RAW[soc][section].forEach(function(x){ if(x.label && x.label.toUpperCase()!=='TOTAL') autres.push(x.label); });
+  }
+  autres.sort(function(a,b){return a.localeCompare(b,'fr',{sensitivity:'base'});});
+  var dataList='<datalist id="det-postes-list">'+autres.filter(function(a){return a!==poste;}).map(function(a){return '<option value="'+esc(a)+'"></option>';}).join('')+'</datalist>';
+  // Outil : REGROUPER tout ce poste (tous les mois) dans un autre poste (créé si besoin)
+  bandeau += '<div style="background:#f0f7ff;border:1px solid #cfe0f5;border-radius:8px;padding:8px 12px;margin-bottom:12px">'
+    + '<div style="font-size:11px;color:#0f1c2e;margin-bottom:6px;font-weight:700">🗂️ Regrouper TOUT ce poste dans un autre (tous les mois)</div>'
+    + '<div style="display:flex;gap:6px">'
+    +   '<input list="det-postes-list" id="det-fusion" placeholder="ex. STC — nom existant ou nouveau" style="flex:1;font-size:11px;padding:5px 8px;border:1px solid #cfe0f5;border-radius:6px">'
+    +   '<button onclick="tresoFusionnerPoste()" style="font-size:11px;padding:5px 12px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap">Regrouper</button>'
+    + '</div>'
+    + '<div style="font-size:10px;color:#7a90a8;margin-top:5px">« '+esc(poste)+' » disparaîtra ; ses montants iront dans le poste cible et les prochains imports de ce fournisseur suivront automatiquement.</div>'
+    + '</div>';
+
   if(!detail){
-    box.innerHTML = bandeau
+    box.innerHTML = bandeau + dataList
       +'<div style="font-size:13px;color:#6b839a;line-height:1.5">Le détail des opérations n\'est pas disponible pour ce mois (mois importé avant la mise à jour, ou saisi à la main).<br>Tu peux quand même supprimer le montant ci-dessus ou le marquer exceptionnel.<br><br>Pour récupérer le détail (dates, libellés), réimporte le relevé de '+periode+'.</div>'
       +'<div style="margin-top:14px;text-align:right"><button onclick="tresoDetClose()" style="padding:8px 14px;background:#f0f3f8;border:none;border-radius:7px;cursor:pointer">Fermer</button></div>';
     ov.classList.add('open'); return;
@@ -1545,16 +1562,7 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
   // opérations de ce poste pour ce mois
   var ops = detail.filter(function(o){ return o.poste===poste && o.sec===section; });
 
-  // liste des autres postes existants (pour réaffecter), triée A→Z
-  var autres=[];
-  if(RAW[soc] && RAW[soc][section]){
-    RAW[soc][section].forEach(function(x){ if(x.label && x.label.toUpperCase()!=='TOTAL') autres.push(x.label); });
-  }
-  autres.sort(function(a,b){return a.localeCompare(b,'fr',{sensitivity:'base'});});
-  // datalist partagée : tri A→Z + recherche en tapant (ex. « s » → tous les postes en S).
-  // Tu peux aussi taper un nom qui n'existe pas : il sera créé comme nouveau poste.
-  var dataList='<datalist id="det-postes-list">'+autres.filter(function(a){return a!==poste;}).map(function(a){return '<option value="'+esc(a)+'"></option>';}).join('')+'</datalist>';
-
+  // (postes existants + datalist déjà calculés plus haut pour l'outil de regroupement)
   var h = bandeau
     + dataList
     +'<div style="font-size:11px;color:#7a90a8;margin-bottom:12px">'+ops.length+' opération(s) — la date est celle du relevé · dans « déplacer », tape une lettre pour filtrer les postes (triés A→Z)</div>';
@@ -1711,6 +1719,51 @@ function tresoReaffecteOp(idx, subIdx){
 
   render();
   tresoVoirDetail(encodeURIComponent(ctx.poste), section, encodeURIComponent(periode));
+}
+
+// Regrouper TOUT un poste (tous les mois) dans un autre poste (créé si besoin).
+// Sert à consolider plusieurs postes (ex. des noms de personnes) sous une même
+// étiquette comme « STC ». Le poste source disparaît ; ses montants et son détail
+// passent dans la cible, et les libellés/tags appris suivent (imports futurs rangés seuls).
+function tresoFusionnerPoste(){
+  if(!_detailCtx) return;
+  var input=document.getElementById('det-fusion'); if(!input) return;
+  var dest=(input.value||'').trim(); if(!dest){ input.focus(); return; }
+  var ctx=_detailCtx, soc=ctx.soc, section=ctx.section, srcLabel=ctx.poste;
+  if(dest.toUpperCase()===srcLabel.toUpperCase()){ alert('Le poste cible est le même que le poste actuel.'); return; }
+  if(!RAW[soc]||!RAW[soc][section]) return;
+  var arr=RAW[soc][section];
+  var src=arr.find(function(x){return x.label===srcLabel;});
+  if(!src){ alert('Poste introuvable.'); return; }
+  if(!confirm('Regrouper TOUT le poste « '+srcLabel+' » (tous les mois) dans « '+dest+' » ?\n\n« '+srcLabel+' » disparaîtra et ses montants s\'ajouteront à « '+dest+' ».')) return;
+  // cible : créer si besoin (juste avant la ligne TOTAL)
+  var dst=arr.find(function(x){return x.label===dest;});
+  if(!dst){ var ti=arr.findIndex(function(x){return (x.label||'').toUpperCase()==='TOTAL';}); dst={label:dest,vals:{}}; if(ti>=0)arr.splice(ti,0,dst); else arr.push(dst); }
+  if(!dst.vals)dst.vals={};
+  var periodes=Object.keys(src.vals||{});
+  // 1) additionner tous les mois du poste source dans la cible
+  periodes.forEach(function(per){ var v=Number(src.vals[per])||0; if(v){ dst.vals[per]=(Number(dst.vals[per])||0)+v; } });
+  // 2) reporter les marqueurs « exceptionnel » du source (sans écraser ceux de la cible)
+  if(src.exc){ dst.exc=dst.exc||{}; Object.keys(src.exc).forEach(function(per){ if(!dst.exc[per]) dst.exc[per]=src.exc[per]; }); }
+  // 3) retirer le poste source de la liste (mémoire)
+  var pos=arr.indexOf(src); if(pos>=0) arr.splice(pos,1);
+  // 4) réaffecter le détail des opérations (par mois) + persister la cible
+  periodes.forEach(function(per){
+    var full=window.tresoGetDetail?(window.tresoGetDetail(soc,per)||[]):[];
+    var changed=false;
+    full.forEach(function(o){ if(o.sec===section && o.poste===srcLabel){ o.poste=dest; changed=true; } });
+    if(changed && window.tresoSaveDetail) window.tresoSaveDetail(soc,per,full);
+    var v=Number(src.vals[per])||0;
+    if(v){ var vD={}; vD[per]=Number(dst.vals[per])||0; sbSave(soc,section,dest,vD,'update'); }
+  });
+  // 5) supprimer définitivement le poste source côté persistance
+  sbSave(soc, section, srcLabel, {}, 'delete');
+  // 6) apprentissage + marqueurs : les libellés/tags qui pointaient vers le poste
+  //    source pointent désormais vers la cible (imports futurs rangés automatiquement)
+  if(window.tresoRenamePoste) window.tresoRenamePoste(soc, srcLabel, dest);
+  render();
+  tresoDetClose();
+  try{ alert('✓ « '+srcLabel+' » regroupé dans « '+dest+' ».'); }catch(e){}
 }
 
 // Retirer une opération entière (ex. doublon) : baisse le montant du poste d'autant
@@ -2051,7 +2104,7 @@ function pdfBuildPromptTexte(fournisseurs, role){
 '  "solde_initial":0.00, "solde_final":0.00,',
 '  "total_debits":0.00, "total_credits":0.00',
 '}',
-'- "periode" : mois principal du relevé, 3 lettres majuscules (JAN FEV MAR AVR MAI JUI JUL AOU SEP OCT NOV DEC) + année.',
+'- "periode" : mois principal du relevé, 3 lettres majuscules (JAN FEV MAR AVR MAI JUI JUL AOU SEP OCT NOV DEC) + année. ATTENTION : JUIN = « JUI », JUILLET = « JUL » (ne pas confondre).',
 '- "solde_initial" = SOLDE CREDITEUR au début ; "solde_final" = SOLDE CREDITEUR à la fin.',
 '- "total_debits" = TOTAL DES MOUVEMENTS DEBITEURS ; "total_credits" = TOTAL DES MOUVEMENTS CREDITEURS.',
 '- Nombres purs (point décimal, pas d\'espace ni €). Si une valeur est absente, mets null.'
@@ -2168,6 +2221,33 @@ function pdfTraiteResultat(parsed, restoSel){
   })();
 
   var periode = (parsed.periode||'').toUpperCase().trim();
+
+  // CORRECTIF (confusion juin/juillet & autres mois) : l'abréviation de mois
+  // renvoyée par l'IA peut être fausse — « JUILLET » lu « JUI » (comme juin) range
+  // les opérations de juillet dans la colonne de juin. Les DATES des opérations
+  // (JJ/MM/AAAA) sont fiables : on en déduit le mois dominant et on corrige la
+  // période si l'IA s'est trompée (uniquement si les dates sont claires et nettes).
+  (function(){
+    var MSl=['JAN','FEV','MAR','AVR','MAI','JUI','JUL','AOU','SEP','OCT','NOV','DEC'];
+    var cnt={}, tot=0;
+    (ops||[]).forEach(function(o){
+      var m=(o.date||'').trim().match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+      if(!m) return;
+      var mo=parseInt(m[2],10); if(mo<1||mo>12) return;
+      var yr=m[3]?(m[3].length===2?2000+parseInt(m[3],10):parseInt(m[3],10)):null;
+      var key=(yr||'?')+'|'+mo; cnt[key]=(cnt[key]||0)+1; tot++;
+    });
+    if(tot<3) return;                              // trop peu de dates → on garde l'IA
+    var best=null,bestN=0; Object.keys(cnt).forEach(function(k){ if(cnt[k]>bestN){bestN=cnt[k];best=k;} });
+    if(!best || bestN < tot*0.6) return;           // pas de mois clairement dominant → on garde l'IA
+    var p=best.split('|'), yr=p[0], mo=parseInt(p[1],10);
+    if(yr==='?'){ var fy=(periode.match(/(\d{4})/)||[])[1]; if(!fy) return; yr=fy; }
+    var vrai=MSl[mo-1]+' '+yr;
+    if(vrai && vrai!==periode){
+      try{ console.warn('[import] période IA « '+periode+' » corrigée d\'après les dates → « '+vrai+' »'); }catch(e){}
+      periode = vrai;
+    }
+  })();
 
   // Postes existants de la société (pour menu déroulant + reconnaissance)
   var fournisseurs=[];
@@ -2767,6 +2847,7 @@ window.pdfMajBouton = pdfMajBouton;
 window.pdfChoixPoste = pdfChoixPoste;
 window.pdfToggleExc = pdfToggleExc;
 window.tresoVoirDetail = tresoVoirDetail;
+window.tresoFusionnerPoste = tresoFusionnerPoste;
 window.tresoDetClose = tresoDetClose;
 window.tresoReaffecte = tresoReaffecte;
 window.tresoReaffecteOp = tresoReaffecteOp;
