@@ -2722,6 +2722,10 @@ async function sbLoad(){
   // Reconstruit les colonnes de mois d'après les données réellement en base
   // (fait réapparaître juin 2026 et tout mois futur automatiquement).
   try { tresoSyncColonnes(); } catch(e){ console.error('tresoSyncColonnes', e); }
+  // CORRECTIF : les marqueurs « exceptionnel » et les détails d'opérations sont
+  // chargés au démarrage AVANT que RAW soit peuplé ; on les ré-applique une fois
+  // les données en place pour qu'ils réapparaissent dans le tableau au rechargement.
+  try { if(window.loadTresoCategories) await window.loadTresoCategories(); } catch(e){ console.error('reload categories', e); }
   render();
 }
 
@@ -2946,6 +2950,24 @@ const SUPA_URL = 'https://wbhgseotvlipalgmxchy.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGdzZW90dmxpcGFsZ214Y2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjI0NTYsImV4cCI6MjA5NDgzODQ1Nn0.LoDkhHH56bFgRYwXAtX4IVb9qyx0_W2NAgzJ0x3Drpg';
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
+// Paginateur générique : contourne le plafond de 1000 lignes de Supabase/PostgREST
+// en enchaînant des tranches de 1000. `build(a,b)` doit renvoyer une requête avec
+// .range(a,b). Utilisé pour toutes les tables qui grossissent avec le temps
+// (documents, treso_categories, societe_docs, historiques…), comme pour la
+// trésorerie, afin qu'aucune donnée récente ne « disparaisse » une fois passé 1000.
+async function sbSelectAll(build){
+  var all=[], from=0, PAGE=1000;
+  for(;;){
+    const {data, error} = await build(from, from+PAGE-1);
+    if(error) return {data: all, error: error};
+    if(!data || !data.length) break;
+    all = all.concat(data);
+    if(data.length < PAGE) break;
+    from += PAGE;
+  }
+  return {data: all, error: null};
+}
+
 // ── BÂTIMENTS (dossiers patrimoniaux détaillés) ──
 // Chaque bâtiment = 1 enregistrement Supabase (table "batiments") avec des
 // colonnes JSON pour les sous-listes. Si la table n'existe pas, fonctionne en
@@ -3092,24 +3114,34 @@ async function saveBatToDb(b) {
   };
   const isSeed = typeof b.id === 'string' && b.id.indexOf('seed_') === 0;
   try {
+    var _ok=false;
     if(b.id && !isSeed) {
       // Vrai enregistrement Supabase → update, et on vérifie qu'une ligne a bien été touchée
       const { data, error } = await sb.from('batiments').update(payload).eq('id', b.id).select();
       if((error || !data || !data.length)) {
         // La ligne n'existe pas (supprimée ailleurs) → on réinsère pour ne rien perdre
         const ins = await sb.from('batiments').insert(payload).select().single();
-        if(ins && ins.data) b.id = ins.data.id;
-      }
+        if(ins && ins.error) throw ins.error;
+        if(ins && ins.data){ b.id = ins.data.id; _ok=true; }
+      } else { _ok=true; }
     } else {
       // Nouveau bâtiment OU seed local jamais persisté → INSERT et on récupère le vrai id
       const oldSeedId = b.id;
-      const { data } = await sb.from('batiments').insert(payload).select().single();
+      const { data, error } = await sb.from('batiments').insert(payload).select().single();
+      if(error) throw error;
       if(data) {
         b.id = data.id;
         if(currentBat === oldSeedId) currentBat = data.id; // garde le bâtiment ouvert
+        _ok=true;
       }
     }
-  } catch(e) {}
+    if(!_ok) throw new Error('aucune ligne enregistrée');
+  } catch(e) {
+    // CORRECTIF : ne plus avaler l'échec en silence — sinon l'utilisateur croit
+    // avoir enregistré un bâtiment/document alors que rien n'est en base.
+    console.error('saveBatToDb:', e);
+    alert('⚠ Bâtiment NON enregistré en base : '+((e && (e.message||e.code))||e)+'\n\nVérifie ta connexion et réessaie. Ne recharge pas la page tant que ce n\'est pas passé, sinon la modification serait perdue.');
+  }
 }
 
 // ---- VUE LISTE ----
@@ -4963,7 +4995,7 @@ async function loadState() {
     });
     updateScore();
     // Charger documents archivés
-    const {data: docs} = await sb.from('documents').select('*').order('created_at', {ascending: false});
+    const {data: docs} = await sbSelectAll((a,b)=>sb.from('documents').select('*').order('created_at', {ascending: false}).range(a,b));
     if (docs && docs.length > 0) {
       let count = 0;
       docs.forEach(doc => {
@@ -5063,7 +5095,8 @@ function openFiche(target) {
 function closeFiche() { document.getElementById('modal-fiche').style.display='none'; }
 
 async function saveFiche() {
-  const prime = +document.getElementById('fi-prime').value || null;
+  const _pv = document.getElementById('fi-prime').value;
+  const prime = (_pv==='' || _pv==null || isNaN(+_pv)) ? null : +_pv;   // CORRECTIF : une prime « 0 » n'est plus transformée en null
   const f = {
     categorie: document.getElementById('fi-cat').value,
     nom: document.getElementById('fi-nom').value || 'Sans nom',
@@ -5248,7 +5281,7 @@ async function loadFiches() {
     const {data} = await sb.from('assurances').select('*').order('created_at',{ascending:true});
     if(data){
       let hist = [];
-      try { const {data:h} = await sb.from('primes_historique').select('*'); hist = h||[]; } catch(e){}
+      try { const {data:h} = await sbSelectAll((a,b)=>sb.from('primes_historique').select('*').range(a,b)); hist = h||[]; } catch(e){}
       data.forEach(f => {
         const fh = hist.filter(x=>x.assurance_id===f.id);
         renderFiche(f, fh);
@@ -5498,9 +5531,9 @@ async function loadBiens() {
     // manuellement dans la table biens_immo, pour éviter des doublons vides.
     const {data} = await sb.from('biens_immo').select('*').order('created_at',{ascending:true});
     if(data){
-      immoBiens = immoBiens.concat(data);
+      immoBiens = data.slice();   // CORRECTIF : remplacer (et non concaténer) pour éviter les doublons si la fonction est rappelée
       let hist=[];
-      try { const {data:h}=await sb.from('loyers_historique').select('*'); hist=h||[]; } catch(e){}
+      try { const {data:h}=await sbSelectAll((a,b)=>sb.from('loyers_historique').select('*').range(a,b)); hist=h||[]; } catch(e){}
       immoLoyers = hist;
       data.forEach(b => renderBien(b, hist.filter(x=>x.bien_id===b.id)));
     }
@@ -5612,7 +5645,7 @@ async function saveSciFin() {
   const btn=event&&event.target; if(btn){const t=btn.textContent;btn.textContent='✓ Enregistré';setTimeout(()=>btn.textContent=t,1500);}
 }
 
-function addSciExercice() {
+async function addSciExercice() {
   readSciForm();
   const an = prompt('Année de l\u2019exercice (ex : '+(new Date().getFullYear())+') ?');
   if(!an) return;
@@ -5620,6 +5653,9 @@ function addSciExercice() {
   if(!sciFin.exercices[y]) sciFin.exercices[y] = sciBlankExercice();
   sciFin.courant = y;
   fillSciSelect(); renderSciFin();
+  // CORRECTIF : persister immédiatement (l'ajout d'exercice n'était pas sauvegardé
+  // en base → perdu au rechargement, ainsi que la saisie de l'exercice précédent).
+  try { await saveSciFin(); } catch(e){ console.error('addSciExercice save', e); }
 }
 
 function addSciCc() {
@@ -6931,7 +6967,7 @@ async function renderCvControle(last){
   // Récupère, par société, le dernier bilan PDF indexé (pour pouvoir le relire)
   let docsBySoc = {};
   try {
-    const {data} = await sb.from('societe_docs').select('id,societe,exercice,doctype,dropbox_path,type,nom').order('exercice',{ascending:false});
+    const {data} = await sbSelectAll((a,b)=>sb.from('societe_docs').select('id,societe,exercice,doctype,dropbox_path,type,nom').order('exercice',{ascending:false}).range(a,b));
     (data||[]).forEach(d=>{
       const isBilanPdf = /bilan|liasse|résultat|resultat/i.test(d.doctype||'') && /pdf/i.test(d.type||(d.nom||'').split('.').pop()||'');
       if(!isBilanPdf || !d.dropbox_path) return;
@@ -7859,7 +7895,7 @@ function renderDashboardTreso(){
 // Charger les corrections manuelles de catégorie depuis Supabase (table treso_categories)
 async function loadTresoCategories(){
   try{
-    const {data, error} = await sb.from('treso_categories').select('*');
+    const {data, error} = await sbSelectAll((a,b)=>sb.from('treso_categories').select('*').range(a,b));
     if(error){ console.warn('treso_categories indisponible:', error.message); return; }
     (data||[]).forEach(r=>{
       if(!r.cle) return;
@@ -7962,6 +7998,36 @@ window.tresoRenamePoste = async function(soc, oldName, newName){
     for(const k of aRemapper){
       const {error}=await sb.from('treso_categories').upsert({cle:'POSTE::'+k, categorie:newName}, {onConflict:'cle'});
       if(error) console.warn('tresoRenamePoste:', error.message);
+    }
+    // CORRECTIF : migrer aussi les marqueurs attachés à l'ANCIEN nom de poste,
+    // sinon la note « exceptionnel », le tag « coût Vincent » et le masquage
+    // deviennent orphelins (invisibles / non comptés) après un renommage.
+    // EXC:: "soc||sec||poste||periode"
+    try{
+      for(const ek of Object.keys(TRESO_EXC||{})){
+        const p = ek.split('||');
+        if(p.length===4 && p[0]===soc && p[2]===oldName){
+          const nk = p[0]+'||'+p[1]+'||'+newName+'||'+p[3];
+          const val = TRESO_EXC[ek] || {note:''};
+          TRESO_EXC[nk]=val; delete TRESO_EXC[ek];
+          await sb.from('treso_categories').upsert({cle:'EXC::'+nk, categorie:JSON.stringify(val)}, {onConflict:'cle'});
+          await sb.from('treso_categories').delete().eq('cle','EXC::'+ek);
+        }
+      }
+    }catch(e){ console.warn('rename EXC:', e); }
+    // MASQUE:: et CVTAG:: "soc||sec||label"
+    for(const conf of [{m:(window.TRESO_MASQUES||{}), pre:'MASQUE::'}, {m:(window.TRESO_CV||{}), pre:'CVTAG::'}]){
+      try{
+        for(const kk of Object.keys(conf.m)){
+          const q = kk.split('||');
+          if(q.length===3 && q[0]===soc && q[2]===oldName){
+            const nkk = q[0]+'||'+q[1]+'||'+newName;
+            conf.m[nkk]=conf.m[kk]; delete conf.m[kk];
+            await sb.from('treso_categories').upsert({cle:conf.pre+nkk, categorie:'1'}, {onConflict:'cle'});
+            await sb.from('treso_categories').delete().eq('cle',conf.pre+kk);
+          }
+        }
+      }catch(e){ console.warn('rename marqueur:', e); }
     }
   }catch(e){ console.warn('tresoRenamePoste:', e); }
 };
