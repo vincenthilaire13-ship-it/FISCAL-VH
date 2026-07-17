@@ -2614,6 +2614,48 @@ function tresoErrTexte(error){
   return (error.message||error.code||JSON.stringify(error))+(error.hint?(' · '+error.hint):'')+(error.details?(' · '+error.details):'');
 }
 
+// Rang chronologique d'une étiquette de mois « MMM AAAA » (ex. "JUI 2026").
+// Insensible aux accents ("DÉC" == "DEC"). Renvoie null si ce n'est pas un mois.
+function _tresoMoisRank(label){
+  var m=(label||'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  var mm=m.slice(0,3);
+  var y=(m.match(/(\d{4})/)||[])[1];
+  var idx=MS.indexOf(mm);
+  if(!y || idx<0) return null;
+  return parseInt(y,10)*100+idx;
+}
+// CORRECTIF (mois manquants après rechargement) : la liste des colonnes
+// (RAW[soc].wanted) est un gabarit FIGÉ dans le code. Tout mois importé au-delà
+// (ex. JUI 2026) était bien enregistré en base (tresorerie_edits) mais
+// disparaissait de l'affichage au rechargement, faute de colonne. On reconstruit
+// donc les colonnes à partir des périodes réellement présentes dans les données,
+// puis on les trie chronologiquement. => plus aucun mois « perdu » à l'avenir.
+function tresoSyncColonnes(){
+  Object.keys(RAW).forEach(function(soc){
+    var r=RAW[soc]; if(!r||!r.wanted) return;
+    var have={}; r.wanted.forEach(function(w){ have[w.label]=true; });
+    var periodes={};
+    ['sorties','entrees'].forEach(function(sec){
+      (r[sec]||[]).forEach(function(li){
+        Object.keys(li&&li.vals||{}).forEach(function(p){ periodes[p]=true; });
+      });
+    });
+    Object.keys(r.soldes||{}).forEach(function(p){ periodes[p]=true; });
+    Object.keys(periodes).forEach(function(p){
+      if(have[p]) return;
+      if(_tresoMoisRank(p)===null) return;   // ignore les clés qui ne sont pas un « MMM AAAA »
+      var an=(p.match(/(\d{4})/)||[])[1];
+      r.wanted.push({label:p, year:String(an), reel:true});
+      have[p]=true;
+    });
+    r.wanted.sort(function(a,b){
+      var ra=_tresoMoisRank(a.label), rb=_tresoMoisRank(b.label);
+      if(ra===null||rb===null) return 0;
+      return ra-rb;
+    });
+  });
+}
+
 // Charger toutes les modifications depuis Supabase au démarrage
 async function sbLoad(){
   // CORRECTIF (perte des mois récents) : PostgREST/Supabase renvoie AU MAXIMUM
@@ -2677,6 +2719,9 @@ async function sbLoad(){
       }
     }
   });
+  // Reconstruit les colonnes de mois d'après les données réellement en base
+  // (fait réapparaître juin 2026 et tout mois futur automatiquement).
+  try { tresoSyncColonnes(); } catch(e){ console.error('tresoSyncColonnes', e); }
   render();
 }
 
