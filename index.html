@@ -1259,15 +1259,11 @@ function renderAnnuel(){
 function renderMensuel(){
   var d=RAW[resto], col=COLORS[resto];
 
-  // Colonnes intercalées : JAN25, JAN26, FEV25, FEV26, ...
-  var cols=[];
-  MS.forEach(function(ms){
-    var l25=ms+' 2025', l26=ms+' 2026';
-    var w25=d.wanted.find(function(w){return w.label===l25;});
-    var w26=d.wanted.find(function(w){return w.label===l26;});
-    if(w25) cols.push(w25);
-    if(w26) cols.push(w26);
-  });
+  // Colonnes dans l'ORDRE CHRONOLOGIQUE strict : janvier → décembre 2025, puis
+  // janvier → … 2026 (au lieu d'intercaler les deux années). On exclut 2024 et on
+  // trie par rang de mois pour être sûr de l'ordre, quels que soient les ajouts.
+  var cols = (d.wanted||[]).filter(function(w){ return w.year!=='2024'; })
+               .slice().sort(function(a,b){ return _tresoMoisRank(a.label)-_tresoMoisRank(b.label); });
 
   function mRows(rows, section){
     var sign=section==='sorties'?-1:1;
@@ -1333,7 +1329,7 @@ function renderMensuel(){
   msol+='</tr>';
 
   var html='<div class="pt">Vue mensuelle — '+resto+'</div>'
-    +'<div class="ps">JAN 2025 · JAN 2026 · FEV 2025 · FEV 2026 · …</div>'
+    +'<div class="ps">JAN 2025 · FEV 2025 · … · DEC 2025 · JAN 2026 · … (ordre chronologique)</div>'
     +'<div class="fb"><span class="fl">Recherche :</span>'
     +'<input class="sb" type="text" placeholder="Filtrer fournisseur…" value="'+sq+'" oninput="sq=this.value;renderMensuel()"></div>'
     +'<div class="tc">'
@@ -1888,6 +1884,82 @@ async function pdfTextePages(file){
   return pages;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// LECTURE LOCALE DES RELEVÉS (Banque Populaire) — SANS IA, GRATUIT.
+// Reconstruit le même objet `parsed` que l'IA (mêmes champs) → même fenêtre
+// d'import. Lit 100% des lignes (totaux au centime), donc plus de « il manque… ».
+// Si le format n'est pas reconnu, renvoie null → l'appli repasse par l'IA.
+// ══════════════════════════════════════════════════════════════════════════
+function _bpNum(s,e,d){ var v=parseFloat(e.replace(/[  ]/g,'')+'.'+d); return s==='-'?-v:v; }
+function _bpCleanLib(s){
+  s=(s||'').replace(/^\s+|\s+$/g,'');
+  for(var i=0;i<4;i++){ var b=s;
+    s=s.replace(/\s+\d{2}\/\d{2}(\/\d{2,4})?\s*$/,'');       // dates opération/valeur en fin
+    s=s.replace(/\s+(?=[A-Z0-9]*\d)[A-Z0-9]{4,}\s*$/i,'');   // référence en fin (jeton contenant un chiffre)
+    if(s===b) break;
+  }
+  s=s.replace(/\s{2,}[\s\S]*$/,'');                          // sécurité : coupe une colonne restante
+  return s.replace(/^\s+|\s+$/g,'');
+}
+function _bpRegle(u){
+  var R=[
+    [/REMISE\s+CB/,'REMISE CB','recette',true],
+    [/\bVRST\b|VERSEMENT|\bDEPOT\b/,'VRST DEPOT','recette',true],
+    [/FRANCE BKR/,'FRANCE BKR','loyer',true],
+    [/QSL-?STEF/,'QSL-STEF','marchandises',true],
+    [/URSSAF/,null,'social',true],
+    [/DGFIP|DRFIP|DIRECTION G|TRESOR PUBLIC/,null,'impots',true],
+    [/\bEDF\b|LUCIA|ENGIE/,null,'energie',true],
+    [/AREAS|ROEDERER/,null,'assurance',true],
+    [/UBER|DELIVEROO|SWILE|PLUXEE|UP COOP|EDENRED|BIMPLI/,null,'recette',true],
+    [/ECH\s+PRET/,null,'banque',true],
+    [/ADYEN|STICHTING|STRIPE/,null,'recette',true]
+  ];
+  for(var i=0;i<R.length;i++){ if(R[i][0].test(u)) return {poste:R[i][1],categorie:R[i][2],sur:R[i][3]}; }
+  return null;
+}
+function pdfParseLocalBP(pages){
+  var full=(pages||[]).join('\n');
+  if(!/DETAIL DES OPERATIONS DE VOTRE COMPTE COURANT/i.test(full)) return null; // format non reconnu → IA
+  var montRe=/(-?)\s*(\d{1,3}(?:[  ]\d{3})*),(\d{2})\s*€\s*$/;
+  var dateAny=/(\d{2})\/(\d{2})(?:\/(\d{2,4}))?/;
+  var reSepa=/D[EÉ]TAIL DE VOS (MOUVEMENTS|PR[EÉ]L[EÈ]VEMENTS|VIREMENTS) SEPA/i;
+  var idx=pages.findIndex(function(t){return reSepa.test(t);}), pagesOps;
+  if(idx>=0){ var pt=pages[idx], c=pt.search(reSepa); pagesOps=pages.slice(0,idx); if(c>0)pagesOps.push(pt.slice(0,c)); }
+  else pagesOps=pages;
+  var si=null,sf=null,td=null,tc=null,iban='',titulaire='';
+  var metaTxt=(pages[0]||'')+'\n'+pages.filter(function(t){return /TOTAL DES MOUVEMENTS|SOLDE CREDITEUR/i.test(t);}).join('\n');
+  metaTxt.split('\n').forEach(function(ln){ var U=ln.toUpperCase(), m=ln.match(montRe);
+    if(U.indexOf('SOLDE CREDITEUR AU')>=0&&m){ var v=_bpNum(m[1],m[2],m[3]); if(si===null)si=v; sf=v; }
+    if(U.indexOf('TOTAL DES MOUVEMENTS DEBITEURS')>=0&&m) td=_bpNum(m[1],m[2],m[3]);
+    if(U.indexOf('TOTAL DES MOUVEMENTS CREDITEURS')>=0&&m) tc=_bpNum(m[1],m[2],m[3]);
+    var ib=ln.match(/IBAN\s*:?\s*([A-Z]{2}[0-9  ]{10,})/i); if(ib&&!iban)iban=ib[1].replace(/[  ]/g,'');
+  });
+  var mc=full.match(/AU\s+\d{2}\/\d{2}\/(\d{4})/i)||full.match(/\d{2}\/\d{2}\/(\d{4})/);
+  var annee=mc?mc[1]:String((new Date()).getFullYear());
+  var MSl=['JAN','FEV','MAR','AVR','MAI','JUI','JUL','AOU','SEP','OCT','NOV','DEC'];
+  var ops=[], moisCnt={};
+  pagesOps.forEach(function(pg){ pg.split('\n').forEach(function(ln){
+    var U=ln.toUpperCase(); if(U.indexOf('SOLDE')>=0||U.indexOf('TOTAL DES MOUVEMENTS')>=0) return;
+    var m=ln.match(montRe); if(!m) return;
+    var dm=ln.match(dateAny); if(!dm) return;
+    var val=_bpNum(m[1],m[2],m[3]);
+    var lib=_bpCleanLib(ln.slice(dm.index+dm[0].length, ln.length-m[0].length)); if(!lib) lib='OPERATION';
+    var mm=parseInt(dm[2],10); if(mm>=1&&mm<=12) moisCnt[mm]=(moisCnt[mm]||0)+1;
+    var libU=lib.toUpperCase();
+    var cheque=/\bCHEQUE\b|\bCHQ\b|REMISE\s+CHEQUE|VOTRE\s+CHEQUE/.test(libU);
+    var rc=_bpRegle(libU);
+    var poste=rc&&rc.poste?rc.poste:(lib.replace(/^(PRLV SEPA|PRLV INT ETS|VIR SEPA|EURO VIR|EUROVIR SEPA|PRLV|VIR)\s+/i,'').trim()||lib);
+    ops.push({ libelle:lib, montant:Math.abs(val), type:val<0?'sortie':'entree', poste:poste,
+      categorie:rc?rc.categorie:'autre', sur:cheque?false:(rc?!!rc.sur:false),
+      date:dm[1]+'/'+dm[2]+'/'+annee, cheque:cheque });
+  });});
+  if(!ops.length) return null;
+  var moisDom=1,best=-1; Object.keys(moisCnt).forEach(function(k){ if(moisCnt[k]>best){best=moisCnt[k];moisDom=parseInt(k,10);} });
+  return { _local:true, iban:iban, titulaire:titulaire, periode:MSl[moisDom-1]+' '+annee,
+           solde_initial:si, solde_final:sf, total_debits:td, total_credits:tc, operations:ops };
+}
+
 function pdfAnalyse(file){
   var t0=Date.now();
   if(window._pdfTimer) clearInterval(window._pdfTimer);
@@ -1947,6 +2019,16 @@ function pdfAnalyse(file){
   }
 
   pdfTextePages(file).then(function(pages){
+    // ── 1) LECTURE LOCALE (gratuite, sans IA) pour les relevés Banque Populaire ──
+    try {
+      var _local = pdfParseLocalBP(pages);
+      if(_local && _local.operations && _local.operations.length){
+        _pdfMeta = _local;
+        etat.phase = 'Lu localement (sans IA)';
+        return '__LOCAL_DONE__';   // on court-circuite l'IA
+      }
+    } catch(_e){ console.warn('Lecture locale impossible → bascule IA :', _e); }
+    // ── 2) sinon : lecture par IA (inchangée) ──
     // séparer pages d'opérations (avant le récap SEPA) et pages de récap/totaux
     var reSepa = /D[EÉ]TAIL DE VOS (MOUVEMENTS|PR[EÉ]L[EÈ]VEMENTS|VIREMENTS) SEPA/i;
     var idxRecap = pages.findIndex(function(t){ return reSepa.test(t); });
@@ -2014,6 +2096,12 @@ function pdfAnalyse(file){
     return seq;
   }).then(function(toutesOps){
     if(window._pdfTimer){clearInterval(window._pdfTimer);window._pdfTimer=null;}
+    if(toutesOps==='__LOCAL_DONE__'){   // la lecture locale a déjà tout fait
+      _pdfParsed = _pdfMeta;
+      pdfStatus('Lu sans IA (gratuit) : '+((_pdfMeta.operations||[]).length)+' opérations','ok');
+      pdfTraiteResultat(_pdfMeta, restoSel);
+      return;
+    }
     var parsed = Object.assign({}, _pdfMeta||{});
     parsed.operations = toutesOps;
     if(!toutesOps.length){ pdfStatus('Aucune opération lue. Réessaie.','err'); return; }
