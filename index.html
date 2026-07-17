@@ -7808,19 +7808,34 @@ function tresoMatchMontant(socKey, montant, opts){
 }
 
 // Solde de trésorerie le plus récent connu pour une société
+// Rang chronologique d'un mois « MMM AAAA » pour le tableau de bord (ce code est
+// hors du module trésorerie, qui a son propre MS). Insensible aux accents.
+var _DASH_MS = ['JAN','FEV','MAR','AVR','MAI','JUI','JUL','AOU','SEP','OCT','NOV','DEC'];
+function _dashRankMois(label){
+  var m=(label||'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  var mm=m.slice(0,3), y=(m.match(/(\d{4})/)||[])[1], idx=_DASH_MS.indexOf(mm);
+  if(!y || idx<0) return -1;
+  return parseInt(y,10)*100+idx;
+}
 function tresoSoldeRecent(socKey){
   const data = window.TRESO_DATA || {};
   const tkey = TRESO_MAP_SOC[socKey] || socKey;
   const d = data[tkey];
   if(!d || !d.soldes) return null;
-  const ORDRE = ['DÉC 2024','JAN 2025','FEV 2025','MAR 2025','AVR 2025','MAI 2025','JUI 2025','JUL 2025','AOU 2025','SEP 2025','OCT 2025','NOV 2025','DEC 2025','JAN 2026','FEV 2026','MAR 2026','AVR 2026','MAI 2026'];
-  let dernier = null, moisDernier = null;
-  ORDRE.forEach(m=>{ if(d.soldes[m]!=null){ dernier = d.soldes[m]; moisDernier = m; } });
+  // CORRECTIF : on ne se limite plus à une liste de mois figée (qui s'arrêtait à
+  // MAI 2026) — on prend le solde du mois le plus récent réellement présent.
+  let dernier = null, moisDernier = null, best = -1;
+  Object.keys(d.soldes).forEach(function(m){
+    if(d.soldes[m]==null) return;
+    var r=_dashRankMois(m);
+    if(r>best){ best=r; dernier=d.soldes[m]; moisDernier=m; }
+  });
   return (dernier==null) ? null : {solde:dernier, mois:moisDernier};
 }
 
-// Ordre chronologique des mois (utilitaire dashboard)
-const TRESO_ORDRE_MOIS = ['DÉC 2024','JAN 2025','FEV 2025','MAR 2025','AVR 2025','MAI 2025','JUI 2025','JUL 2025','AOU 2025','SEP 2025','OCT 2025','NOV 2025','DEC 2025','JAN 2026','FEV 2026','MAR 2026','AVR 2026','MAI 2026'];
+// (Ancienne liste de mois figée supprimée : elle s'arrêtait à MAI 2026 et faisait
+//  « rater » les mois suivants. Le tri chronologique est désormais dynamique via
+//  _dashRankMois, à partir des mois réellement présents dans les données.)
 
 // Remplit la vue d'ensemble côté trésorerie : 4 KPI, grille des banques, points d'attention.
 function renderDashboardTreso(){
@@ -7834,16 +7849,21 @@ function renderDashboardTreso(){
   banques.forEach(function(tkey){
     var d=data[tkey];
     // dernier mois avec solde
-    var dernier=null, moisD=null, precedent=null, moisP=null;
-    TRESO_ORDRE_MOIS.forEach(function(m){
-      if(d.soldes[m]!=null){ moisP=moisD; precedent=dernier; dernier=d.soldes[m]; moisD=m; }
-    });
-    if(dernier==null) return;
+    // CORRECTIF : mois triés dynamiquement (plus de liste figée arrêtée à MAI 2026).
+    var _moisSolde = Object.keys(d.soldes||{}).filter(function(m){ return d.soldes[m]!=null; })
+                        .sort(function(a,b){ return _dashRankMois(a)-_dashRankMois(b); });
+    if(!_moisSolde.length) return;
+    var moisD=_moisSolde[_moisSolde.length-1];
+    var moisP=_moisSolde.length>1 ? _moisSolde[_moisSolde.length-2] : null;
+    var dernier=d.soldes[moisD];
+    var precedent=(moisP!=null) ? d.soldes[moisP] : null;
     totalTreso+=dernier;
-    if(!moisGlobal || TRESO_ORDRE_MOIS.indexOf(moisD)>TRESO_ORDRE_MOIS.indexOf(moisGlobal)) moisGlobal=moisD;
-    // entrées / sorties du dernier mois (lignes TOTAL)
-    var findTotal=function(sec){ var t=(d[sec]||[]).find(function(x){return (x.label||'').toUpperCase()==='TOTAL';}); return t? (t.vals[moisD]||0):0; };
-    var ent=findTotal('entrees'), sor=findTotal('sorties');
+    if(!moisGlobal || _dashRankMois(moisD)>_dashRankMois(moisGlobal)) moisGlobal=moisD;
+    // entrées / sorties du dernier mois = SOMME des postes (hors ligne « TOTAL »),
+    // exactement comme la vue trésorerie. La ligne « TOTAL » n'est jamais alimentée
+    // → l'ancienne lecture renvoyait toujours 0.
+    var _sumSec=function(sec){ var t=0; (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()!=='TOTAL' && x.vals && x.vals[moisD]!=null) t+=Number(x.vals[moisD])||0; }); return t; };
+    var ent=_sumSec('entrees'), sor=_sumSec('sorties');
     totalEnt+=ent; totalSor+=sor;
     // variation de solde vs mois précédent
     var varTxt='', varCol='var(--text3)';
