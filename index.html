@@ -2616,8 +2616,22 @@ function tresoErrTexte(error){
 
 // Charger toutes les modifications depuis Supabase au démarrage
 async function sbLoad(){
-  const {data, error} = await _sb.from('tresorerie_edits').select('*').order('updated_at');
-  if(error){ console.error('Supabase load error:', error); tresoErrBanner('CHARGEMENT échoué : '+tresoErrTexte(error)); render(); return; }
+  // CORRECTIF (perte des mois récents) : PostgREST/Supabase renvoie AU MAXIMUM
+  // 1000 lignes par requête. La table tresorerie_edits ayant dépassé 1000
+  // écritures, les dernières modifications (les mois les plus récents :
+  // juillet→décembre puis 2026) n'étaient plus rapatriées — d'où l'impression
+  // que la trésorerie était « perdue » alors qu'elle est bien en base.
+  // On pagine désormais par tranches de 1000 pour TOUT recharger.
+  var data = [];
+  var _from = 0, _PAGE = 1000;
+  while(true){
+    const {data:_chunk, error} = await _sb.from('tresorerie_edits').select('*').order('updated_at').range(_from, _from + _PAGE - 1);
+    if(error){ console.error('Supabase load error:', error); tresoErrBanner('CHARGEMENT échoué : '+tresoErrTexte(error)); render(); return; }
+    if(!_chunk || !_chunk.length) break;
+    data = data.concat(_chunk);
+    if(_chunk.length < _PAGE) break;
+    _from += _PAGE;
+  }
   data.forEach(function(row){
     if(row.action==='releve' || row.section==='meta'){
       // archivage relevés : on mémorise le lien pour l'afficher (société + mois + chemin Dropbox)
