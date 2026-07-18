@@ -313,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v30 · vider la trésorerie d'une société + renommer les comptes/banques</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v31 · le choix du menu prime sur la détection auto (corriger un compte mal rangé)</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -3308,14 +3308,13 @@ function pdfMajBouton(){
 // Importe les postes validés dans la trésorerie + Supabase (ÉCRASE le mois)
 function pdfImport(){
   var restoSel=_pdfRestoSel;
-  // Compte non reconnu par l'IBAN (détection auto) : on prend la société choisie
-  // dans le menu au moment de l'import. Si aucune n'est choisie → on bloque et on
-  // demande, pour ne JAMAIS ranger un relevé dans la mauvaise société.
-  if(!restoSel){
-    var _selS=document.getElementById('pdf-resto');
-    var _v=_selS?_selS.value:'';
-    if(_v && _v!=='__AUTO__'){ restoSel=_v; _pdfRestoSel=_v; try{ if(_pdfParsed) _pdfAppliqueIban(_pdfParsed, _v); }catch(e){} }
-  }
+  // ── LE CHOIX EXPLICITE DU MENU PRIME sur la détection auto par IBAN ──────────
+  // Indispensable pour CORRIGER un compte mal rangé : si l'appli a détecté « BK 509 »
+  // mais que ce compte est en réalité à « SGE EI », tu choisis SGE EI dans le menu et
+  // c'est CE choix qui gagne. L'IBAN est alors ré-appris vers la bonne société.
+  var _selEl=document.getElementById('pdf-resto');
+  var _selV=_selEl?_selEl.value:'';
+  if(_selV && _selV!=='__AUTO__'){ restoSel=_selV; _pdfRestoSel=_selV; }
   if(!restoSel || restoSel==='__AUTO__'){
     pdfStatus('🆕 Ce compte n\'est pas encore reconnu — choisis sa société dans le menu « Société / Compte » en haut, puis clique Importer. Je la retiendrai ensuite.','err');
     return;
