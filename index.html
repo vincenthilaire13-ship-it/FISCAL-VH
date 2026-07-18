@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v20 · séparation par banque (dashboard) · Dropbox désactivé</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v22 · fix lecture relevés multi-mois (soldes intermédiaires) + reconnaissance par titulaire</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -768,6 +768,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div style="margin-bottom:14px">
     <label style="font-size:11px;font-weight:700;color:#6b839a;display:block;margin-bottom:6px">SOCIÉTÉ / COMPTE</label>
     <select id="pdf-resto" style="width:100%;padding:7px 10px;border:1px solid #dce3ee;border-radius:7px;font-size:13px">
+      <option value="__AUTO__">🔍 Détection automatique (par IBAN) — recommandé</option>
       <option>BK 500</option>
       <option>BK 509</option>
       <option>BK 526</option>
@@ -775,7 +776,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <option>FVH SARL</option>
       <option>SCI VH Immo</option>
     </select>
-    <div style="font-size:10px;color:#7a90a8;margin-top:3px">L'application lit l'IBAN du relevé et range automatiquement. Vérifiez juste que la bonne société est sélectionnée.</div>
+    <div style="font-size:10px;color:#7a90a8;margin-top:3px">L'appli reconnaît la société grâce à l'IBAN du relevé — tu n'as rien à choisir. Tu peux déposer des relevés de <strong>plusieurs sociétés et plusieurs banques en même temps</strong>, chacun va au bon endroit. La <strong>première fois</strong> qu'un compte apparaît, choisis sa société une seule fois : je la retiens pour toujours.</div>
   </div>
 
   <div id="pdf-drop" class="pdf-drop" onclick="document.getElementById('pdf-file').click()">
@@ -1834,9 +1835,10 @@ function tresoRetirerSousOp(idx, subIdx){
 
 function pdfOpen(){
   document.getElementById('pdf-ov').classList.add('open');
-  // pré-sélectionner la société actuellement affichée
+  // Par défaut : détection automatique par IBAN (l'utilisateur n'a rien à choisir).
   var sel=document.getElementById('pdf-resto');
-  if(sel){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===resto){ sel.selectedIndex=i; break; } } }
+  if(sel) sel.value='__AUTO__';
+  window._pdfChoixSoc='__AUTO__';
   pdfSetupDrop();
 }
 
@@ -1857,7 +1859,7 @@ function pdfSetupDrop(){
     var files = e.dataTransfer && e.dataTransfer.files;
     if(files && files.length){
       var sel=document.getElementById('pdf-resto');
-      if(sel && sel.value) resto = sel.value;
+      if(sel){ window._pdfChoixSoc = sel.value; if(sel.value && sel.value!=='__AUTO__') resto = sel.value; }
       pdfQueueStart(Array.prototype.slice.call(files));
     }
   }, false);
@@ -1879,9 +1881,9 @@ function pdfClose(){
 
 function pdfSelected(inp){
   var files=inp.files; if(!files||!files.length) return;
-  // la société cible = celle choisie dans le menu déroulant du modal
+  // Cible : « détection auto » par défaut ; sinon la société choisie (repli).
   var sel=document.getElementById('pdf-resto');
-  if(sel && sel.value) resto = sel.value;
+  if(sel){ window._pdfChoixSoc = sel.value; if(sel.value && sel.value!=='__AUTO__') resto = sel.value; }
   pdfQueueStart(Array.prototype.slice.call(files));
 }
 
@@ -2112,8 +2114,12 @@ function pdfParseLocalBP(pages){
   for(var li=0; li<lignes.length; li++){
     var ln=lignes[li];
     if(boundaryRe.test(ln)) break;                          // récap/totaux → fin de section
-    var sc=ln.match(/SOLDE CREDITEUR AU\s+(\d{2}\/\d{2}\/\d{4})/i);
-    if(sc){ if(soldeInitDate && sc[1]!==soldeInitDate) break; continue; }  // solde clôture → stop ; initial → ignorer
+    // Lignes de solde (initial, INTERMÉDIAIRE de fin de mois, ou clôture) → ignorées.
+    // ⚠ NE PAS s'arrêter sur un solde daté différemment : certains relevés couvrent
+    // plusieurs mois et affichent un « SOLDE CREDITEUR AU 30/11 » AU MILIEU des
+    // opérations (les opérations de décembre continuent après). La vraie fin de la
+    // section est donnée par « TOTAL DES MOUVEMENTS » / le récap SEPA (boundaryRe).
+    if(/SOLDE CREDITEUR AU/i.test(ln)) continue;
     if(ln.toUpperCase().indexOf('SOLDE')>=0) continue;
     var m=ln.match(montRe); if(!m) continue;
     var dm=ln.match(dateAny); if(!dm) continue;
@@ -2157,6 +2163,7 @@ function pdfParseLocalBP(pages){
   var eqOk  = (si!=null&&sf!=null) ? (Math.abs(si + sumE - sumS - sf)<0.05) : false;
   var totOk = (td==null||Math.abs(sumS-td)<0.05) && (tc==null||Math.abs(sumE-tc)<0.05);
   var moisDom=1,best=-1; Object.keys(moisCnt).forEach(function(k){ if(moisCnt[k]>best){best=moisCnt[k];moisDom=parseInt(k,10);} });
+  if(!titulaire) titulaire=_titulaireDepuis(full);
   return { _local:true, _banque:'Banque Populaire', _soldeBoucle:(eqOk&&totOk), _ecart:(si!=null&&sf!=null?(si+sumE-sumS-sf):null),
            iban:iban, titulaire:titulaire, periode:MSl[moisDom-1]+' '+annee,
            solde_initial:si, solde_final:sf, total_debits:td, total_credits:tc, operations:ops };
@@ -2216,7 +2223,7 @@ function pdfParseLocalCA(richPages){
 
   // ── Métadonnées ──
   var iban=(allTxt.match(/IBAN\s*:?\s*(FR\d{2}[\d ]{18,40})/i)||[])[1]||''; iban=iban.replace(/[^0-9A-Z]/gi,'');
-  var titulaire=(allTxt.match(/Compte Courant\s*n[°o]\s*\d+/i)||[])[0]||'';
+  var titulaire=_titulaireDepuis(allTxt);
   var si=null, sf=null, td=null, tc=null, closeM=null, closeY=null;
   pagesLines.forEach(function(lines){ lines.forEach(function(l){
     var amts=l.toks.filter(function(t){return estMontant(t.s);});
@@ -2292,7 +2299,29 @@ function pdfParseLocalCA(richPages){
 // ── RECONNAISSANCE DU RESTAURANT PAR L'IBAN (avec apprentissage) ──
 // La correspondance IBAN → société est apprise à chaque import et mémorisée
 // (treso_categories, clé « IBAN::<iban> »). Le compte déjà connu est pré-rempli.
-window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {'78121697439':'BK 526'};
+window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {
+  '78121697439':'BK 526',          // BK Avenue (Banque Populaire)
+  '08221152228':'BK 509',          // SARL BK Saint Jean (Banque Populaire)
+  '85164135840':'BK 509',          // SARL BK Saint Jean (Crédit Agricole)
+  '85179472916':'SCI VH Immo'      // Société SCI VH Immo (Crédit Agricole)
+};
+// Repli : reconnaître la société d'après le TITULAIRE du relevé (quand l'IBAN
+// n'est pas encore associé). Sûr uniquement pour les noms clairement identifiables.
+function _societeParTitulaire(titulaire){
+  var t=String(titulaire||'').toUpperCase().replace(/[.\-]/g,' ').replace(/\s+/g,' ');
+  if(!t) return null;
+  if(/SAINT\s*JEAN|\bST\s*JEAN\b/.test(t)) return 'BK 509';
+  if(/SCI\s*VH\s*IMMO|\bVH\s*IMMO\b/.test(t)) return 'SCI VH Immo';
+  if(/VH\s*COMPANY/.test(t)) return 'VH Company';
+  if(/\bFVH\b/.test(t)) return 'FVH SARL';
+  return null;
+}
+// Extrait le nom du titulaire (raison sociale) depuis le texte du relevé.
+function _titulaireDepuis(full){
+  var m=String(full||'').match(/\b(SARL|SASU|SAS|SCI|EURL|SNC|SOCIETE|S\.?A\.?R\.?L)\b[^\n]{2,45}/i);
+  if(m) return m[0].replace(/\s+IBAN[\s\S]*$/i,'').replace(/\s+COMPTE[\s\S]*$/i,'').replace(/\s{2,}/g,' ').trim();
+  return '';
+}
 function _ibanKey(iban){ return String(iban||'').toUpperCase().replace(/[^0-9A-Z]/g,''); }
 function tresoRestoParIban(iban){
   var k=_ibanKey(iban); if(!k) return null;
@@ -2313,8 +2342,12 @@ window.tresoSaveIban = function(iban, resto){
 // Applique la reconnaissance : sélectionne la bonne société et l'affiche.
 function _pdfAppliqueIban(parsed, restoSel){
   try{
-    var iban=(parsed&&parsed.iban)||''; if(!iban) return restoSel;
-    var r=tresoRestoParIban(iban);
+    var iban=(parsed&&parsed.iban)||'';
+    var r=iban?tresoRestoParIban(iban):null;
+    // Repli : si l'IBAN n'est pas (encore) associé, on reconnaît la société d'après
+    // le TITULAIRE du relevé (ex. « SARL BK SAINT JEAN » → BK 509).
+    if(!r && parsed && parsed.titulaire){ r=_societeParTitulaire(parsed.titulaire); }
+    if(!r && !iban) return restoSel;
     var det=document.getElementById('pdf-resto-detected');
     if(r && typeof RAW!=='undefined' && RAW[r]){
       if(r!==restoSel){
@@ -2326,7 +2359,11 @@ function _pdfAppliqueIban(parsed, restoSel){
         det.innerHTML='✓ Compte reconnu par l\'IBAN → <strong>'+r+'</strong>'; }
     } else if(det){
       det.style.display='block'; det.style.background='#fff7ed'; det.style.color='#b45309';
-      det.innerHTML='IBAN pas encore associé — vérifie la société choisie ci-dessus, je la retiendrai pour ce compte au prochain import.';
+      if(!restoSel){
+        det.innerHTML='🆕 <strong>Nouveau compte</strong> (IBAN '+String(iban).slice(0,8)+'…) pas encore associé.<br>Choisis sa société dans le menu ci-dessus, puis clique <strong>Importer</strong> : je la retiendrai pour toujours, tu n\'auras plus à le faire.';
+      } else {
+        det.innerHTML='IBAN pas encore associé — je le rattache à <strong>'+restoSel+'</strong> et je le retiendrai pour les prochains imports.';
+      }
     }
   }catch(e){ console.warn('IBAN detect', e); }
   return restoSel;
@@ -2343,7 +2380,9 @@ function pdfAnalyse(file, forceIA){
   tick(); window._pdfTimer=setInterval(tick,1000);
 
   window._pdfFichier = file;
-  var restoSel=resto;
+  // « Détection auto » → restoSel vide : c'est l'IBAN qui décidera de la société.
+  // Sinon (repli), la société explicitement choisie dans le menu.
+  var restoSel = (window._pdfChoixSoc && window._pdfChoixSoc!=='__AUTO__') ? window._pdfChoixSoc : '';
   var fournisseurs=[];
   if(RAW[restoSel]){
     ['sorties','entrees'].forEach(function(sec){
@@ -3082,6 +3121,18 @@ function pdfMajBouton(){
 // Importe les postes validés dans la trésorerie + Supabase (ÉCRASE le mois)
 function pdfImport(){
   var restoSel=_pdfRestoSel;
+  // Compte non reconnu par l'IBAN (détection auto) : on prend la société choisie
+  // dans le menu au moment de l'import. Si aucune n'est choisie → on bloque et on
+  // demande, pour ne JAMAIS ranger un relevé dans la mauvaise société.
+  if(!restoSel){
+    var _selS=document.getElementById('pdf-resto');
+    var _v=_selS?_selS.value:'';
+    if(_v && _v!=='__AUTO__'){ restoSel=_v; _pdfRestoSel=_v; try{ if(_pdfParsed) _pdfAppliqueIban(_pdfParsed, _v); }catch(e){} }
+  }
+  if(!restoSel || restoSel==='__AUTO__'){
+    pdfStatus('🆕 Ce compte n\'est pas encore reconnu — choisis sa société dans le menu « Société / Compte » en haut, puis clique Importer. Je la retiendrai ensuite.','err');
+    return;
+  }
   var periode=(_pdfParsed&&_pdfParsed._periode)||'';
   if(!periode){ pdfStatus('Période du relevé non détectée.','err'); return; }
   // Apprentissage IBAN → société : on retient le compte pour l'auto-sélection future.
