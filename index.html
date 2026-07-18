@@ -313,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v27 · créer de vraies sociétés dans le menu principal (page + trésorerie)</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v28 · distingue les comptes par IBAN (2 comptes même banque = addition)</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1127,7 +1127,7 @@ function renderDashboard(){
       var L=_latBanque(bk); if(!L) return;
       var c=(L.solde>=0)?'#0d9e6e':'#e03a3a', fl=L.flux||{};
       _cards += '<div style="flex:1;min-width:210px;border:1px solid var(--gray2);border-radius:12px;padding:14px 16px;background:'+((L.solde<0)?'#fff5f5':'#f6fbf9')+'">'
-        + '<div style="font-size:12px;font-weight:700;color:var(--text2)">🏦 '+bk+'</div>'
+        + '<div style="font-size:12px;font-weight:700;color:var(--text2)">🏦 '+((_bq[bk]&&_bq[bk].label)||bk)+'</div>'
         + '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">solde '+L.mois+(L.solde<0?' · à alimenter':'')+'</div>'
         + '<div style="font-size:22px;font-weight:800;font-family:var(--mono);color:'+c+'">'+fmt(L.solde)+'</div>'
         + '<div style="display:flex;gap:16px;margin-top:8px;font-size:11px">'
@@ -1235,7 +1235,7 @@ function renderGroupe(){
       bqs.forEach(function(bk){
         var bv=null,bl=null; for(var j2=allLabels.length-1;j2>=0;j2--){ var vv=RAW[s].banques[bk].soldes&&RAW[s].banques[bk].soldes[allLabels[j2]]; if(vv!=null){bv=vv;bl=allLabels[j2];break;} }
         if(bv==null) return;
-        html+='<tr style="border-bottom:1px solid var(--gray2);background:#fafbfc"><td style="padding:4px 8px 4px 24px;color:var(--text3);font-size:11px">↳ 🏦 '+bk+(bv<0?' · à alimenter':'')+'</td><td style="padding:4px 8px;color:var(--text3);font-size:11px">'+(bl||'—')+'</td><td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:'+((bv||0)>=0?'#0d9e6e':'#e03a3a')+';font-size:11px">'+fmt(bv)+'</td></tr>';
+        html+='<tr style="border-bottom:1px solid var(--gray2);background:#fafbfc"><td style="padding:4px 8px 4px 24px;color:var(--text3);font-size:11px">↳ 🏦 '+((RAW[s].banques[bk]&&RAW[s].banques[bk].label)||bk)+(bv<0?' · à alimenter':'')+'</td><td style="padding:4px 8px;color:var(--text3);font-size:11px">'+(bl||'—')+'</td><td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:'+((bv||0)>=0?'#0d9e6e':'#e03a3a')+';font-size:11px">'+fmt(bv)+'</td></tr>';
       });
     }
   });
@@ -3378,10 +3378,18 @@ function pdfImport(){
   // banque ne doit PAS effacer les écritures de l'autre → on ADDITIONNE dans le
   // mois. Pour pouvoir corriger un ré-import du MÊME compte, on retire d'abord
   // l'ancienne contribution de CETTE banque pour ce mois, puis on ajoute la nouvelle.
-  var banque = _pdfParsed._banque || _banqueDepuisIban(_pdfParsed.iban) || 'Banque';
+  // Clé de COMPTE unique = IBAN. Elle DISTINGUE deux comptes de la MÊME banque
+  // (sans ça, le 2ᵉ relevé écraserait le 1ᵉʳ). L'étiquette affichée = nom de la
+  // banque + fin du numéro de compte (ex. « Banque Populaire ••2228 »).
+  var _banqueNom = _pdfParsed._banque || _banqueDepuisIban(_pdfParsed.iban) || 'Banque';
+  var _ibk = _ibanKey(_pdfParsed.iban);
+  var banque = _ibk || _banqueNom;                        // ← clé de COMPTE (stable, unique)
+  var _acctLabel = _banqueNom + (_ibk ? ' ••'+_ibk.slice(-4) : '');
   if(!RAW[restoSel].banques) RAW[restoSel].banques={};
   if(!RAW[restoSel].banques[banque]) RAW[restoSel].banques[banque]={soldes:{},flux:{},postes:{}};
   if(!RAW[restoSel].banques[banque].postes) RAW[restoSel].banques[banque].postes={};
+  RAW[restoSel].banques[banque].label=_acctLabel;
+  RAW[restoSel].banques[banque].banque=_banqueNom;
   var _round=function(x){ return Math.round((Number(x)||0)*100)/100; };
   var _affectes={};   // "sec||nom" → poste touché (à re-persister avec sa valeur fusionnée)
   var _findLigne=function(sec,nom,creer){
@@ -3442,7 +3450,7 @@ function pdfImport(){
     var soldeTot=0; Object.keys(RAW[restoSel].banques).forEach(function(b){ var v=RAW[restoSel].banques[b].soldes[periode]; if(v!=null) soldeTot+=Number(v)||0; });
     RAW[restoSel].soldes[periode] = soldeTot;
     sbSave(restoSel, 'soldes', periode, {solde:soldeTot}, 'solde');
-    sbSave(restoSel, 'banque', banque, {periode:periode, solde:soldeFin, e:_fe, s:_fs}, 'banque');
+    sbSave(restoSel, 'banque', banque, {periode:periode, solde:soldeFin, e:_fe, s:_fs, label:_acctLabel, banque:_banqueNom}, 'banque');
   }
 
   // La société a désormais des données : on retire le marqueur « vide » pour que
@@ -3590,6 +3598,8 @@ async function sbLoad(){
         if(!r.banques[_bq]) r.banques[_bq]={soldes:{},flux:{},postes:{}};
         if(_v.solde!=null) r.banques[_bq].soldes[_v.periode]=_v.solde;
         r.banques[_bq].flux[_v.periode]={e:(_v.e!=null?_v.e:null), s:(_v.s!=null?_v.s:null)};
+        if(_v.label) r.banques[_bq].label=_v.label;
+        if(_v.banque) r.banques[_bq].banque=_v.banque;
       }
       return;
     }
