@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v22 · fix lecture relevés multi-mois (soldes intermédiaires) + reconnaissance par titulaire</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v26 · import ADDITIONNE les banques (n'écrase plus) + solde/flux par banque</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1225,7 +1225,19 @@ function renderGroupe(){
 
   // détail par société (dernier solde connu)
   html+='<div class="chart-card"><div class="chart-title" style="margin-bottom:10px">Par société — dernier solde connu</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>';
-  socs.forEach(function(s){ var lv=null,ll=null; for(var j=allLabels.length-1;j>=0;j--){ var v=RAW[s].soldes&&RAW[s].soldes[allLabels[j]]; if(v!=null){lv=v;ll=allLabels[j];break;} } html+='<tr style="border-bottom:1px solid var(--gray2)"><td style="padding:6px 8px;font-weight:600">'+s+'</td><td style="padding:6px 8px;color:var(--text3)">'+(ll||'—')+'</td><td style="text-align:right;padding:6px 8px;font-family:var(--mono);font-weight:700;color:'+((lv||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(lv)+'</td></tr>'; });
+  socs.forEach(function(s){
+    var lv=null,ll=null; for(var j=allLabels.length-1;j>=0;j--){ var v=RAW[s].soldes&&RAW[s].soldes[allLabels[j]]; if(v!=null){lv=v;ll=allLabels[j];break;} }
+    html+='<tr style="border-bottom:1px solid var(--gray2)"><td style="padding:6px 8px;font-weight:600">'+s+'</td><td style="padding:6px 8px;color:var(--text3)">'+(ll||'—')+'</td><td style="text-align:right;padding:6px 8px;font-family:var(--mono);font-weight:700;color:'+((lv||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(lv)+'</td></tr>';
+    // sous-lignes PAR BANQUE (si la société a plusieurs comptes) → voir lequel alimenter
+    var bqs=RAW[s].banques?Object.keys(RAW[s].banques):[];
+    if(bqs.length>=2){
+      bqs.forEach(function(bk){
+        var bv=null,bl=null; for(var j2=allLabels.length-1;j2>=0;j2--){ var vv=RAW[s].banques[bk].soldes&&RAW[s].banques[bk].soldes[allLabels[j2]]; if(vv!=null){bv=vv;bl=allLabels[j2];break;} }
+        if(bv==null) return;
+        html+='<tr style="border-bottom:1px solid var(--gray2);background:#fafbfc"><td style="padding:4px 8px 4px 24px;color:var(--text3);font-size:11px">↳ 🏦 '+bk+(bv<0?' · à alimenter':'')+'</td><td style="padding:4px 8px;color:var(--text3);font-size:11px">'+(bl||'—')+'</td><td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:'+((bv||0)>=0?'#0d9e6e':'#e03a3a')+';font-size:11px">'+fmt(bv)+'</td></tr>';
+      });
+    }
+  });
   html+='</tbody></table></div>';
 
   ct.innerHTML=html;
@@ -1281,11 +1293,46 @@ function renderCompare(){
 }
 
 function renderAnnuel(){
-  var d=RAW[resto], cols=getCols();
-  var html='<div class="pt">'+resto+' — Vue annuelle</div><div class="ps">Tous les mois 2025 et 2026</div>'
-    +'<div class="fb"><span class="fl">Recherche :</span>'
-    +'<input class="sb" type="text" placeholder="Filtrer fournisseur…" value="'+sq+'" oninput="sq=this.value;renderAnnuel()"></div>';
-  html+=oneTable(d,cols);
+  var d=RAW[resto];
+  // Colonnes = les ANNÉES (2025, 2026, …) côte à côte. Chaque poste est résumé à la
+  // somme de ses mois pour l'année. On compare ainsi 2025 vs 2026 d'un coup d'œil.
+  var years=[]; (d.wanted||[]).forEach(function(w){ if(w.year && w.year!=='2024' && years.indexOf(w.year)<0) years.push(w.year); });
+  years.sort(); if(!years.length) years=['2025','2026'];
+  var cols=years.map(function(y){ return {label:y, year:y, reel:false}; });
+  var MSQ=window.TRESO_MASQUES||{};
+  function sumYear(row,y){ var t=0,any=false; (d.wanted||[]).forEach(function(w){ if(w.year===y && row.vals && row.vals[w.label]!=null){ t+=Number(row.vals[w.label])||0; any=true; } }); return any?t:null; }
+  function soldeYear(y){ var v=null; (d.wanted||[]).forEach(function(w){ if(w.year===y && d.soldes && d.soldes[w.label]!=null) v=d.soldes[w.label]; }); return v; }
+  function secRows(rows, section){
+    var sign=section==='sorties'?-1:1;
+    var sorted=rows.slice().sort(function(a,b){ var la=(a.label||''),lb=(b.label||''); var ta=la.toUpperCase()==='TOTAL',tb=lb.toUpperCase()==='TOTAL'; if(ta!==tb) return ta?1:-1; return la.localeCompare(lb,'fr',{sensitivity:'base'}); });
+    var h='', nbMasques=0;
+    sorted.forEach(function(row){
+      var lbl=row.label; if(!lbl) return;
+      var isA=lbl.length===1&&/[A-Z]/.test(lbl); if(isA) return;
+      var isT=lbl.toUpperCase()==='TOTAL';
+      if(!isT&&sq&&!lbl.toLowerCase().includes(sq.toLowerCase())) return;
+      if(!isT && MSQ[resto+'||'+section+'||'+lbl]){ nbMasques++; return; }
+      if(!isT && !years.some(function(y){return sumYear(row,y)!=null;})) return;
+      var tc=isT?'tr':(section==='sorties'?'rs':'re');
+      var dlbl=isT?(section==='sorties'?'TOTAL SORTIES':'TOTAL ENTRÉES'):lbl;
+      h+='<tr class="'+tc+'"><td>'+dlbl+'</td>';
+      years.forEach(function(y){ var v=sumYear(row,y); h+='<td'+tdCls({year:y},false,isT)+'>'+(v!=null?fmt(v*sign):'')+'</td>'; });
+      h+='</tr>';
+    });
+    if(nbMasques>0){ h+='<tr><td colspan="'+(cols.length+1)+'" onclick="tresoOpenMasques()" style="cursor:pointer;text-align:left;background:#eef2f7;color:#1a6cf4;font-size:11px;padding:6px 12px">🙈 '+nbMasques+' poste'+(nbMasques>1?'s':'')+' masqué'+(nbMasques>1?'s':'')+' — cliquer pour gérer</td></tr>'; }
+    return h;
+  }
+  var thead='<thead><tr><th>Fournisseur / Poste</th>'+cols.map(function(w){return '<th '+thCls(w)+'>'+w.label+'</th>';}).join('')+'</tr></thead>';
+  var sep='<tr><td colspan="'+(cols.length+1)+'" style="background:#1a3050;padding:7px 12px;font-size:10px;font-weight:700;letter-spacing:.8px;color:rgba(255,255,255,.5);text-transform:uppercase;border-top:2px solid #375623">&#9660; ENTRÉES — Recettes &amp; encaissements</td></tr>';
+  var solde='<tr class="sr"><td>&#128176; SOLDE (fin d\'année)</td>'+cols.map(function(w){ var v=soldeYear(w.year); var c=(v!=null&&v<0)?'#ff5757':(w.year==='2025'?'#7ac4ff':'#5de8b8'); return '<td style="text-align:right;padding:10px 12px;font-family:var(--mono);font-weight:700;color:'+c+'">'+(v!=null?fmt(v):'&#8212;')+'</td>'; }).join('')+'</tr>';
+  var html='<div class="pt">'+resto+' — Vue annuelle</div>'
+    +'<div class="ps">Totaux par année — '+years.join(' vs ')+' (côte à côte)</div>'
+    +'<div class="fb"><span class="fl">Recherche :</span><input class="sb" type="text" placeholder="Filtrer fournisseur…" value="'+sq+'" oninput="sq=this.value;renderAnnuel()"></div>'
+    +'<div class="tc"><div class="tc-hdr"><div class="tc-title"><span class="badge bs">SORTIES</span>Charges &amp; dépenses</div>'
+    +'<button class="addbtn" onclick="bkOpenNew(\'sorties\')">+ Sortie</button><button class="addbtn" onclick="bkOpenNew(\'entrees\')">+ Entrée</button></div>'
+    +'<div class="tw"><table>'+thead+'<tbody>'
+    +secRows(d.sorties,'sorties')+sep+secRows(d.entrees,'entrees')+solde
+    +'</tbody></table></div></div>';
   document.getElementById('ct').innerHTML=html;
   if(chart){chart.destroy();chart=null;}
 }
@@ -1293,11 +1340,10 @@ function renderAnnuel(){
 function renderMensuel(){
   var d=RAW[resto], col=COLORS[resto];
 
-  // Colonnes dans l'ORDRE CHRONOLOGIQUE strict : janvier → décembre 2025, puis
-  // janvier → … 2026 (au lieu d'intercaler les deux années). On exclut 2024 et on
-  // trie par rang de mois pour être sûr de l'ordre, quels que soient les ajouts.
+  // Colonnes APPARIÉES par mois : JAN 2025, JAN 2026, FEV 2025, FEV 2026, … pour
+  // comparer le même mois d'une année à l'autre (on exclut 2024).
   var cols = (d.wanted||[]).filter(function(w){ return w.year!=='2024'; })
-               .slice().sort(function(a,b){ return _tresoMoisRank(a.label)-_tresoMoisRank(b.label); });
+               .slice().sort(function(a,b){ return _tresoMoisRankPaire(a.label)-_tresoMoisRankPaire(b.label); });
 
   function mRows(rows, section){
     var sign=section==='sorties'?-1:1;
@@ -1363,7 +1409,7 @@ function renderMensuel(){
   msol+='</tr>';
 
   var html='<div class="pt">Vue mensuelle — '+resto+'</div>'
-    +'<div class="ps">JAN 2025 · FEV 2025 · … · DEC 2025 · JAN 2026 · … (ordre chronologique)</div>'
+    +'<div class="ps">JAN 2025 · JAN 2026 · FEV 2025 · FEV 2026 · … (chaque mois, les deux années côte à côte)</div>'
     +'<div class="fb"><span class="fl">Recherche :</span>'
     +'<input class="sb" type="text" placeholder="Filtrer fournisseur…" value="'+sq+'" oninput="sq=this.value;renderMensuel()"></div>'
     +'<div class="tc">'
@@ -1433,17 +1479,61 @@ function render(){
   }catch(e){}
 }
 
-// Remplit la liste des sociétés dans la sidebar (auto depuis EXTRA_SOC)
+// Remplit la liste des sociétés dans la sidebar (auto depuis EXTRA_SOC + créées par toi)
 function buildSocieteSidebar(){
   var box = document.getElementById('sb-societes');
   if(!box) return;
   box.innerHTML = EXTRA_SOC.map(function(s){
     var vide = RAW[s.nom] && RAW[s.nom]._vide;
     var sub = vide ? '<span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,.35);font-style:italic">en attente</span>' : '';
-    return '<div class="sb-item" onclick="setResto(\''+s.nom+'\',this)">'
+    return '<div class="sb-item" onclick="setResto(\''+s.nom.replace(/'/g,"\\'")+'\',this)">'
       +'<div class="dot" style="background:'+s.couleur+'"></div>'+s.nom+sub+'</div>';
-  }).join('');
+  }).join('')
+  // Bouton « + » pour créer TA propre société / compte (SGE, PEA, PME, perso…)
+  + '<div class="sb-item" onclick="tresoPromptSociete()" title="Créer une société ou un compte de suivi" style="opacity:.72">'
+  + '<div class="dot" style="background:#64748b"></div>➕ Nouvelle société</div>';
 }
+
+// ── CRÉER UNE SOCIÉTÉ / UN COMPTE DE SUIVI (SGE, PEA, PME externe, perso…) ──
+// La société est ajoutée à la barre latérale, au menu d'import, et à la trésorerie,
+// puis mémorisée dans Supabase (clé « SOC::<nom> ») pour réapparaître au rechargement.
+var _SOC_PALETTE=['#a78bfa','#f472b6','#38bdf8','#34d399','#fbbf24','#fb7185','#818cf8','#2dd4bf','#f59e0b','#c084fc','#ef4444','#10b981'];
+window.TRESO_SOC_CUSTOM = window.TRESO_SOC_CUSTOM || [];
+function tresoCreerSociete(nom, couleur, opts){
+  opts=opts||{};
+  nom=String(nom||'').trim();
+  if(!nom) return {ok:false, err:'Donne un nom à la société.'};
+  if(RAW[nom]) return {ok:false, err:'« '+nom+' » existe déjà.'};
+  couleur = couleur || _SOC_PALETTE[(EXTRA_SOC.length)%_SOC_PALETTE.length];
+  var modele = (RAW['BK 500'] && RAW['BK 500'].wanted) ? RAW['BK 500'].wanted : [];
+  RAW[nom] = { wanted: JSON.parse(JSON.stringify(modele)), sorties:[{label:'TOTAL',vals:{}}],
+               entrees:[{label:'TOTAL',vals:{}}], soldes:{}, banques:{}, _vide:true };
+  EXTRA_SOC.push({nom:nom, couleur:couleur});
+  COLORS[nom]=couleur;
+  window.TRESO_SOC_CUSTOM = window.TRESO_SOC_CUSTOM || [];
+  window.TRESO_SOC_CUSTOM.push({nom:nom, couleur:couleur});
+  if(!opts.noPersist){ try{ sb.from('treso_categories').upsert({cle:'SOC::'+nom, categorie:couleur},{onConflict:'cle'}); }catch(e){ console.warn('save SOC', e); } }
+  if(!opts.noRebuild){ try{ buildSocieteSidebar(); }catch(e){} try{ pdfRebuildResto(); }catch(e){} try{ if(window.tresoOnUpdate) window.tresoOnUpdate(); }catch(e){} }
+  return {ok:true};
+}
+// Reconstruit le menu déroulant « Société / Compte » de l'import (auto = 1er choix).
+function pdfRebuildResto(){
+  var sel=document.getElementById('pdf-resto'); if(!sel) return;
+  var cur=sel.value;
+  var socs = (typeof RESTOS!=='undefined'?RESTOS:[]).concat(EXTRA_SOC.map(function(s){return s.nom;}));
+  var html='<option value="__AUTO__">🔍 Détection automatique (par IBAN) — recommandé</option>';
+  socs.forEach(function(n){ html+='<option>'+n.replace(/</g,'&lt;')+'</option>'; });
+  sel.innerHTML=html;
+  if(cur){ try{ sel.value=cur; }catch(e){} }
+}
+window.tresoPromptSociete = function(){
+  var nom=(prompt('Nom de la nouvelle société ou du compte de suivi\n(ex. SGE, PEA, PME externe, Perso…) :')||'').trim();
+  if(!nom) return;
+  var r=tresoCreerSociete(nom);
+  if(!r.ok){ try{ alert(r.err); }catch(e){} return; }
+  // bascule directement sur la nouvelle société
+  try{ resto=nom; render(); buildSocieteSidebar(); }catch(e){}
+};
 
 function setPage(p,btn){
   page=p;
@@ -2430,6 +2520,13 @@ function pdfAnalyse(file, forceIA){
   }
 
   pdfTextePages(file).then(function(pages){
+    // ── GARDE-FOU : « Relevé de FACTURES » (facturation des frais bancaires) ≠
+    //    relevé de compte. Il ne contient AUCUNE opération à importer. On le
+    //    reconnaît et on le REFUSE clairement, pour ne jamais le ranger n'importe où. ──
+    var _txtAll=(pages||[]).join('\n');
+    if(/RELEV[EÉ] DE FACTURES|d[eé]tail des facturations/i.test(_txtAll) && !/RELEV[EÉ] DE COMPTES|D[EÉ]TAIL DES OP[EÉ]RATIONS/i.test(_txtAll)){
+      return '__RELEVE_FRAIS__';
+    }
     if(!forceIA){
       // ── LECTURE LOCALE (gratuite, sans IA). L'appli ne bascule JAMAIS seule sur
       //    l'IA : selon le résultat elle affiche et te laisse le choix (bouton). ──
@@ -2524,6 +2621,15 @@ function pdfAnalyse(file, forceIA){
         var ec=(_pdfMeta._ecart!=null)?Math.abs(_pdfMeta._ecart).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'?';
         pdfStatusIA('⚠️ Lu en local ('+n+' opérations) mais le contrôle ne tombe pas (écart '+ec+'). Vérifie/importe ci-dessous, ou');
       }
+      return;
+    }
+    if(toutesOps==='__RELEVE_FRAIS__'){   // relevé de FRAIS (facturation) → rien à importer
+      var el=document.getElementById('pdf-status');
+      if(el){ el.style.display='block'; el.style.background='#fff7ed'; el.style.color='#b45309';
+        el.innerHTML='📄 <strong>Ce n\'est pas un relevé de compte, c\'est un relevé de FRAIS bancaires</strong> (facturation). Il n\'y a pas d\'opérations à importer.<br>Télécharge plutôt le <strong>relevé de COMPTE</strong> (« Relevé de comptes ») depuis ta banque.'
+        +(pdfQueueRestant()?' <button onclick="pdfQueueSkip()" style="margin-left:6px;padding:3px 10px;background:#b45309;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">Passer au suivant →</button>':''); }
+      var det=document.getElementById('pdf-resto-detected'); if(det) det.style.display='none';
+      var res=document.getElementById('pdf-results'); if(res) res.style.display='none';
       return;
     }
     if(toutesOps==='__LOCAL_UNRECOGNIZED__'){   // format non reconnu → on SIGNALE (pas d'IA auto)
@@ -3215,32 +3321,54 @@ function pdfImport(){
   // Sauvegarder le détail des opérations de ce mois (remplace l'éventuel détail précédent du mois)
   if(window.tresoSaveDetail) window.tresoSaveDetail(restoSel, periode, detailOps);
 
-  // 2ᵉ passage : écrire dans RAW (écrasement du mois par le cumul) + Supabase
-  Object.keys(cumuls).forEach(function(k){
-    var c=cumuls[k];
-    if(!RAW[restoSel]) return;
-    var ligne = RAW[restoSel][c.sec].find(function(x){return x.label===c.nom;});
-    if(!ligne){
-      var ti = RAW[restoSel][c.sec].findIndex(function(x){return (x.label||'').toUpperCase()==='TOTAL';});
-      ligne = {label:c.nom, vals:{}};
-      if(ti>=0) RAW[restoSel][c.sec].splice(ti,0,ligne); else RAW[restoSel][c.sec].push(ligne);
+  // ── 2ᵉ passage : ÉCRITURE PAR BANQUE — ADDITION, JAMAIS ÉCRASEMENT ──────────
+  // Une société peut avoir PLUSIEURS comptes / banques. Importer le relevé d'une
+  // banque ne doit PAS effacer les écritures de l'autre → on ADDITIONNE dans le
+  // mois. Pour pouvoir corriger un ré-import du MÊME compte, on retire d'abord
+  // l'ancienne contribution de CETTE banque pour ce mois, puis on ajoute la nouvelle.
+  var banque = _pdfParsed._banque || _banqueDepuisIban(_pdfParsed.iban) || 'Banque';
+  if(!RAW[restoSel].banques) RAW[restoSel].banques={};
+  if(!RAW[restoSel].banques[banque]) RAW[restoSel].banques[banque]={soldes:{},flux:{},postes:{}};
+  if(!RAW[restoSel].banques[banque].postes) RAW[restoSel].banques[banque].postes={};
+  var _round=function(x){ return Math.round((Number(x)||0)*100)/100; };
+  var _affectes={};   // "sec||nom" → poste touché (à re-persister avec sa valeur fusionnée)
+  var _findLigne=function(sec,nom,creer){
+    var ln=RAW[restoSel][sec].find(function(x){return x.label===nom;});
+    if(!ln && creer){ var ti=RAW[restoSel][sec].findIndex(function(x){return (x.label||'').toUpperCase()==='TOTAL';});
+      ln={label:nom, vals:{}}; if(ti>=0) RAW[restoSel][sec].splice(ti,0,ln); else RAW[restoSel][sec].push(ln); }
+    return ln;
+  };
+  // 1) retirer l'ancienne contribution de CETTE banque pour ce mois (correction)
+  (RAW[restoSel].banques[banque].postes[periode]||[]).forEach(function(pc){
+    var ln=_findLigne(pc.sec, pc.nom, false);
+    if(ln && ln.vals && ln.vals[periode]!=null){
+      ln.vals[periode]=_round(ln.vals[periode]-(Number(pc.total)||0));
+      if(Math.abs(ln.vals[periode])<0.005) ln.vals[periode]=0;
     }
-    if(!ligne.vals) ligne.vals={};
-    ligne.vals[periode] = c.total;   // ÉCRASEMENT du mois par le cumul (le relevé fait foi)
-    // marqueur EXCEPTIONNEL pour ce mois (non récurrent) + commentaire
-    if(c.exceptionnel){
-      if(!ligne.exc) ligne.exc={};
-      ligne.exc[periode] = {note: c.commentaire||''};
-      if(window.tresoSaveExceptionnel) window.tresoSaveExceptionnel(restoSel, c.sec, c.nom, periode, c.commentaire||'');
-    }
-    imported++;
-
-    var vals={}; vals[periode]=c.total;
-    sbSave(restoSel, c.sec, c.nom, vals, 'update');
-    if(c.categorie && window.tresoSaveCategorie){
-      window.tresoSaveCategorie(restoSel, c.sec, c.nom, c.categorie);
-    }
+    _affectes[pc.sec+'||'+pc.nom]={sec:pc.sec, nom:pc.nom};
   });
+  // 2) ajouter la nouvelle contribution (ADDITION)
+  Object.keys(cumuls).forEach(function(k){
+    var c=cumuls[k]; if(!RAW[restoSel]) return;
+    var ligne=_findLigne(c.sec, c.nom, true);
+    if(!ligne.vals) ligne.vals={};
+    ligne.vals[periode]=_round((Number(ligne.vals[periode])||0)+c.total);   // ADDITION (pas écrasement)
+    if(c.exceptionnel){ if(!ligne.exc) ligne.exc={}; ligne.exc[periode]={note:c.commentaire||''};
+      if(window.tresoSaveExceptionnel) window.tresoSaveExceptionnel(restoSel, c.sec, c.nom, periode, c.commentaire||''); }
+    imported++;
+    _affectes[c.sec+'||'+c.nom]={sec:c.sec, nom:c.nom};
+    if(c.categorie && window.tresoSaveCategorie){ window.tresoSaveCategorie(restoSel, c.sec, c.nom, c.categorie); }
+  });
+  // 3) mémoriser la contribution de CETTE banque pour ce mois (futur ré-import)
+  RAW[restoSel].banques[banque].postes[periode]=Object.keys(cumuls).map(function(k){ return {sec:cumuls[k].sec, nom:cumuls[k].nom, total:_round(cumuls[k].total)}; });
+  // 4) persister la valeur FUSIONNÉE (somme des banques) de chaque poste touché
+  Object.keys(_affectes).forEach(function(ak){
+    var a=_affectes[ak]; var ln=_findLigne(a.sec, a.nom, false);
+    var v=(ln && ln.vals && ln.vals[periode]!=null)?ln.vals[periode]:0;
+    var vals={}; vals[periode]=v; sbSave(restoSel, a.sec, a.nom, vals, 'update');
+  });
+  // 5) persister la contribution par banque (reconstruction au rechargement)
+  try{ sbSave(restoSel, 'bqpostes', banque+'||'+periode, {postes:RAW[restoSel].banques[banque].postes[periode]}, 'bqpostes'); }catch(e){}
 
   // ── SOLDE + VENTILATION PAR BANQUE ──────────────────────────────────────
   // Le relevé fait foi. On enregistre le solde final de CE compte (cette banque)
@@ -3250,10 +3378,10 @@ function pdfImport(){
   // seulement le dernier relevé importé.
   if(_pdfParsed && _pdfParsed.solde_final!=null){
     var soldeFin = pdfNum(_pdfParsed.solde_final);
-    var banque = _pdfParsed._banque || _banqueDepuisIban(_pdfParsed.iban) || 'Banque';
+    // (banque déjà calculée plus haut, au 2ᵉ passage)
     if(!RAW[restoSel].soldes) RAW[restoSel].soldes={};
     if(!RAW[restoSel].banques) RAW[restoSel].banques={};
-    if(!RAW[restoSel].banques[banque]) RAW[restoSel].banques[banque]={soldes:{},flux:{}};
+    if(!RAW[restoSel].banques[banque]) RAW[restoSel].banques[banque]={soldes:{},flux:{},postes:{}};
     RAW[restoSel].banques[banque].soldes[periode] = soldeFin;
     var _fe = _pdfParsed.total_credits!=null ? pdfNum(_pdfParsed.total_credits) : null;
     var _fs = _pdfParsed.total_debits!=null  ? pdfNum(_pdfParsed.total_debits)  : null;
@@ -3320,6 +3448,17 @@ function _tresoMoisRank(label){
   var idx=MS.indexOf(mm);
   if(!y || idx<0) return null;
   return parseInt(y,10)*100+idx;
+}
+// Rang « APPARIÉ par mois » : on regroupe le même mois des différentes années côte
+// à côte → JAN 2025, JAN 2026, FEV 2025, FEV 2026, … (pour comparer d'une année sur
+// l'autre). Tri par n° de mois d'abord, puis par année.
+function _tresoMoisRankPaire(label){
+  var m=(label||'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  var mm=m.slice(0,3);
+  var y=(m.match(/(\d{4})/)||[])[1];
+  var idx=MS.indexOf(mm);
+  if(!y || idx<0) return 999999;
+  return idx*10000 + parseInt(y,10);
 }
 // CORRECTIF (mois manquants après rechargement) : la liste des colonnes
 // (RAW[soc].wanted) est un gabarit FIGÉ dans le code. Tout mois importé au-delà
@@ -3396,9 +3535,21 @@ async function sbLoad(){
       if(!r.banques) r.banques={};
       var _bq=row.label, _v=row.vals||{};
       if(_bq && _v.periode){
-        if(!r.banques[_bq]) r.banques[_bq]={soldes:{},flux:{}};
+        if(!r.banques[_bq]) r.banques[_bq]={soldes:{},flux:{},postes:{}};
         if(_v.solde!=null) r.banques[_bq].soldes[_v.periode]=_v.solde;
         r.banques[_bq].flux[_v.periode]={e:(_v.e!=null?_v.e:null), s:(_v.s!=null?_v.s:null)};
+      }
+      return;
+    }
+    // contribution par banque à un mois (liste des postes de CETTE banque) →
+    // permet, à un futur ré-import, de retirer l'ancienne contribution avant d'ajouter.
+    if(row.action==='bqpostes' || sec==='bqpostes'){
+      if(!r.banques) r.banques={};
+      var _lbl=row.label||'', _ix=_lbl.lastIndexOf('||');
+      if(_ix>0){ var _bk=_lbl.slice(0,_ix), _per=_lbl.slice(_ix+2);
+        if(!r.banques[_bk]) r.banques[_bk]={soldes:{},flux:{},postes:{}};
+        if(!r.banques[_bk].postes) r.banques[_bk].postes={};
+        r.banques[_bk].postes[_per]=(row.vals&&row.vals.postes)||[];
       }
       return;
     }
@@ -8665,10 +8816,17 @@ async function loadTresoCategories(){
         // correspondance apprise IBAN → société (auto-sélection à l'import)
         window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {};
         if(r.categorie) window.TRESO_IBAN_MAP[r.cle.slice(6)] = r.categorie;
+      } else if(r.cle.indexOf('SOC::')===0){
+        // société créée par l'utilisateur (SGE, PEA, PME, perso…) → on la recrée
+        var _snom=r.cle.slice(5);
+        if(_snom && !RAW[_snom]){ try{ tresoCreerSociete(_snom, r.categorie||null, {noPersist:true, noRebuild:true}); }catch(e){} }
       } else if(r.categorie){
         TRESO_CAT_OVERRIDE[r.cle] = r.categorie;
       }
     });
+    // Sociétés créées par l'utilisateur : reconstruire la barre latérale + le menu d'import.
+    try{ buildSocieteSidebar(); }catch(e){}
+    try{ pdfRebuildResto(); }catch(e){}
   }catch(e){ console.warn('loadTresoCategories:', e); }
 }
 
