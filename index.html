@@ -302,7 +302,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-section">Trésorerie</div>
   <div class="sb-item" onclick="sw('tresorerie',this)"><span class="sb-ico">💰</span>Trésorerie du groupe</div>
   <div class="sb-section">Le dirigeant</div>
-  <div class="sb-item" onclick="sw('cout-vincent',this)"><span class="sb-ico">👤</span>Coût Vincent</div>
+  <div class="sb-item" onclick="sw('cout-vincent',this)"><span class="sb-ico">👤</span>Coût Vincent bilan</div>
   <div class="sb-section">Impôts</div>
   <div class="sb-item" onclick="sw('declaration',this)"><span class="sb-ico">📋</span>Ma déclaration</div>
   <div class="sb-item" onclick="sw('checklist',this)"><span class="sb-ico">☐</span>Checklist documents</div>
@@ -313,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v32 · retirer UN compte précis d'une société (sans tout vider)</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v54 · Tresorerie : categories (Restaurant / Societe / Perso-Autre) choisies a la creation + section Perso/Autre</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -350,7 +350,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div class="kpi suc"><div class="kl">Trésorerie totale</div><div class="kv" id="kpi-treso-tot">—</div><div class="ks" id="kpi-treso-tot-sub">tous comptes</div></div>
     <div class="kpi"><div class="kl">Entrées (dernier mois)</div><div class="kv" id="kpi-treso-ent" style="color:var(--success)">—</div><div class="ks" id="kpi-treso-ent-sub">&nbsp;</div></div>
     <div class="kpi"><div class="kl">Sorties (dernier mois)</div><div class="kv" id="kpi-treso-sor" style="color:var(--danger)">—</div><div class="ks" id="kpi-treso-sor-sub">&nbsp;</div></div>
-    <div class="kpi acc"><div class="kl">Coût Vincent</div><div class="kv" id="kpi-treso-cv">—</div><div class="ks">cumul trésorerie</div></div>
+    <div class="kpi acc" onclick="tresoOpenCoutVincent(false)" style="cursor:pointer" title="Voir le détail du coût Vincent trésorerie (et retirer / ajouter des lignes)"><div class="kl">Coût Vincent trésorerie <span style="font-size:10px;opacity:.7">🔎</span></div><div class="kv" id="kpi-treso-cv">—</div><div class="ks">ce qui sort des comptes · clique pour le détail</div></div>
   </div>
 
   <!-- Trésorerie en direct : une carte par banque -->
@@ -454,57 +454,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div id="tab-soc-sci" class="panel">
   <div class="alert a-b"><span>🏢</span><div><strong>SCI VH Immo</strong> — VH détient 10%. Cette section regroupe le <strong>financier de la société</strong> : capital, comptes courants, résultat et bilan. Les bâtiments (notaire, banque, syndic, bail, loyers, taxe foncière) se gèrent dans la section <strong>Bâtiments</strong>.</div></div>
 
-  <div class="g4">
-    <div class="kpi acc"><div class="kl">Capital social</div><div class="kv" id="sci-k-capital">—</div><div class="ks">SCI VH Immo</div></div>
-    <div class="kpi suc"><div class="kl">CC associé (VH)</div><div class="kv" id="sci-k-cc">—</div><div class="ks">Compte courant</div></div>
-    <div class="kpi" id="sci-k-res-wrap"><div class="kl">Résultat</div><div class="kv" id="sci-k-resultat">—</div><div class="ks" id="sci-k-res-ex">dernier exercice</div></div>
-    <div class="kpi war"><div class="kl">Total bilan</div><div class="kv" id="sci-k-bilan">—</div><div class="ks" id="sci-k-bil-eq">—</div></div>
-  </div>
-
-  <!-- Sélecteur d'exercice -->
-  <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span style="font-size:13px;font-weight:600;">Exercice</span>
-      <select id="sci-ex-select" class="sim-in" style="font-family:var(--font);width:auto;" onchange="renderSciFin()"></select>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <button class="btn" onclick="addSciExercice()">+ Nouvel exercice</button>
-      <button class="btn btn-p" onclick="saveSciFin()">Enregistrer</button>
-    </div>
-  </div>
-
-  <!-- Capital & comptes courants -->
-  <div class="card">
-    <div class="card-title">Capital & comptes courants associés</div>
-    <div class="g2">
-      <div><div class="stitle">Capital social</div><input id="sf-capital" type="number" class="sim-in" placeholder="€" oninput="liveSciKpis()"></div>
-      <div><div class="stitle">Résultat de l'exercice</div><input id="sf-resultat" type="number" class="sim-in" placeholder="€ (bénéfice + / perte −)" oninput="liveSciKpis()"></div>
-    </div>
-    <div class="stitle">Comptes courants d'associés</div>
-    <div id="sf-cc-list"></div>
-    <button class="btn" style="font-size:12px;padding:5px 12px;margin-top:6px;" onclick="addSciCc()">+ Ajouter un associé</button>
-  </div>
-
-  <!-- Bilan simplifié (lignes clés) -->
-  <div class="card">
-    <div class="card-title">Bilan (lignes clés)</div>
-    <div class="g2">
-      <div>
-        <div class="stitle">ACTIF</div>
-        <div class="row"><span class="rl">Total actif</span><input id="sf-a-total" type="number" class="sim-in mini" placeholder="€" oninput="liveSciKpis()"></div>
-        <div class="row"><span class="rl">dont trésorerie</span><input id="sf-a-treso" type="number" class="sim-in mini" placeholder="€" oninput="liveSciKpis()"></div>
-      </div>
-      <div>
-        <div class="stitle">PASSIF</div>
-        <div class="row"><span class="rl">Capitaux propres</span><input id="sf-p-cp" type="number" class="sim-in mini" placeholder="€" oninput="liveSciKpis()"></div>
-        <div class="row"><span class="rl">Emprunts (CRD)</span><input id="sf-p-emp" type="number" class="sim-in mini" placeholder="€" oninput="liveSciKpis()"></div>
-        <div class="row"><span class="rl">Comptes courants + dettes</span><input id="sf-p-det" type="number" class="sim-in mini" placeholder="€" oninput="liveSciKpis()"></div>
-        <div class="row tot"><span class="rl"><strong>Total passif</strong></span><span class="rv" id="sf-tot-passif">0 €</span></div>
-      </div>
-    </div>
-    <div id="sf-equilibre" class="alert a-g" style="margin-top:10px;"><span>✓</span><div>Bilan équilibré.</div></div>
-    <div style="font-size:11px;color:var(--text3);margin-top:4px;">Saisie rapide : indique le total actif et le détail du passif. Envoie-moi un bilan dans le chat et je remplis l'exercice.</div>
-  </div>
+  <!-- SCI rendue comme les autres sociétés : lecture standard des bilans importés
+       (compte courant avec VH, résultat, capitaux, historique par exercice). -->
+  <div class="cc-zone" data-soc="sci"></div>
+  <div class="fin-zone" data-soc="sci"><div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants…).</div></div></div>
 
   <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <div>
@@ -713,7 +666,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="logo"><div class="logo-icon">VH</div>Trésorerie — Groupe VH</div>
   <div class="nav">
     <button class="nb active" onclick="setPage('dashboard',this)">Tableau de bord</button>
-    <button class="nb" onclick="setPage('compare',this)">Comparaison</button>
+    <button id="tab-compare-btn" class="nb" onclick="setPage('compare',this)">Comparaison</button>
     <button class="nb" onclick="setPage('annuel',this)">Vue annuelle</button>
     <button class="nb" onclick="setPage('mensuel',this)">Vue mensuelle</button>
     <button class="nb" onclick="pdfOpen()" style="background:rgba(26,108,244,.3);color:#fff">&#128196; Importer PDF</button>
@@ -728,12 +681,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div class="sb-item active" onclick="setResto('BK 500',this)"><div class="dot" style="background:#3d86ff"></div>BK 500</div>
     <div class="sb-item" onclick="setResto('BK 509',this)"><div class="dot" style="background:#13c487"></div>BK 509</div>
     <div class="sb-item" onclick="setResto('BK 526',this)"><div class="dot" style="background:#f5b942"></div>BK 526</div>
-    <div class="sb-sec" style="margin-top:16px">Sociétés</div>
     <div id="sb-societes"></div>
-    <div class="sb-sec" style="margin-top:16px">Année</div>
-    <div class="sb-item" onclick="setYear('all',this)"><div class="dot" style="background:#7a90a8"></div>Toutes</div>
-    <div class="sb-item" onclick="setYear('2025',this)"><div class="dot" style="background:#1a6cf4"></div>2025</div>
-    <div class="sb-item" onclick="setYear('2026',this)"><div class="dot" style="background:#0d9e6e"></div>2026</div>
   </div>
   <div class="content" id="ct"></div>
 </div>
@@ -816,10 +764,12 @@ const RAW = {"BK 500":{"wanted":[{"label":"DÉC 2024","year":"2024","reel":true}
 // (VH Company, FVH, SCI VH Immo) avec une trésorerie vide « en attente ».
 // AJOUTER UNE SOCIÉTÉ = ajouter une ligne dans EXTRA_SOC ci-dessous (rien d'autre).
 const EXTRA_SOC = [
-  {nom:'VH Company',   couleur:'#a78bfa'},
-  {nom:'FVH SARL',     couleur:'#f472b6'},
-  {nom:'SCI VH Immo',  couleur:'#38bdf8'}
+  {nom:'VH Company',   couleur:'#a78bfa', type:'societe'},
+  {nom:'FVH SARL',     couleur:'#f472b6', type:'societe'},
+  {nom:'SCI VH Immo',  couleur:'#38bdf8', type:'societe'}
 ];
+// Type d'une trésorerie créée : 'restaurant' | 'societe' | 'perso'. Persisté (SOCTYPE::).
+window.TRESO_SOC_TYPE = window.TRESO_SOC_TYPE || {};
 // Gabarit de colonnes (mois) repris du BK 500 pour rester cohérent.
 (function initExtraSoc(){
   var modele = (RAW['BK 500'] && RAW['BK 500'].wanted) ? RAW['BK 500'].wanted : [];
@@ -1097,9 +1047,9 @@ function renderDashboard(){
   function _sumSec(sec, mois){ var t=0; (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()!=='TOTAL' && x.vals && x.vals[mois]!=null) t+=Number(x.vals[mois])||0; }); return t; }
   var entMois = latL ? _sumSec('entrees', latL) : 0;
   var sorMois = latL ? _sumSec('sorties', latL) : 0;
-  // Coût Vincent (postes marqués 👤) — cumul par année
-  var _CV=window.TRESO_CV||{};
-  function _cvSum(an){ var t=0; ['sorties','entrees'].forEach(function(sec){ (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(!_CV[resto+'||'+sec+'||'+x.label]) return; (d.wanted||[]).forEach(function(w){ if(w.year===an && x.vals && x.vals[w.label]!=null) t+=Number(x.vals[w.label])||0; }); }); }); return t; }
+  // Coût Vincent TRÉSORERIE — cumul par année. Source unique = catégorie cout-vincent
+  // (auto-classement CB / rémunération / URSSAF Vincent + lignes marquées 👤).
+  function _cvSum(an){ var t=0; ['sorties','entrees'].forEach(function(sec){ (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(tresoCategorie(resto,sec,x.label)!=='cout-vincent') return; (d.wanted||[]).forEach(function(w){ if(w.year===an && x.vals && x.vals[w.label]!=null) t+=Number(x.vals[w.label])||0; }); }); }); return t; }
   var cv2025=_cvSum('2025'), cv2026=_cvSum('2026');
 
   // ── VENTILATION PAR BANQUE (sociétés à plusieurs comptes) ──────────────────
@@ -1138,7 +1088,7 @@ function renderDashboard(){
     +_tuile('Entrées ('+(latL||'—')+')', entMois, '#0d9e6e', _bkBreak('e'))
     +_tuile('Sorties ('+(latL||'—')+')', sorMois, '#e03a3a', _bkBreak('sortie'))
     +'<div class="kpi"><div class="kpi-lbl">Variation depuis Déc 2024</div><div class="kpi-val" style="color:'+(diff>=0?'#0d9e6e':'#e03a3a')+'">'+(diff>=0?'+ ':'')+fmt(diff)+'</div></div>'
-    +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent 2025</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'<div style="font-size:11px;color:var(--text3);margin-top:2px">postes marqués 👤 dans le tableau</div>')+'</div>'
+    +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent trésorerie 2025</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'<div style="font-size:11px;color:var(--text3);margin-top:2px">auto-classé + postes marqués 👤</div>')+'</div>'
     +'</div>';
 
   // ── GESTION DES COMPTES BANCAIRES de la société : renommer (✏️) ou RETIRER (✕)
@@ -1199,6 +1149,14 @@ function renderDashboard(){
   });
 }
 
+// Déplie / replie les banques d'une société dans le tableau « Par société ».
+window.tresoToggleGrpSoc = function(id){
+  var rows=document.querySelectorAll('tr.'+id);
+  var open=false;
+  rows.forEach(function(tr){ var vis=tr.style.display!=='none'; tr.style.display=vis?'none':''; open=!vis; });
+  var ch=document.getElementById('chev-'+id); if(ch) ch.textContent=open?'▾':'▸';
+};
+
 // ── TRÉSORERIE DU GROUPE COMPLET : agrège toutes les sociétés ──
 function renderGroupe(){
   var ct=document.getElementById('ct'); if(!ct) return;
@@ -1213,18 +1171,35 @@ function renderGroupe(){
 
   var latV=null, latL=null;
   for(var i=allLabels.length-1;i>=0;i--){ var gv=grpSolde(allLabels[i]); if(gv!=null){ latV=gv; latL=allLabels[i]; break; } }
-  var entMois=latL?grpSec('entrees',latL):0, sorMois=latL?grpSec('sorties',latL):0;
+  // COHÉRENCE : le solde du groupe et les entrées/sorties agrègent le DERNIER mois
+  // PROPRE à chaque société (comme la ligne TOTAL du tableau plus bas et le tableau de
+  // bord), et non un unique mois global — sinon une société dont le dernier relevé est
+  // plus ancien serait ignorée et le KPI ne collerait pas avec la ligne TOTAL.
+  latV=0; var entMois=0, sorMois=0;
+  socs.forEach(function(s){
+    var _lv=null,_ll=null; for(var _j=allLabels.length-1;_j>=0;_j--){ var _v=RAW[s].soldes&&RAW[s].soldes[allLabels[_j]]; if(_v!=null){_lv=_v;_ll=allLabels[_j];break;} }
+    if(_lv!=null) latV+=Number(_lv)||0;
+    if(_ll){
+      (RAW[s].entrees||[]).forEach(function(x){ if((x.label||'').toUpperCase()!=='TOTAL' && x.vals && x.vals[_ll]!=null) entMois+=Number(x.vals[_ll])||0; });
+      (RAW[s].sorties||[]).forEach(function(x){ if((x.label||'').toUpperCase()!=='TOTAL' && x.vals && x.vals[_ll]!=null) sorMois+=Number(x.vals[_ll])||0; });
+    }
+  });
 
-  var _CV=window.TRESO_CV||{};
-  function cvGrp(an){ var t=0; socs.forEach(function(s){ ['sorties','entrees'].forEach(function(sec){ (RAW[s][sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(!_CV[s+'||'+sec+'||'+x.label]) return; MS.forEach(function(m){ var v=x.vals&&x.vals[m+' '+an]; if(v!=null) t+=Number(v)||0; }); }); }); }); return t; }
+  // Coût Vincent TRÉSORERIE (groupe) — même source unique que le tableau de bord :
+  // catégorie cout-vincent (auto-classement + lignes marquées 👤).
+  function cvGrp(an){ var t=0; socs.forEach(function(s){ ['sorties','entrees'].forEach(function(sec){ (RAW[s][sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(tresoCategorie(s,sec,x.label)!=='cout-vincent') return; MS.forEach(function(m){ var v=x.vals&&x.vals[m+' '+an]; if(v!=null) t+=Number(v)||0; }); }); }); }); return t; }
   var cv2025=cvGrp('2025'), cv2026=cvGrp('2026');
 
+  // Petite pastille d'aide (ⓘ) : explication au survol.
+  function _iB(t){ return ' <span title="'+String(t).replace(/"/g,'&quot;')+'" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent,#2563eb);color:#fff;font-size:9px;font-style:italic;font-weight:700;cursor:help;vertical-align:middle;">i</span>'; }
+  var _MOISLONG={'JAN':'janvier','FEV':'février','MAR':'mars','AVR':'avril','MAI':'mai','JUI':'juin','JUL':'juillet','AOU':'août','SEP':'septembre','OCT':'octobre','NOV':'novembre','DEC':'décembre'};
+  var _mlong = latL ? ((_MOISLONG[(latL.split(' ')[0])]||latL.split(' ')[0])+' '+(latL.split(' ')[1]||'')) : 'ce mois';
   var html='<div class="pt">💰 Trésorerie du groupe complet</div><div class="ps">Toutes les sociétés cumulées ('+socs.length+')</div>'
     +'<div class="kpi-grid">'
-    +'<div class="kpi"><div class="kpi-lbl">Solde groupe ('+(latL||'—')+')</div><div class="kpi-val" style="color:'+((latV||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(latV)+'</div></div>'
-    +'<div class="kpi"><div class="kpi-lbl">Entrées ('+(latL||'—')+')</div><div class="kpi-val" style="color:#0d9e6e">'+fmt(entMois)+'</div></div>'
-    +'<div class="kpi"><div class="kpi-lbl">Sorties ('+(latL||'—')+')</div><div class="kpi-val" style="color:#e03a3a">'+fmt(sorMois)+'</div></div>'
-    +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent 2025 (groupe)</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'')+'</div>'
+    +'<div class="kpi"><div class="kpi-lbl">Solde groupe ('+(latL||'—')+')'+_iB('Solde cumulé de toutes les sociétés du groupe au dernier mois connu ('+_mlong+'). C\'est l\'argent réellement disponible sur les comptes, pas un résultat.')+'</div><div class="kpi-val" style="color:'+((latV||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(latV)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">Entrées ('+(latL||'—')+')'+_iB('Total des entrées du SEUL mois de '+_mlong+' (le dernier mois connu), toutes sociétés cumulées. Ce n\'est pas le cumul de l\'année — l\'annuel est dans le tableau ci-dessous et dans « Vue annuelle ».')+'</div><div class="kpi-val" style="color:#0d9e6e">'+fmt(entMois)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">Sorties ('+(latL||'—')+')'+_iB('Total des sorties du SEUL mois de '+_mlong+' (le dernier mois connu), toutes sociétés cumulées. Ce n\'est pas le cumul de l\'année — l\'annuel est dans le tableau ci-dessous et dans « Vue annuelle ».')+'</div><div class="kpi-val" style="color:#e03a3a">'+fmt(sorMois)+'</div></div>'
+    +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent trésorerie 2025 (groupe)</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'')+'</div>'
     +'</div>';
 
   var datasets = years.map(function(y){ return { label:y, data: MS.map(function(m){ var v=grpSolde(m+' '+y); return (v==null?null:v); }), borderColor:(yrColors[y]||'#888'), backgroundColor:(yrColors[y]||'#888')+'22', borderWidth:2.5, tension:.35, pointRadius:3, pointHoverRadius:6, fill:false, spanGaps:true }; });
@@ -1236,21 +1211,75 @@ function renderGroupe(){
     +'<div class="legend">'+years.map(function(y){return '<div class="leg-item"><div class="leg-dot" style="background:'+(yrColors[y]||'#888')+'"></div>'+y+'</div>';}).join('')+'</div></div>'
     +'<div style="position:relative;height:260px"><canvas id="ch" role="img" aria-label="Solde groupe par année"></canvas></div>'+recap+'</div>';
 
-  // détail par société (dernier solde connu)
-  html+='<div class="chart-card"><div class="chart-title" style="margin-bottom:10px">Par société — dernier solde connu</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>';
+  // détail par société : dernier mois connu, entrées/sorties de ce mois, et
+  // variation du solde par rapport au mois précédent (plus / moins d'argent).
+  function _socSec(s,sec,label){ var t=0; (RAW[s][sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(x.vals&&x.vals[label]!=null) t+=Number(x.vals[label])||0; }); return t; }
+  function _prevSolde(map,ll){ var idx=allLabels.indexOf(ll); for(var p=idx-1;p>=0;p--){ var v=map&&map[allLabels[p]]; if(v!=null) return {v:Number(v)||0,l:allLabels[p]}; } return null; }
+  html+='<div class="chart-card"><div class="chart-title" style="margin-bottom:4px">Par société — dernier mois connu</div>'
+    +'<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Entrées et sorties du dernier mois · variation du solde par rapport au mois précédent (vert = plus d\'argent, rouge = moins). Clique une société pour déplier ses banques.</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:2px solid var(--gray2);color:var(--text3);font-size:11px">'
+    +'<th style="text-align:left;padding:6px 8px">Société</th>'
+    +'<th style="text-align:left;padding:6px 8px">Mois</th>'
+    +'<th style="text-align:right;padding:6px 8px">Entrées</th>'
+    +'<th style="text-align:right;padding:6px 8px">Sorties</th>'
+    +'<th style="text-align:right;padding:6px 8px">Solde</th>'
+    +'<th style="text-align:right;padding:6px 8px">Var. vs mois préc.</th>'
+    +'</tr></thead><tbody>';
+  var _gi=0;
+  var totEnt=0,totSor=0,totSolde=0,totVar=0,totVarHas=false;
   socs.forEach(function(s){
     var lv=null,ll=null; for(var j=allLabels.length-1;j>=0;j--){ var v=RAW[s].soldes&&RAW[s].soldes[allLabels[j]]; if(v!=null){lv=v;ll=allLabels[j];break;} }
-    html+='<tr style="border-bottom:1px solid var(--gray2)"><td style="padding:6px 8px;font-weight:600">'+s+'</td><td style="padding:6px 8px;color:var(--text3)">'+(ll||'—')+'</td><td style="text-align:right;padding:6px 8px;font-family:var(--mono);font-weight:700;color:'+((lv||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(lv)+'</td></tr>';
-    // sous-lignes PAR BANQUE (si la société a plusieurs comptes) → voir lequel alimenter
+    var ent = ll?_socSec(s,'entrees',ll):null;
+    var sor = ll?_socSec(s,'sorties',ll):null;
+    var prev = ll?_prevSolde(RAW[s].soldes,ll):null;
+    var dv = (prev&&lv!=null)?(lv-prev.v):null;
+    if(ent!=null) totEnt+=ent;
+    if(sor!=null) totSor+=sor;
+    if(lv!=null) totSolde+=lv;
+    if(dv!=null){ totVar+=dv; totVarHas=true; }
+    // sous-lignes PAR BANQUE : repliées par défaut, on déplie en cliquant sur la société.
+    // Affichées dès qu'il y a AU MOINS une banque (nom + numéro de compte).
     var bqs=RAW[s].banques?Object.keys(RAW[s].banques):[];
-    if(bqs.length>=2){
-      bqs.forEach(function(bk){
-        var bv=null,bl=null; for(var j2=allLabels.length-1;j2>=0;j2--){ var vv=RAW[s].banques[bk].soldes&&RAW[s].banques[bk].soldes[allLabels[j2]]; if(vv!=null){bv=vv;bl=allLabels[j2];break;} }
-        if(bv==null) return;
-        html+='<tr style="border-bottom:1px solid var(--gray2);background:#fafbfc"><td style="padding:4px 8px 4px 24px;color:var(--text3);font-size:11px">↳ 🏦 '+window.tresoBanqueNom(bk,(RAW[s].banques[bk]&&RAW[s].banques[bk].label)||bk)+(bv<0?' · à alimenter':'')+' <span onclick="tresoRenommerBanque(\''+s.replace(/\x27/g,"")+'\',\''+String(bk).replace(/\x27/g,"")+'\')" title="Renommer ce compte" style="cursor:pointer;opacity:.5">&#9998;</span></td><td style="padding:4px 8px;color:var(--text3);font-size:11px">'+(bl||'—')+'</td><td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:'+((bv||0)>=0?'#0d9e6e':'#e03a3a')+';font-size:11px">'+fmt(bv)+'</td></tr>';
-      });
-    }
+    var gid='grp-'+(_gi++);
+    var subs='';
+    bqs.forEach(function(bk){
+      var B=RAW[s].banques[bk];
+      var bv=null,bl=null; for(var j2=allLabels.length-1;j2>=0;j2--){ var vv=B.soldes&&B.soldes[allLabels[j2]]; if(vv!=null){bv=vv;bl=allLabels[j2];break;} }
+      if(bv==null) return;
+      var bf=(B.flux&&bl&&B.flux[bl])||{};
+      var be=(bf.e!=null?Number(bf.e)||0:null), bs=(bf.s!=null?Number(bf.s)||0:null);
+      var bprev=_prevSolde(B.soldes,bl); var bdv=(bprev?(bv-bprev.v):null);
+      var nm=window.tresoBanqueNom(bk,(B.label)||bk);
+      subs+='<tr class="'+gid+'" style="display:none;border-bottom:1px solid var(--gray2);background:#fafbfc;font-size:11px">'
+        +'<td style="padding:4px 8px 4px 32px;color:var(--text3)">↳ 🏦 '+nm+(bv<0?' · à alimenter':'')+' <span onclick="event.stopPropagation();tresoRenommerBanque(\''+s.replace(/\x27/g,"")+'\',\''+String(bk).replace(/\x27/g,"")+'\')" title="Renommer ce compte" style="cursor:pointer;opacity:.5">&#9998;</span></td>'
+        +'<td style="padding:4px 8px;color:var(--text3)">'+(bl||'—')+'</td>'
+        +'<td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:#0d9e6e">'+(be!=null?fmt(be):'—')+'</td>'
+        +'<td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:#e03a3a">'+(bs!=null?fmt(bs):'—')+'</td>'
+        +'<td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:'+((bv||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(bv)+'</td>'
+        +'<td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:'+(bdv!=null?(bdv>=0?'#0d9e6e':'#e03a3a'):'var(--text3)')+'"'+(bprev?' title="vs '+bprev.l+'"':'')+'>'+(bdv!=null?((bdv>=0?'+':'')+fmt(bdv)):'—')+'</td>'
+        +'</tr>';
+    });
+    var hasSub = subs.length>0;
+    var chev = hasSub ? '<span id="chev-'+gid+'" style="display:inline-block;width:12px;color:var(--text3)">▸</span> ' : '<span style="display:inline-block;width:12px"></span> ';
+    html+='<tr style="border-bottom:1px solid var(--gray2)'+(hasSub?';cursor:pointer':'')+'"'+(hasSub?' onclick="tresoToggleGrpSoc(\''+gid+'\')"':'')+'>'
+      +'<td style="padding:6px 8px;font-weight:600">'+chev+s+'</td>'
+      +'<td style="padding:6px 8px;color:var(--text3)">'+(ll||'—')+'</td>'
+      +'<td style="text-align:right;padding:6px 8px;font-family:var(--mono);color:#0d9e6e">'+(ent!=null?fmt(ent):'—')+'</td>'
+      +'<td style="text-align:right;padding:6px 8px;font-family:var(--mono);color:#e03a3a">'+(sor!=null?fmt(sor):'—')+'</td>'
+      +'<td style="text-align:right;padding:6px 8px;font-family:var(--mono);font-weight:700;color:'+((lv||0)>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(lv)+'</td>'
+      +'<td style="text-align:right;padding:6px 8px;font-family:var(--mono);font-weight:600;color:'+(dv!=null?(dv>=0?'#0d9e6e':'#e03a3a'):'var(--text3)')+'"'+(prev?' title="vs '+prev.l+'"':'')+'>'+(dv!=null?((dv>=0?'+':'')+fmt(dv)):'—')+'</td>'
+      +'</tr>';
+    html+=subs;
   });
+  // Ligne TOTAL : somme de toutes les sociétés (entrées, sorties, solde, variation).
+  html+='<tr style="border-top:2px solid var(--gray1,#cbd5e1);background:#eef3f9;font-weight:800">'
+    +'<td style="padding:9px 8px">TOTAL</td>'
+    +'<td style="padding:9px 8px;color:var(--text3)">'+(latL||'—')+'</td>'
+    +'<td style="text-align:right;padding:9px 8px;font-family:var(--mono);color:#0d9e6e">'+fmt(totEnt)+'</td>'
+    +'<td style="text-align:right;padding:9px 8px;font-family:var(--mono);color:#e03a3a">'+fmt(totSor)+'</td>'
+    +'<td style="text-align:right;padding:9px 8px;font-family:var(--mono);color:'+(totSolde>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(totSolde)+'</td>'
+    +'<td style="text-align:right;padding:9px 8px;font-family:var(--mono);color:'+(totVarHas?(totVar>=0?'#0d9e6e':'#e03a3a'):'var(--text3)')+'">'+(totVarHas?((totVar>=0?'+':'')+fmt(totVar)):'—')+'</td>'
+    +'</tr>';
   html+='</tbody></table></div>';
 
   ct.innerHTML=html;
@@ -1262,27 +1291,26 @@ function renderCompare(){
   var html='<div class="pt">Comparaison — 3 Restaurants</div><div class="ps">Soldes et indicateurs clés</div><div class="cg">';
   RESTOS.forEach(function(r){
     var d=RAW[r], col=COLORS[r];
-    var dec=d.soldes['DÉC 2024'];
+    // Solde de fin 2025 (dernier solde 2025 réellement disponible, ex. DÉC 2025)
+    var cols2025=RAW[r].wanted.filter(function(w){return w.year==='2025';});
+    var s2025=null,s2025L=null;
+    for(var j=cols2025.length-1;j>=0;j--){ if(d.soldes[cols2025[j].label]!==undefined){ s2025=d.soldes[cols2025[j].label]; s2025L=cols2025[j].label; break; } }
+    // Solde actuel (dernier solde connu, hors 2024)
     var cols=RAW[r].wanted.filter(function(w){return w.year!=='2024';});
     var latV=null,latL=null;
     for(var i=cols.length-1;i>=0;i--){
       if(d.soldes[cols[i].label]!==undefined){latV=d.soldes[cols[i].label];latL=cols[i].label;break;}
     }
-    var diff=latV-dec;
-    var trow=d.sorties.find(function(x){return x.label.toUpperCase()==='TOTAL';});
-    var erow=d.entrees.find(function(x){return x.label.toUpperCase()==='TOTAL';});
-    var sortSum=0,entSum=0;
-    cols.filter(function(w){return w.year==='2025';}).forEach(function(w){
-      sortSum+=trow&&trow.vals[w.label]?trow.vals[w.label]:0;
-      entSum+=erow&&erow.vals[w.label]?erow.vals[w.label]:0;
-    });
+    // Variation sur 1 an : solde actuel (2026) vs solde du MÊME mois l'année précédente (2025)
+    var yoyBase=null;
+    if(latL){ var _mm=latL.split(' ')[0]; var _pl=_mm+' 2025'; if(d.soldes[_pl]!==undefined) yoyBase=d.soldes[_pl]; }
+    if(yoyBase==null) yoyBase=s2025;   // repli : solde de fin 2025
+    var diff=(latV!=null && yoyBase!=null)? (latV-yoyBase) : null;
     html+='<div class="rc" style="border-top:3px solid '+col+'">'
       +'<div class="rn" style="color:'+col+'">'+r+'</div><div style="font-size:11px;color:var(--text3);margin-bottom:14px">2025 – 2026</div>'
-      +'<div class="rrow"><div class="rl">Solde Déc 2024</div><div class="rv" style="color:#e07d1a">'+fmt(dec)+'</div></div>'
-      +'<div class="rrow"><div class="rl">Solde actuel ('+latL+')</div><div class="rv" style="color:'+(latV>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(latV)+'</div></div>'
-      +'<div class="rrow"><div class="rl">Variation</div><div class="rv" style="color:'+(diff>=0?'#0d9e6e':'#e03a3a')+'">'+(diff>=0?'+':'')+fmt(diff)+'</div></div>'
-      +'<div class="rrow"><div class="rl">Sorties 2025</div><div class="rv" style="color:#e03a3a">'+fmt(sortSum)+'</div></div>'
-      +'<div class="rrow"><div class="rl">Entrées 2025</div><div class="rv" style="color:#0d9e6e">'+fmt(entSum)+'</div></div>'
+      +'<div class="rrow"><div class="rl">Solde '+(s2025L||'2025')+'</div><div class="rv" style="color:#e07d1a">'+(s2025!=null?fmt(s2025):'—')+'</div></div>'
+      +'<div class="rrow"><div class="rl">Solde actuel ('+(latL||'—')+')</div><div class="rv" style="color:'+(latV>=0?'#0d9e6e':'#e03a3a')+'">'+(latV!=null?fmt(latV):'—')+'</div></div>'
+      +'<div class="rrow"><div class="rl">Variation sur 1 an</div><div class="rv" style="color:'+(diff!=null?(diff>=0?'#0d9e6e':'#e03a3a'):'var(--text3)')+'">'+(diff!=null?((diff>=0?'+':'')+fmt(diff)):'—')+'</div></div>'
       +'</div>';
   });
   html+='</div>';
@@ -1305,58 +1333,16 @@ function renderCompare(){
   });
 }
 
-function renderAnnuel(){
-  var d=RAW[resto];
-  // Colonnes = les ANNÉES (2025, 2026, …) côte à côte. Chaque poste est résumé à la
-  // somme de ses mois pour l'année. On compare ainsi 2025 vs 2026 d'un coup d'œil.
-  var years=[]; (d.wanted||[]).forEach(function(w){ if(w.year && w.year!=='2024' && years.indexOf(w.year)<0) years.push(w.year); });
-  years.sort(); if(!years.length) years=['2025','2026'];
-  var cols=years.map(function(y){ return {label:y, year:y, reel:false}; });
-  var MSQ=window.TRESO_MASQUES||{};
-  function sumYear(row,y){ var t=0,any=false; (d.wanted||[]).forEach(function(w){ if(w.year===y && row.vals && row.vals[w.label]!=null){ t+=Number(row.vals[w.label])||0; any=true; } }); return any?t:null; }
-  function soldeYear(y){ var v=null; (d.wanted||[]).forEach(function(w){ if(w.year===y && d.soldes && d.soldes[w.label]!=null) v=d.soldes[w.label]; }); return v; }
-  function secRows(rows, section){
-    var sign=section==='sorties'?-1:1;
-    var sorted=rows.slice().sort(function(a,b){ var la=(a.label||''),lb=(b.label||''); var ta=la.toUpperCase()==='TOTAL',tb=lb.toUpperCase()==='TOTAL'; if(ta!==tb) return ta?1:-1; return la.localeCompare(lb,'fr',{sensitivity:'base'}); });
-    var h='', nbMasques=0;
-    sorted.forEach(function(row){
-      var lbl=row.label; if(!lbl) return;
-      var isA=lbl.length===1&&/[A-Z]/.test(lbl); if(isA) return;
-      var isT=lbl.toUpperCase()==='TOTAL';
-      if(!isT&&sq&&!lbl.toLowerCase().includes(sq.toLowerCase())) return;
-      if(!isT && MSQ[resto+'||'+section+'||'+lbl]){ nbMasques++; return; }
-      if(!isT && !years.some(function(y){return sumYear(row,y)!=null;})) return;
-      var tc=isT?'tr':(section==='sorties'?'rs':'re');
-      var dlbl=isT?(section==='sorties'?'TOTAL SORTIES':'TOTAL ENTRÉES'):lbl;
-      h+='<tr class="'+tc+'"><td>'+dlbl+'</td>';
-      years.forEach(function(y){ var v=sumYear(row,y); h+='<td'+tdCls({year:y},false,isT)+'>'+(v!=null?fmt(v*sign):'')+'</td>'; });
-      h+='</tr>';
-    });
-    if(nbMasques>0){ h+='<tr><td colspan="'+(cols.length+1)+'" onclick="tresoOpenMasques()" style="cursor:pointer;text-align:left;background:#eef2f7;color:#1a6cf4;font-size:11px;padding:6px 12px">🙈 '+nbMasques+' poste'+(nbMasques>1?'s':'')+' masqué'+(nbMasques>1?'s':'')+' — cliquer pour gérer</td></tr>'; }
-    return h;
-  }
-  var thead='<thead><tr><th>Fournisseur / Poste</th>'+cols.map(function(w){return '<th '+thCls(w)+'>'+w.label+'</th>';}).join('')+'</tr></thead>';
-  var sep='<tr><td colspan="'+(cols.length+1)+'" style="background:#1a3050;padding:7px 12px;font-size:10px;font-weight:700;letter-spacing:.8px;color:rgba(255,255,255,.5);text-transform:uppercase;border-top:2px solid #375623">&#9660; ENTRÉES — Recettes &amp; encaissements</td></tr>';
-  var solde='<tr class="sr"><td>&#128176; SOLDE (fin d\'année)</td>'+cols.map(function(w){ var v=soldeYear(w.year); var c=(v!=null&&v<0)?'#ff5757':(w.year==='2025'?'#7ac4ff':'#5de8b8'); return '<td style="text-align:right;padding:10px 12px;font-family:var(--mono);font-weight:700;color:'+c+'">'+(v!=null?fmt(v):'&#8212;')+'</td>'; }).join('')+'</tr>';
-  var html='<div class="pt">'+resto+' — Vue annuelle</div>'
-    +'<div class="ps">Totaux par année — '+years.join(' vs ')+' (côte à côte)</div>'
-    +'<div class="fb"><span class="fl">Recherche :</span><input class="sb" type="text" placeholder="Filtrer fournisseur…" value="'+sq+'" oninput="sq=this.value;renderAnnuel()"></div>'
-    +'<div class="tc"><div class="tc-hdr"><div class="tc-title"><span class="badge bs">SORTIES</span>Charges &amp; dépenses</div>'
-    +'<button class="addbtn" onclick="bkOpenNew(\'sorties\')">+ Sortie</button><button class="addbtn" onclick="bkOpenNew(\'entrees\')">+ Entrée</button></div>'
-    +'<div class="tw"><table>'+thead+'<tbody>'
-    +secRows(d.sorties,'sorties')+sep+secRows(d.entrees,'entrees')+solde
-    +'</tbody></table></div></div>';
-  document.getElementById('ct').innerHTML=html;
-  if(chart){chart.destroy();chart=null;}
-}
-
-function renderMensuel(){
+// Vue mensuelle = mois APPARIÉS (JAN25|JAN26…). Vue annuelle = mois CHRONOLOGIQUES
+// (tout 2025 puis tout 2026). Les deux affichent les colonnes TOTAL 2025 / TOTAL 2026.
+function renderMensuel(){ _renderTresoMois('paire'); }
+function renderAnnuel(){ _renderTresoMois('chrono'); }
+function _renderTresoMois(mode){
   var d=RAW[resto], col=COLORS[resto];
 
-  // Colonnes APPARIÉES par mois : JAN 2025, JAN 2026, FEV 2025, FEV 2026, … pour
-  // comparer le même mois d'une année à l'autre (on exclut 2024).
+  var _sorter = (mode==='chrono') ? _tresoMoisRank : _tresoMoisRankPaire;
   var cols = (d.wanted||[]).filter(function(w){ return w.year!=='2024'; })
-               .slice().sort(function(a,b){ return _tresoMoisRankPaire(a.label)-_tresoMoisRankPaire(b.label); });
+               .slice().sort(function(a,b){ return _sorter(a.label)-_sorter(b.label); });
 
   function mRows(rows, section){
     var sign=section==='sorties'?-1:1;
@@ -1421,10 +1407,14 @@ function renderMensuel(){
   msol+='<td style="text-align:right;padding:10px 12px;font-family:var(--mono);font-weight:700;color:'+(ml26!==null&&ml26<0?'#ff5757':'#5de8b8')+'">'+( ml26!==null?fmt(ml26):'&#8212;')+'</td>';
   msol+='</tr>';
 
-  var html='<div class="pt">Vue mensuelle — '+resto+'</div>'
-    +'<div class="ps">JAN 2025 · JAN 2026 · FEV 2025 · FEV 2026 · … (chaque mois, les deux années côte à côte)</div>'
+  var _titre = (mode==='chrono') ? 'Vue annuelle' : 'Vue mensuelle';
+  var _sub = (mode==='chrono')
+    ? 'Tous les mois 2025, puis tous les mois 2026 · + totaux par année (colonnes de droite)'
+    : 'JAN 2025 · JAN 2026 · FEV 2025 · FEV 2026 · … (chaque mois, les deux années côte à côte)';
+  var html='<div class="pt">'+_titre+' — '+resto+'</div>'
+    +'<div class="ps">'+_sub+'</div>'
     +'<div class="fb"><span class="fl">Recherche :</span>'
-    +'<input class="sb" type="text" placeholder="Filtrer fournisseur…" value="'+sq+'" oninput="sq=this.value;renderMensuel()"></div>'
+    +'<input class="sb" type="text" placeholder="Filtrer fournisseur…" value="'+sq+'" oninput="sq=this.value;_renderTresoMois(\''+mode+'\')"></div>'
     +'<div class="tc">'
     +'<div class="tc-hdr" style="border-left:4px solid '+col+'"><div class="tc-title"><span class="badge bs">SORTIES</span>Charges &amp; dépenses</div>'
     +'<div style="font-size:11px;color:rgba(255,255,255,.4)">&#9679; = Réel débité</div>'
@@ -1496,15 +1486,26 @@ function render(){
 function buildSocieteSidebar(){
   var box = document.getElementById('sb-societes');
   if(!box) return;
-  box.innerHTML = EXTRA_SOC.map(function(s){
+  var T = window.TRESO_SOC_TYPE || {};
+  var groups = {societe:[], restaurant:[], perso:[]};
+  EXTRA_SOC.forEach(function(s){
+    var t = T[s.nom] || s.type || 'societe';
+    (groups[t] || groups.societe).push(s);
+  });
+  function itemHtml(s){
     var vide = RAW[s.nom] && RAW[s.nom]._vide;
     var sub = vide ? '<span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,.35);font-style:italic">en attente</span>' : '';
     return '<div class="sb-item" onclick="setResto(\''+s.nom.replace(/'/g,"\\'")+'\',this)">'
       +'<div class="dot" style="background:'+s.couleur+'"></div>'+s.nom+sub+'</div>';
-  }).join('')
-  // Bouton « + » pour créer TA propre société / compte (SGE, PEA, PME, perso…)
-  + '<div class="sb-item" onclick="tresoPromptSociete()" title="Créer une société ou un compte de suivi" style="opacity:.72">'
-  + '<div class="dot" style="background:#64748b"></div>➕ Nouvelle société</div>';
+  }
+  var html = '<div class="sb-sec" style="margin-top:16px">Sociétés</div>' + groups.societe.map(itemHtml).join('');
+  if(groups.restaurant.length){ html += '<div class="sb-sec" style="margin-top:16px">Autres restaurants</div>' + groups.restaurant.map(itemHtml).join(''); }
+  html += '<div class="sb-sec" style="margin-top:16px">Perso / Autre</div>' + groups.perso.map(itemHtml).join('');
+  // Bouton « + » : crée une TRÉSORERIE / un COMPTE (restaurant, société ou perso).
+  // On choisit sa catégorie au moment de la création (elle se range dans la bonne section).
+  html += '<div class="sb-item" onclick="tresoPromptSociete()" title="Créer une trésorerie / un compte (restaurant, société ou perso)" style="opacity:.72;margin-top:6px">'
+    + '<div class="dot" style="background:#64748b"></div>➕ Nouvelle trésorerie</div>';
+  box.innerHTML = html;
 }
 
 // ── CRÉER UNE SOCIÉTÉ / UN COMPTE DE SUIVI (SGE, PEA, PME externe, perso…) ──
@@ -1518,14 +1519,21 @@ function tresoCreerSociete(nom, couleur, opts){
   if(!nom) return {ok:false, err:'Donne un nom à la société.'};
   if(RAW[nom]) return {ok:false, err:'« '+nom+' » existe déjà.'};
   couleur = couleur || _SOC_PALETTE[(EXTRA_SOC.length)%_SOC_PALETTE.length];
+  var type = (opts.type==='restaurant'||opts.type==='perso') ? opts.type : 'societe';
   var modele = (RAW['BK 500'] && RAW['BK 500'].wanted) ? RAW['BK 500'].wanted : [];
   RAW[nom] = { wanted: JSON.parse(JSON.stringify(modele)), sorties:[{label:'TOTAL',vals:{}}],
                entrees:[{label:'TOTAL',vals:{}}], soldes:{}, banques:{}, _vide:true };
-  EXTRA_SOC.push({nom:nom, couleur:couleur});
+  EXTRA_SOC.push({nom:nom, couleur:couleur, type:type});
   COLORS[nom]=couleur;
+  window.TRESO_SOC_TYPE = window.TRESO_SOC_TYPE || {};
+  // ne pas écraser un type déjà chargé (SOCTYPE::) sauf si un type est explicitement fourni
+  if(opts.type || window.TRESO_SOC_TYPE[nom]==null) window.TRESO_SOC_TYPE[nom] = type;
   window.TRESO_SOC_CUSTOM = window.TRESO_SOC_CUSTOM || [];
   window.TRESO_SOC_CUSTOM.push({nom:nom, couleur:couleur});
-  if(!opts.noPersist){ try{ sb.from('treso_categories').upsert({cle:'SOC::'+nom, categorie:couleur},{onConflict:'cle'}); }catch(e){ console.warn('save SOC', e); } }
+  if(!opts.noPersist){
+    try{ sb.from('treso_categories').upsert({cle:'SOC::'+nom, categorie:couleur},{onConflict:'cle'}).then(function(r){ if(r&&r.error) console.warn('save SOC', r.error); }, function(e){ console.warn('save SOC', e); }); }catch(e){ console.warn('save SOC', e); }
+    try{ sb.from('treso_categories').upsert({cle:'SOCTYPE::'+nom, categorie:type},{onConflict:'cle'}).then(function(r){ if(r&&r.error) console.warn('save SOCTYPE', r.error); }, function(e){ console.warn('save SOCTYPE', e); }); }catch(e){ console.warn('save SOCTYPE', e); }
+  }
   if(!opts.noRebuild){ try{ buildSocieteSidebar(); }catch(e){} try{ pdfRebuildResto(); }catch(e){} try{ if(window.tresoOnUpdate) window.tresoOnUpdate(); }catch(e){} }
   return {ok:true};
 }
@@ -1540,11 +1548,13 @@ function pdfRebuildResto(){
   if(cur){ try{ sel.value=cur; }catch(e){} }
 }
 window.tresoPromptSociete = function(){
-  var nom=(prompt('Nom de la nouvelle société ou du compte de suivi\n(ex. SGE, PEA, PME externe, Perso…) :')||'').trim();
+  var nom=(prompt('Nom de la nouvelle trésorerie / du compte\n(ex. Perso, PEA, PME, compte courant, nouveau restaurant…)')||'').trim();
   if(!nom) return;
-  var r=tresoCreerSociete(nom);
+  var t=(prompt('Dans quelle catégorie la ranger ? Tape :\n\n  R = Restaurant\n  S = Société\n  P = Perso / Autre','P')||'').trim().toUpperCase();
+  var type = t.charAt(0)==='R' ? 'restaurant' : (t.charAt(0)==='S' ? 'societe' : 'perso');
+  var r=tresoCreerSociete(nom, null, {type:type});
   if(!r.ok){ try{ alert(r.err); }catch(e){} return; }
-  // bascule directement sur la nouvelle société
+  // bascule directement sur la nouvelle trésorerie
   try{ resto=nom; render(); buildSocieteSidebar(); }catch(e){}
 };
 
@@ -1568,11 +1578,22 @@ function tresoCreerSocietePrincipale(nom, opts){
   var slug = existSlug || _socSlug(nom);
   TRESO_MAP_SOC[slug]=nom;
   var pageId='soc-'+slug;
-  // 3) panneau DOM (page de la société)
+  // 3) enregistrer la société dans les rouages d'import de bilans + rendu financier
+  //    (mêmes mécanismes que les sociétés intégrées : label + dossier Dropbox), ET
+  //    dans les deux vues BILAN (grille « Sociétés du groupe » + page « Coût Vincent
+  //    bilan ») pour qu'elle y apparaisse dès qu'un bilan est importé.
+  try{ if(typeof IS_SOC_LABEL==='object' && !IS_SOC_LABEL[slug]) IS_SOC_LABEL[slug]=nom; }catch(e){}
+  try{ if(typeof IS_SOC_FOLDER==='object' && !IS_SOC_FOLDER[slug]) IS_SOC_FOLDER[slug]=(String(nom).replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'')||slug); }catch(e){}
+  try{ if(typeof DASH_SOC_META==='object' && !DASH_SOC_META[slug]) DASH_SOC_META[slug]={nom:nom, type:'Société créée par toi', tab:pageId}; }catch(e){}
+  try{ if(typeof CV_SOCS!=='undefined' && CV_SOCS.indexOf(slug)<0) CV_SOCS.push(slug); }catch(e){}
+  // 4) panneau DOM (page de la société) AVEC les zones finances + import de bilans
   if(!document.getElementById('tab-'+pageId)){
     var container=(document.getElementById('tab-soc-sci')||{}).parentNode || document.querySelector('.main');
     var panel=document.createElement('div'); panel.id='tab-'+pageId; panel.className='panel';
-    panel.innerHTML='<div class="alert a-b"><span>🏢</span><div><strong>'+nom.replace(/</g,'&lt;')+'</strong> — société créée par toi. Cette page regroupe sa <strong>trésorerie</strong> : soldes, comptes / banques et entrées-sorties. Importe ses relevés dans la Trésorerie (ou ajoute des lignes à la main) et tout remonte ici.</div></div>';
+    panel.innerHTML='<div class="alert a-b"><span>🏢</span><div><strong>'+nom.replace(/</g,'&lt;')+'</strong> — société créée par toi. Importe ses <strong>bilans</strong> ci-dessous (l\'app lit les chiffres toute seule) et ses <strong>relevés bancaires</strong> dans la Trésorerie ; tout remonte ici.</div></div>'
+      +'<div class="cc-zone" data-soc="'+slug+'"></div>'
+      +'<div class="fin-zone" data-soc="'+slug+'"><div class="card"><div class="card-title">Suivi par exercice</div><div style="color:var(--text3);font-size:13px;text-align:center;padding:18px;">En attente du bilan. Dépose-le ci-dessous : l\'application le lira automatiquement et remplira les chiffres ici (résultat, capitaux propres, comptes courants, dividendes…).</div></div></div>'
+      +'<div class="socimp" data-soc="'+slug+'"></div>';
     if(container) container.appendChild(panel);
   }
   titles[pageId]=nom;
@@ -1585,10 +1606,18 @@ function tresoCreerSocietePrincipale(nom, opts){
     if(plus && plus.parentNode) plus.parentNode.insertBefore(it, plus);
   }
   // 5) mémorisation (SOCP:: → recrée la page ET la trésorerie au rechargement)
-  if(!opts.noPersist){ try{ sb.from('treso_categories').upsert({cle:'SOCP::'+nom, categorie:(opts.couleur||COLORS[nom]||'#64748b')},{onConflict:'cle'}); }catch(e){ console.warn('save SOCP', e); } }
+  if(!opts.noPersist){ try{ sb.from('treso_categories').upsert({cle:'SOCP::'+nom, categorie:(opts.couleur||COLORS[nom]||'#64748b')},{onConflict:'cle'}).then(function(r){ if(r&&r.error) console.warn('save SOCP', r.error); }, function(e){ console.warn('save SOCP', e); }); }catch(e){ console.warn('save SOCP', e); } }
   // 6) rafraîchir la trésorerie (sidebar + menu import)
   try{ buildSocieteSidebar(); }catch(e){}
   try{ pdfRebuildResto(); }catch(e){}
+  // 7) activer la dropzone d'import de bilans + le rendu financier de cette société,
+  //    et rafraîchir les vues bilan pour qu'elle y apparaisse tout de suite.
+  try{ if(typeof buildSocImports==='function') buildSocImports(); }catch(e){}
+  try{ if(typeof renderSocFinances==='function') renderSocFinances(slug); }catch(e){}
+  if(!opts.noPersist){   // seulement à la vraie création (pas à chaque rechargement)
+    try{ if(typeof renderDashboardGroupe==='function') renderDashboardGroupe(); }catch(e){}
+    try{ if(typeof renderCoutVincent==='function') renderCoutVincent(); }catch(e){}
+  }
   return {ok:true, pageId:pageId};
 }
 window.tresoPromptSocietePrincipale = function(){
@@ -1665,7 +1694,7 @@ window.tresoRenommerBanque = function(soc, key){
   var nom=(prompt('Nom de ce compte\n(ex. « Banque Populaire 1 » pour le principal, « Banque Populaire 2 » pour le secondaire) :', cur)||'').trim();
   if(!nom) return;
   window.TRESO_BANQUE_NOM[key]=nom;
-  try{ sb.from('treso_categories').upsert({cle:'BQNOM::'+key, categorie:nom},{onConflict:'cle'}); }catch(e){ console.warn('BQNOM', e); }
+  try{ sb.from('treso_categories').upsert({cle:'BQNOM::'+key, categorie:nom},{onConflict:'cle'}).then(function(r){ if(r&&r.error) console.warn('BQNOM', r.error); }, function(e){ console.warn('BQNOM', e); }); }catch(e){ console.warn('BQNOM', e); }
   try{ render(); }catch(e){}
 };
 
@@ -1678,8 +1707,22 @@ function setPage(p,btn){
 function setResto(r,el){
   resto=r;
   document.querySelectorAll('.sb-item[onclick*="setResto"]').forEach(function(e){e.classList.remove('active');});
-  el.classList.add('active');
+  if(el) el.classList.add('active');
+  _majTabsTreso();
   render();
+}
+// La « Comparaison » ne concerne que les 3 restaurants : on masque l'onglet quand on
+// n'est pas sur un restaurant (sociétés, groupe complet). Si on y était, on repasse
+// au Tableau de bord.
+function _majTabsTreso(){
+  var estResto = (typeof RESTOS!=='undefined') && RESTOS.indexOf(resto)>=0;
+  var btn=document.getElementById('tab-compare-btn');
+  if(btn) btn.style.display = estResto ? '' : 'none';
+  if(!estResto && page==='compare'){
+    page='dashboard';
+    document.querySelectorAll('.nav .nb').forEach(function(b){ b.classList.remove('active'); });
+    var db=document.querySelector('.nav .nb[onclick*="dashboard"]'); if(db) db.classList.add('active');
+  }
 }
 function setYear(y,el){
   year=y;
@@ -1810,7 +1853,7 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
     box.innerHTML = bandeau + dataList
       +'<div style="font-size:13px;color:#6b839a;line-height:1.5">Le détail des opérations n\'est pas disponible pour ce mois (mois importé avant la mise à jour, ou saisi à la main).<br>Tu peux quand même supprimer le montant ci-dessus ou le marquer exceptionnel.<br><br>Pour récupérer le détail (dates, libellés), réimporte le relevé de '+periode+'.</div>'
       +'<div style="margin-top:14px;text-align:right"><button onclick="tresoDetClose()" style="padding:8px 14px;background:#f0f3f8;border:none;border-radius:7px;cursor:pointer">Fermer</button></div>';
-    ov.classList.add('open'); return;
+    ov.style.display='flex'; ov.classList.add('open'); return;
   }
 
   // opérations de ce poste pour ce mois
@@ -1854,7 +1897,7 @@ function tresoVoirDetail(lblEnc, section, periodeEnc){
   h+='<div style="margin-top:14px;text-align:right"><button onclick="tresoDetClose()" style="padding:8px 14px;background:#f0f3f8;border:none;border-radius:7px;cursor:pointer">Fermer</button></div>';
   box.innerHTML=h;
   _detailCtx.ops=ops;
-  ov.classList.add('open');
+  ov.style.display='flex'; ov.classList.add('open');
 }
 
 // Supprimer le montant d'un poste pour le mois affiché (met la case à 0) — corrige aussi les doublons
@@ -1902,7 +1945,7 @@ function tresoToggleExcDetail(){
   render();
 }
 
-function tresoDetClose(){ var ov=document.getElementById('det-ov'); if(ov) ov.classList.remove('open'); }
+function tresoDetClose(){ var ov=document.getElementById('det-ov'); if(ov){ ov.style.display='none'; ov.classList.remove('open'); } }
 
 // Réaffecter une opération vers un autre poste : recalcule les deux postes concernés
 function tresoReaffecte(idx){
@@ -2560,7 +2603,7 @@ window.tresoSaveIban = function(iban, resto){
     window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {};
     if(window.TRESO_IBAN_MAP[k]===resto) return;      // déjà connu
     window.TRESO_IBAN_MAP[k]=resto;
-    sb.from('treso_categories').upsert({cle:'IBAN::'+k, categorie:resto},{onConflict:'cle'});
+    sb.from('treso_categories').upsert({cle:'IBAN::'+k, categorie:resto},{onConflict:'cle'}).then(function(r){ if(r&&r.error) console.warn('IBAN', r.error); }, function(e){ console.warn('IBAN', e); });
   }catch(e){ console.warn('tresoSaveIban', e); }
 };
 // Applique la reconnaissance : sélectionne la bonne société et l'affiche.
@@ -3651,6 +3694,26 @@ async function sbLoad(){
     if(_chunk.length < _PAGE) break;
     _from += _PAGE;
   }
+  // AUTO-RÉCUPÉRATION DES SOCIÉTÉS : toute société qui a des écritures enregistrées
+  // mais qui n'existe plus dans RAW (ex. société créée par l'utilisateur dont la
+  // clé de définition SOCP::/SOC:: n'avait pas été sauvegardée à cause de l'ancien
+  // bug) est recréée ici. Sinon la ligne « if(!r) return » plus bas jetterait
+  // silencieusement tous ses montants. On la recrée en société « principale »
+  // (page dédiée dans le menu Sociétés + trésorerie) et on re-persiste sa clé,
+  // ce qui auto-répare définitivement la disparition.
+  try{
+    var _vus={};
+    data.forEach(function(row){
+      if(row.action==='releve' || row.section==='meta') return;
+      var _rs=row.resto;
+      if(!_rs || _vus[_rs]) return;
+      _vus[_rs]=1;
+      if(!RAW[_rs] && typeof tresoCreerSocietePrincipale==='function'){
+        try{ tresoCreerSocietePrincipale(_rs, {couleur:(COLORS[_rs]||null)}); }
+        catch(e){ console.warn('auto-récupération société', _rs, e); }
+      }
+    });
+  }catch(e){ console.warn('auto-récupération sociétés', e); }
   data.forEach(function(row){
     if(row.action==='releve' || row.section==='meta'){
       // archivage relevés : on mémorise le lien pour l'afficher (société + mois + chemin Dropbox)
@@ -3729,6 +3792,12 @@ async function sbLoad(){
   // les données en place pour qu'ils réapparaissent dans le tableau au rechargement.
   try { if(window.loadTresoCategories) await window.loadTresoCategories(); } catch(e){ console.error('reload categories', e); }
   render();
+  // CORRECTIF (tableau de bord vide à l'ouverture) : au tout premier chargement,
+  // renderDashboardTreso() a été appelé par init() AVANT que sbLoad ait fini de
+  // charger les données (appel asynchrone). On rafraîchit donc la Vue d'ensemble
+  // (tuiles trésorerie, coût Vincent, cartes en direct) une fois les données en place.
+  try { if(typeof renderDashboardTreso==='function') renderDashboardTreso(); } catch(e){ console.error('dashboard refresh', e); }
+  try { if(window.tresoOnUpdate) window.tresoOnUpdate(); } catch(e){}
 }
 
 async function sbSave(resto, section, label, vals, action){
@@ -3784,7 +3853,8 @@ window.tresoToggleExcDetail = tresoToggleExcDetail;
 
 <!-- COUT VINCENT (dirigeant) -->
 <div id="tab-cout-vincent" class="panel">
-  <div class="alert a-b"><span>👤</span><div><strong>Combien coûte Vincent Hilaire au groupe.</strong> Cette page rassemble, société par société, tout ce que le dirigeant coûte : rémunération de gérance, charges sociales / TNS, véhicules, assurances auto, carburant, restaurants & réceptions, déplacements… Les chiffres sont extraits automatiquement de chaque bilan importé (dernier exercice connu de chaque société).</div></div>
+  <div class="alert a-b"><span>👤</span><div><strong>Coût Vincent — version BILAN.</strong> Cette page rassemble, société par société, tout ce que le dirigeant coûte d'après les <strong>bilans comptables</strong> : rémunération de gérance, charges sociales / TNS, véhicules, assurances auto, carburant, restaurants & réceptions, déplacements… Les chiffres sont extraits automatiquement de chaque bilan importé (dernier exercice connu de chaque société).</div></div>
+  <div class="alert a-w" style="margin-top:-4px"><span>ℹ️</span><div>Il existe aussi un <strong>coût Vincent trésorerie</strong> (sur la Vue d'ensemble, tuile « Coût Vincent trésorerie »), qui mesure ce qui <strong>sort réellement des comptes bancaires</strong>. Les deux approches ne donnent pas le même chiffre : le bilan agrège l'exercice comptable clos, la trésorerie suit les mouvements bancaires réels. C'est normal, ce sont deux angles différents.</div></div>
   <div id="cv-controle"></div>
   <div class="g4" id="cv-kpis"></div>
   <div id="cv-body"></div>
@@ -5914,7 +5984,7 @@ async function setupTables() {
 }
 
 // ── NAVIGATION ──
-const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',batiments:'Bâtiments','tresorerie':'Trésorerie du groupe','cout-vincent':'Coût Vincent',declaration:'Ma déclaration',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents'};
+const titles = {dashboard:'Vue d\'ensemble',optim:'Optimisations',sim:'Simulateur','soc-vh':'VH Company','soc-ba':'Burger Avenue','soc-bka':'BK Avenue','soc-bksj':'BK Saint-Jean','soc-fvh':'FVH SARL','soc-sci':'SCI VH Immo',batiments:'Bâtiments','tresorerie':'Trésorerie du groupe','cout-vincent':'Coût Vincent bilan',declaration:'Ma déclaration',contrats:'Prévoyance & Retraite','assur-bien':'Habitation & Véhicules','assur-pro':'Entreprise & Pro',checklist:'Checklist documents'};
 function sw(id, btn) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -5926,8 +5996,8 @@ function sw(id, btn) {
   if (pt) pt.style.display = (id === 'dashboard') ? 'flex' : 'none';
   if (id === 'cout-vincent') { try { renderCoutVincent(); } catch(e){} }
   if (id === 'dashboard') { try { if(window.TRESO_INIT) window.TRESO_INIT(); renderDashboardTreso(); } catch(e){ console.error(e); } }
-  if (id === 'tresorerie') { try { if(window.TRESO_INIT) window.TRESO_INIT(); } catch(e){ console.error(e); } }
-  if (id && id.indexOf('soc-')===0) { try { renderTresoSoc(id.slice(4)); } catch(e){ console.error(e); } }
+  if (id === 'tresorerie') { try { if(window.TRESO_INIT) window.TRESO_INIT(); var _gEl=document.querySelector('.sb-item[onclick*="__GROUPE__"]'); if(typeof setResto==='function') setResto('__GROUPE__', _gEl); } catch(e){ console.error(e); } }
+  if (id && id.indexOf('soc-')===0) { try { renderTresoSoc(id.slice(4)); } catch(e){ console.error(e); } try { if(typeof renderSocFinances==='function') renderSocFinances(id.slice(4)); } catch(e){} }
   // Sur téléphone, refermer le tiroir après le choix d'une rubrique
   try { if(window.innerWidth<=768) window.toggleMobileMenu(false); } catch(e){}
 }
@@ -6602,6 +6672,7 @@ function renderSciCc(ex) {
 }
 
 function renderSciFin() {
+  if(!document.getElementById('sf-capital')) return;   // formulaire SCI retiré (rendu standard)
   const sel = document.getElementById('sci-ex-select');
   if(sel && sel.value) sciFin.courant = sel.value;
   const ex = sciFin.exercices[sciFin.courant];
@@ -6617,6 +6688,7 @@ function renderSciFin() {
 
 // Recalcule totaux, équilibre et KPIs en direct (sans sauvegarde)
 function liveSciKpis() {
+  if(!document.getElementById('sf-capital')) return;   // formulaire SCI retiré (rendu standard)
   const v = id => { const e=document.getElementById(id); return e&&e.value!==''?parseFloat(e.value)||0:0; };
   const totActif = v('sf-a-total');
   const totPassif = v('sf-p-cp')+v('sf-p-emp')+v('sf-p-det');
@@ -8602,15 +8674,8 @@ async function renderSocFinances(soc) {
     modeleBadge = ` <span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1px 8px;font-size:11px;color:var(--text2);">📄 ${libelle}${d.cabinet?(' · '+d.cabinet):''}</span>`;
   }
   let html = `<div class="alert a-g" style="margin-bottom:12px;"><span>✓</span><div>Chiffres extraits automatiquement du bilan <strong>${d.date_cloture||('exercice '+last.exercice)}</strong>.${modeleBadge} ${rows.length>1?('Historique sur '+rows.length+' exercices ci-dessous.'):''}</div></div>`;
-  // Barre de gestion des exercices enregistrés : permet de supprimer les chiffres d'un
-  // exercice (ex. un exercice orphelin sans document), indépendamment des documents Dropbox.
-  html += `<div class="card" style="margin-bottom:12px;"><div class="card-title">Exercices enregistrés</div>
-    <div class="alert a-b" style="margin-bottom:10px;"><span>🗑</span><div>Supprime ici les chiffres d'un exercice. Tout ce qui concerne cet exercice (résultat, capitaux propres, CA, structure, comptes courants) disparaîtra de partout. Le document éventuel dans Dropbox n'est pas touché.</div></div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;">`;
-  rows.slice().sort((a,b)=>b.exercice-a.exercice).forEach(r=>{
-    html += `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 6px 4px 12px;font-size:12px;font-weight:600;">Exercice ${r.exercice}<button class="btn" style="font-size:11px;padding:3px 8px;color:var(--danger);border-color:var(--danger);" onclick="delExerciceFin('${soc}','${r.exercice}')">🗑 Supprimer</button></span>`;
-  });
-  html += `</div></div>`;
+  // Tuile « Exercices enregistrés » retirée (à la demande) : la suppression d'un
+  // exercice se fait déjà depuis la tuile « Importer les bilans » en bas de page.
   html += `<div class="g4">${kpi('Résultat net',d.resultat_net,'acc')}${kpi('Capitaux propres',d.capitaux_propres)}${kpi("Chiffre d'affaires",d.chiffre_affaires)}${kpi('Trésorerie',d.tresorerie,'war')}</div>`;
 
   // Encarts explicatifs en langage simple
@@ -8639,8 +8704,11 @@ async function renderSocFinances(soc) {
   });
   html += `</div></div>`;
 
-  // Comptes courants détaillés (qui doit à qui) — langage clair
-  if(Array.isArray(d.comptes_courants_detail) && d.comptes_courants_detail.length){
+  // Comptes courants détaillés (qui doit à qui) — langage clair.
+  // Sur VH Company, cette tuile ferait doublon avec « Comptes courants mère ↔ filles »
+  // (vue consolidée de la holding) affichée plus haut → on ne la montre que pour les
+  // AUTRES sociétés, pour lesquelles elle est la seule vue de leurs comptes courants.
+  if(soc!=='vh' && Array.isArray(d.comptes_courants_detail) && d.comptes_courants_detail.length){
     html += `<div class="card"><div class="card-title">🔄 Prêts entre sociétés au ${d.date_cloture||last.exercice} — qui doit de l'argent à qui</div>`;
     html += `<div class="alert a-b" style="margin-bottom:10px;"><span>💡</span><div>Un compte courant = de l'argent prêté entre sociétés, qui devra être remboursé. <span style="color:var(--success);font-weight:600;">Vert</span> = on doit de l'argent à ${nomSoc} (${nomSoc} a prêté). <span style="color:var(--warn);font-weight:600;">Orange</span> = ${nomSoc} doit de l'argent (elle a reçu un prêt).</div></div>`;
     html += `<table class="tbl"><thead><tr><th>Avec qui</th><th>Situation</th><th class="r">Montant</th></tr></thead><tbody>`;
@@ -8747,6 +8815,10 @@ function tresoCatKey(soc, section, label){ return soc+'||'+section+'||'+label; }
 function tresoCategorie(soc, section, label){
   const k = tresoCatKey(soc, section, label);
   if(TRESO_CAT_OVERRIDE[k]) return TRESO_CAT_OVERRIDE[k];
+  // Ligne marquée manuellement « coût Vincent » (bouton 👤) → même catégorie que
+  // l'auto-classement, pour que le « coût Vincent trésorerie » soit UN SEUL chiffre
+  // (auto + marquages manuels), cohérent partout (tableau de bord, groupe, détail).
+  try{ if(window.TRESO_CV && window.TRESO_CV[k]) return 'cout-vincent'; }catch(e){}
   for(const [rx,cat] of TRESO_CAT_RULES){ if(rx.test(label)) return cat; }
   return 'autre';
 }
@@ -8898,7 +8970,10 @@ function renderDashboardTreso(){
   set('kpi-treso-sor', fmt(totalSor));
   set('kpi-treso-sor-sub', moisGlobal||'\u00a0');
   // coût Vincent (cumul toutes sociétés)
-  var cv=0; try{ Object.keys(TRESO_MAP_SOC).forEach(function(sk){ cv += tresoQuery(sk,{cat:'cout-vincent'}).reduce(function(s,r){return s+r.total;},0); }); }catch(e){}
+  // Coût Vincent : on itère TOUTES les sociétés de trésorerie (comme la fenêtre de
+  // détail tresoOpenCoutVincent), pas seulement TRESO_MAP_SOC — sinon le total du KPI
+  // et celui de la fenêtre pouvaient diverger (société créée en trésorerie-seule).
+  var cv=0; try{ Object.keys(data).filter(function(k){return data[k]&&!data[k]._vide;}).forEach(function(sk){ cv += tresoQuery(sk,{cat:'cout-vincent'}).reduce(function(s,r){return s+r.total;},0); }); }catch(e){}
   set('kpi-treso-cv', fmt(cv));
 
   // grille banques
@@ -8963,6 +9038,10 @@ async function loadTresoCategories(){
         // nom personnalisé d'un compte / banque (ex. « Banque Populaire 1 »)
         window.TRESO_BANQUE_NOM = window.TRESO_BANQUE_NOM || {};
         if(r.categorie) window.TRESO_BANQUE_NOM[r.cle.slice(7)]=r.categorie;
+      } else if(r.cle.indexOf('SOCTYPE::')===0){
+        // catégorie d'une trésorerie créée : restaurant | societe | perso
+        window.TRESO_SOC_TYPE = window.TRESO_SOC_TYPE || {};
+        if(r.categorie) window.TRESO_SOC_TYPE[r.cle.slice(9)] = r.categorie;
       } else if(r.cle.indexOf('SOCP::')===0){
         // société créée dans le MENU PRINCIPAL (page dédiée + trésorerie)
         var _spnom=r.cle.slice(6);
@@ -9007,6 +9086,97 @@ window.tresoSaveCategorie = async function(soc, section, label, categorie){
     const {error} = await sb.from('treso_categories').upsert({cle:cle, categorie:categorie}, {onConflict:'cle'});
     if(error) console.warn('tresoSaveCategorie:', error.message);
   }catch(e){ console.warn('tresoSaveCategorie:', e); }
+};
+
+// ── COÛT VINCENT : fenêtre détaillée (clic sur la tuile du tableau de bord) ──
+// Liste toutes les lignes de trésorerie comptées comme « coût Vincent », avec le
+// total en direct. On peut RETIRER une ligne (reclassée en « autre ») si elle a été
+// mal classée, ou AJOUTER une dépense (reclassée en cout-vincent). Persisté via
+// tresoSaveCategorie ; le total du tableau de bord se met à jour aussitôt.
+window.tresoOpenCoutVincent = function(showAdd){
+  var data = window.TRESO_DATA || {};
+  var box=document.getElementById('det-box'), ov=document.getElementById('det-ov');
+  if(!box||!ov) return;
+  var E=window.esc||function(x){return x;};
+  var fmt=function(n){ return (n||n===0)?Math.round(n).toLocaleString('fr-FR')+' €':'—'; };
+  var socList = Object.keys(data).filter(function(k){ return data[k] && !data[k]._vide; });
+  var inCV=[], total=0, cand=[];
+  socList.forEach(function(tkey){
+    ['sorties','entrees'].forEach(function(section){
+      (data[tkey][section]||[]).forEach(function(row){
+        var lbl=row.label||''; if(lbl.toUpperCase()==='TOTAL'||(lbl.length===1&&/[A-Z]/.test(lbl))) return;
+        var cat=tresoCategorie(tkey, section, lbl);
+        var tot=tresoLigneTotal(row.vals);
+        if(cat==='cout-vincent'){ inCV.push({soc:tkey,section:section,label:lbl,total:tot}); total+=tot; }
+        else if(section==='sorties' && tot){ cand.push({soc:tkey,section:section,label:lbl,total:tot}); }
+      });
+    });
+  });
+  inCV.sort(function(a,b){ return (a.soc<b.soc?-1:a.soc>b.soc?1:0) || (Math.abs(b.total)-Math.abs(a.total)); });
+  cand.sort(function(a,b){ return Math.abs(b.total)-Math.abs(a.total); });
+  window._cvIn=inCV; window._cvCand=cand;   // pour les boutons indexés
+
+  var h='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px">'
+    +'<div style="font-weight:800;font-size:16px">👤 Coût Vincent <span style="color:#1a6cf4">trésorerie</span> — détail</div>'
+    +'<div style="font-family:var(--mono);font-weight:800;color:#1a6cf4;font-size:16px">'+fmt(total)+'</div></div>'
+    +'<div style="font-size:11px;color:#6b839a;margin-bottom:12px">Ce qui sort réellement des comptes bancaires pour Vincent : lignes de trésorerie classées « coût Vincent » (rémunération, URSSAF Vincent, retraite / prévoyance du gérant, achats carte…), toutes sociétés confondues. Retire une ligne mal classée, ou ajoute une dépense — le total se met à jour tout de suite.</div>'
+    +'<div style="font-size:11px;color:#8a6d3b;background:#fbf4e6;border:1px solid #ecdcb8;border-radius:8px;padding:7px 10px;margin-bottom:12px">ℹ️ C\'est le coût Vincent <strong>trésorerie</strong> (argent sorti des comptes). Il existe aussi un coût Vincent <strong>bilan</strong> (menu de gauche « Coût Vincent bilan »), calculé à partir des bilans comptables — les deux chiffres sont normalement différents.</div>';
+
+  if(!inCV.length){
+    h+='<div style="font-size:13px;color:#6b839a;padding:10px 0">Aucune ligne classée « coût Vincent » pour l\'instant.</div>';
+  } else {
+    var curSoc=null;
+    h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>';
+    inCV.forEach(function(it,i){
+      if(it.soc!==curSoc){ curSoc=it.soc; h+='<tr><td colspan="3" style="padding:10px 6px 4px;font-weight:700;color:#0f1c2e">'+E(curSoc)+'</td></tr>'; }
+      h+='<tr style="border-bottom:1px solid #eef1f5">'
+        +'<td style="padding:6px 6px;color:#0f1c2e">'+E(it.label)+' <span style="color:#9fb0c4;font-size:10px">('+(it.section==='sorties'?'sortie':'entrée')+')</span></td>'
+        +'<td style="text-align:right;padding:6px 6px;font-family:var(--mono);color:'+(it.total<0?'#e03a3a':'#0d9e6e')+'">'+fmt(it.total)+'</td>'
+        +'<td style="text-align:right;padding:6px 6px"><button onclick="tresoCVRetirer('+i+')" style="font-size:11px;padding:3px 9px;background:#fff0f0;border:1px solid #f5c2c2;color:#e03a3a;border-radius:6px;cursor:pointer">Retirer</button></td>'
+        +'</tr>';
+    });
+    h+='</tbody></table>';
+  }
+
+  h+='<div style="margin-top:14px;border-top:1px solid #eef1f5;padding-top:12px">'
+    +'<div onclick="tresoOpenCoutVincent('+(showAdd?'false':'true')+')" style="cursor:pointer;font-size:12px;font-weight:700;color:#1a6cf4">'+(showAdd?'▾':'▸')+' Ajouter une dépense au coût Vincent</div>';
+  if(showAdd){
+    h+='<input id="cv-add-search" type="text" placeholder="Filtrer par libellé ou société…" oninput="tresoCVFiltre(this.value)" style="width:100%;margin-top:8px;padding:6px 9px;border:1px solid #cfe0f5;border-radius:6px;font-size:12px;box-sizing:border-box">'
+      +'<div id="cv-add-list" style="max-height:220px;overflow:auto;margin-top:8px">';
+    cand.slice(0,400).forEach(function(it,i){
+      h+='<div class="cv-add-row" data-l="'+E((it.soc+' '+it.label).toLowerCase())+'" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 6px;border-bottom:1px solid #f2f5f9;font-size:12px">'
+        +'<div><span style="color:#9fb0c4">'+E(it.soc)+'</span> · '+E(it.label)+' <span style="font-family:var(--mono);color:#e03a3a">'+fmt(it.total)+'</span></div>'
+        +'<button onclick="tresoCVAjouter('+i+')" style="font-size:11px;padding:3px 9px;background:#eefaf2;border:1px solid #bfe6cf;color:#0d9e6e;border-radius:6px;cursor:pointer;white-space:nowrap">+ Ajouter</button>'
+        +'</div>';
+    });
+    if(cand.length>400) h+='<div style="font-size:10px;color:#9fb0c4;padding:6px">'+(cand.length-400)+' autres lignes… affine avec le filtre.</div>';
+    h+='</div>';
+  }
+  h+='</div>';
+  h+='<div style="margin-top:16px;text-align:right"><button onclick="tresoDetClose()" style="padding:8px 14px;background:#f0f3f8;border:none;border-radius:7px;cursor:pointer">Fermer</button></div>';
+  box.innerHTML=h;
+  // Le modal #det-ov vit dans le panneau Trésorerie (masqué quand on est sur le
+  // tableau de bord). On le rattache au <body> pour qu'il s'affiche depuis n'importe
+  // quelle page (sinon le clic « Coût Vincent » de la Vue d'ensemble n'ouvrait rien).
+  try{ if(ov.parentNode!==document.body) document.body.appendChild(ov); }catch(e){}
+  ov.style.display='flex'; ov.classList.add('open');
+};
+window.tresoCVFiltre = function(q){
+  q=(q||'').toLowerCase();
+  var rows=document.querySelectorAll('#cv-add-list .cv-add-row');
+  rows.forEach(function(r){ r.style.display = (!q || (r.getAttribute('data-l')||'').indexOf(q)>=0) ? '' : 'none'; });
+};
+window.tresoCVRetirer = async function(i){
+  var it=(window._cvIn||[])[i]; if(!it) return;
+  try{ if(window.tresoSaveCategorie) await window.tresoSaveCategorie(it.soc, it.section, it.label, 'autre'); }catch(e){}
+  try{ if(typeof renderDashboardTreso==='function') renderDashboardTreso(); }catch(e){}
+  try{ tresoOpenCoutVincent(false); }catch(e){}
+};
+window.tresoCVAjouter = async function(i){
+  var it=(window._cvCand||[])[i]; if(!it) return;
+  try{ if(window.tresoSaveCategorie) await window.tresoSaveCategorie(it.soc, it.section, it.label, 'cout-vincent'); }catch(e){}
+  try{ if(typeof renderDashboardTreso==='function') renderDashboardTreso(); }catch(e){}
+  try{ tresoOpenCoutVincent(true); }catch(e){}
 };
 
 // Mémoriser un apprentissage libellé→poste (ex. "PRLV SEPA ADIENZ" → poste "ADIENZ").
@@ -9145,6 +9315,13 @@ const eurT = n => (n||n===0) ? Math.round(n).toLocaleString('fr-FR')+'€' : '�
 function renderTresoSoc(socKey){
   const panel = document.getElementById('tab-soc-'+socKey);
   if(!panel) return;
+  // Bloc « Trésorerie » retiré du haut des pages société (à la demande) :
+  // on supprime la zone si elle existe et on n'en recrée pas. La trésorerie
+  // reste consultable dans l'onglet « Trésorerie du groupe ».
+  var _old = panel.querySelector('.treso-soc-zone');
+  if(_old && _old.parentNode) _old.parentNode.removeChild(_old);
+  return;
+  /* eslint-disable no-unreachable */
   // S'assurer que la trésorerie est chargée (init si pas encore fait)
   if(window.TRESO_INIT && !window._tresoStarted){ try{ window.TRESO_INIT(); }catch(e){} }
 
