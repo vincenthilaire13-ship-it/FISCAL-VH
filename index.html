@@ -313,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v31 · le choix du menu prime sur la détection auto (corriger un compte mal rangé)</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v32 · retirer UN compte précis d'une société (sans tout vider)</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1141,6 +1141,19 @@ function renderDashboard(){
     +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent 2025</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'<div style="font-size:11px;color:var(--text3);margin-top:2px">postes marqués 👤 dans le tableau</div>')+'</div>'
     +'</div>';
 
+  // ── GESTION DES COMPTES BANCAIRES de la société : renommer (✏️) ou RETIRER (✕)
+  //    un compte précis (ex. un compte rangé par erreur) sans vider toute la société.
+  if(_multiBq){
+    var _mgmt='';
+    _bqNoms.forEach(function(bk){
+      var lab=window.tresoBanqueNom(bk, (_bq[bk].label||bk));
+      _mgmt += '<span style="display:inline-flex;align-items:center;gap:5px;background:#f1f5f9;border:1px solid var(--gray2);border-radius:8px;padding:3px 9px;margin:0 6px 6px 0;font-size:11px">🏦 '+lab
+        + ' <span onclick="tresoRenommerBanque(\''+resto.replace(/\x27/g,"")+'\',\''+String(bk).replace(/\x27/g,"")+'\')" title="Renommer ce compte" style="cursor:pointer;opacity:.6">&#9998;</span>'
+        + ' <span onclick="tresoRetirerBanque(\''+resto.replace(/\x27/g,"")+'\',\''+String(bk).replace(/\x27/g,"")+'\')" title="Retirer ce compte de la société" style="cursor:pointer;color:#e03a3a;font-weight:700">&times;</span></span>';
+    });
+    html += '<div style="margin:8px 0 2px;font-size:11px;color:var(--text3)"><strong style="color:var(--text2)">Comptes bancaires :</strong> '+_mgmt+'<br><span style="font-size:10px">✏️ renommer · ✕ retirer ce compte (pour le ré-importer dans la bonne société)</span></div>';
+  }
+
   // ── Courbe PAR ANNÉE, superposées sur le même axe des mois (JAN → DEC) ──
   var yrColors = {'2024':'#94a3b8','2025':'#3d86ff','2026':'#13c487','2027':'#f59e0b','2028':'#a78bfa','2029':'#ef4444'};
   var years=[]; (d.wanted||[]).forEach(function(w){ if(w.year && w.year!=='2024' && years.indexOf(w.year)<0) years.push(w.year); });
@@ -1601,6 +1614,46 @@ window.tresoViderSociete = async function(soc){
   try{ render(); if(window.tresoOnUpdate) window.tresoOnUpdate(); }catch(e){}
   alert(ok ? ('✓ Trésorerie de « '+soc+' » vidée. Ré-importe les relevés : les comptes s\'additionneront proprement, sans doublon.')
            : ('Affichage vidé, mais la suppression en base a peut-être échoué. Si les données reviennent au rechargement, dis-le moi.'));
+};
+
+// ── RETIRER UN SEUL COMPTE / BANQUE d'une société (les autres restent) ──────
+// Utile quand un compte a été rangé dans la mauvaise société : on l'enlève de là
+// sans vider toute la trésorerie, puis on le ré-importe dans la bonne société.
+window.tresoRetirerBanque = async function(soc, key){
+  soc=soc||resto;
+  if(!soc || !RAW[soc] || !RAW[soc].banques || !RAW[soc].banques[key]) return;
+  var bq=RAW[soc].banques[key];
+  var lab=window.tresoBanqueNom(key, bq.label||key);
+  if(!confirm('Retirer le compte « '+lab+' » de « '+soc+' » ?\n\nSeules les écritures de CE compte seront effacées ; les autres comptes de la société restent intacts.')) return;
+  var _round=function(x){ return Math.round((Number(x)||0)*100)/100; };
+  // 1) soustraire la contribution de ce compte du fusionné (postes) + re-persister
+  Object.keys(bq.postes||{}).forEach(function(periode){
+    (bq.postes[periode]||[]).forEach(function(pc){
+      var ln=RAW[soc][pc.sec] && RAW[soc][pc.sec].find(function(x){return x.label===pc.nom;});
+      if(ln && ln.vals && ln.vals[periode]!=null){
+        ln.vals[periode]=_round(ln.vals[periode]-(Number(pc.total)||0));
+        if(Math.abs(ln.vals[periode])<0.005) ln.vals[periode]=0;
+        var vals={}; vals[periode]=ln.vals[periode]; try{ sbSave(soc, pc.sec, pc.nom, vals, 'update'); }catch(e){}
+      }
+    });
+  });
+  // 2) périodes concernées (pour recalculer le solde fusionné)
+  var pers={}; Object.keys(bq.soldes||{}).forEach(function(p){pers[p]=1;});
+  // 3) retirer le compte de la mémoire
+  delete RAW[soc].banques[key];
+  // 4) solde fusionné = somme des comptes RESTANTS, par mois
+  if(!RAW[soc].soldes) RAW[soc].soldes={};
+  Object.keys(pers).forEach(function(periode){
+    var st=0, any=false;
+    Object.keys(RAW[soc].banques).forEach(function(b){ var v=RAW[soc].banques[b].soldes[periode]; if(v!=null){ st+=Number(v)||0; any=true; } });
+    if(any){ RAW[soc].soldes[periode]=_round(st); } else { delete RAW[soc].soldes[periode]; }
+    try{ sbSave(soc,'soldes',periode,{solde:(any?_round(st):0)},'solde'); }catch(e){}
+  });
+  // 5) supprimer les événements de CE compte en base (banque + bqpostes)
+  try{ await _sb.from('tresorerie_edits').delete().eq('resto',soc).eq('action','banque').eq('label',key); }catch(e){}
+  try{ await _sb.from('tresorerie_edits').delete().eq('resto',soc).eq('action','bqpostes').like('label',key+'%'); }catch(e){}
+  try{ render(); if(window.tresoOnUpdate) window.tresoOnUpdate(); }catch(e){}
+  alert('✓ Compte « '+lab+' » retiré de « '+soc+' ». Tu peux le ré-importer dans la bonne société.');
 };
 
 // ── RENOMMER UN COMPTE / UNE BANQUE (ex. « Banque Populaire 1 ») ────────────
