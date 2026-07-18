@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version 2026-07-15a · groupe complet + 👤 vert</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v12 · CB✓ STC✓ Uber-séparé✓</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1861,6 +1861,18 @@ function pdfStatus(msg, color){
   el.style.color=color==='ok'?'#0d9e6e':color==='err'?'#e03a3a':'#1a6cf4';
   el.textContent=msg;
 }
+// Message d'attention AVEC un bouton « Passer à l'IA » (l'appli ne bascule jamais
+// seule : c'est l'utilisateur qui clique s'il veut la lecture par IA, payante).
+function pdfStatusIA(msg){
+  var el=document.getElementById('pdf-status'); if(!el) return;
+  el.style.display='block'; el.style.background='#fff7ed'; el.style.color='#b45309';
+  el.innerHTML = msg+' <button onclick="pdfPasserIA()" style="margin-left:6px;padding:3px 10px;background:#1a6cf4;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">Passer à l\'IA (payant)</button>';
+}
+window.pdfPasserIA = function(){
+  if(!window._pdfFichier){ pdfStatus('Aucun fichier à relire.','err'); return; }
+  pdfStatus('Lecture par IA en cours…','info');
+  pdfAnalyse(window._pdfFichier, true);   // true = forcer l'IA
+};
 
 // Extrait le texte de chaque page du PDF (pdf.js)
 async function pdfTextePages(file){
@@ -1901,66 +1913,193 @@ function _bpCleanLib(s){
   s=s.replace(/\s{2,}[\s\S]*$/,'');                          // sécurité : coupe une colonne restante
   return s.replace(/^\s+|\s+$/g,'');
 }
-function _bpRegle(u){
-  var R=[
-    [/REMISE\s+CB/,'REMISE CB','recette',true],
-    [/\bVRST\b|VERSEMENT|\bDEPOT\b/,'VRST DEPOT','recette',true],
-    [/FRANCE BKR/,'FRANCE BKR','loyer',true],
-    [/QSL-?STEF/,'QSL-STEF','marchandises',true],
-    [/URSSAF/,null,'social',true],
-    [/DGFIP|DRFIP|DIRECTION G|TRESOR PUBLIC/,null,'impots',true],
-    [/\bEDF\b|LUCIA|ENGIE/,null,'energie',true],
-    [/AREAS|ROEDERER/,null,'assurance',true],
-    [/UBER|DELIVEROO|SWILE|PLUXEE|UP COOP|EDENRED|BIMPLI/,null,'recette',true],
-    [/ECH\s+PRET/,null,'banque',true],
-    [/ADYEN|STICHTING|STRIPE/,null,'recette',true]
-  ];
-  for(var i=0;i<R.length;i++){ if(R[i][0].test(u)) return {poste:R[i][1],categorie:R[i][2],sur:R[i][3]}; }
-  return null;
+function _bpClasse(u, libOrig){
+  // RÉPLIQUE des règles du prompt IA : poste de regroupement + catégorie + « sûr ».
+  // Postes spéciaux regroupés :
+  if(/REMISE\s+CB/.test(u)) return {poste:'REMISE CB', categorie:'recette', sur:true};
+  if(/\bCOM\s+CB\b|COMMISSION/.test(u)) return {poste:'COM CB', categorie:'banque', sur:true};
+  if(/FRAIS\s+REMISE\s+SCT/.test(u)) return {poste:'Frais Remise SCT', categorie:'banque', sur:true};
+  if(/\bVRST\b|VERSEMENT|\bDEPOT\b/.test(u)) return {poste:'VRST DEPOT', categorie:'recette', sur:true};
+  // Créanciers reconnus (indices imposés par le prompt IA) :
+  if(/FRANCE BKR/.test(u)) return {poste:'FRANCE BKR', categorie:'loyer', sur:true};
+  if(/QSL[- ]?STEF/.test(u)) return {poste:'QSL-STEF', categorie:'marchandises', sur:true};
+  if(/URSSAF/.test(u)) return /VINCENT/.test(u) ? {poste:'URSSAF VINCENT', categorie:'cout-vincent', sur:true} : {poste:'URSSAF', categorie:'social', sur:true};
+  if(/M VINCENT HILAI|REMUNERATION/.test(u)) return {poste:'M VINCENT HILAI', categorie:'cout-vincent', sur:true};
+  if(/DGFIP|DIRECTION G/.test(u)){ var p='IMPOT'; if(/\bTVA\b/.test(u))p='TVA'; else if(/\bIS\b/.test(u))p='IMPOT IS'; else if(/CVAE/.test(u))p='IMPOT CVAE'; else if(/\bPAS\b/.test(u))p='IMPOT PAS'; return {poste:p, categorie:'impots', sur:true}; }
+  if(/DRFIP/.test(u)) return {poste:'DRFIP', categorie:'recette', sur:true};   // remboursement (entrée)
+  if(/\bEDF\b/.test(u)) return {poste:'EDF', categorie:'energie', sur:true};
+  if(/LUCIA/.test(u)) return {poste:'LUCIA', categorie:'energie', sur:true};
+  if(/ENGIE/.test(u)) return {poste:'ENGIE', categorie:'energie', sur:true};
+  if(/AREAS/.test(u)) return {poste:'AREAS', categorie:'assurance', sur:true};
+  if(/ROEDERER/.test(u)) return {poste:'ROEDERER', categorie:'assurance', sur:true};
+  var b=u.match(/UBER|DELIVEROO|SWILE|PLUXEE|UP COOP|EDENRED|BIMPLI/); if(b) return {poste:b[0], categorie:'recette', sur:true};
+  // Sinon : créancier générique = le nom (libellé sans le préfixe SEPA). « Sûr » sauf
+  // si le nom est ambigu/générique (REMISE, VIREMENT…), une carte (CB ****) ou numérique.
+  var nom=(libOrig||'').replace(/^(PRLV SEPA|PRLV INT ETS|VIR SEPA|EURO VIR|EUROVIR SEPA|PRLV|VIR)\s+/i,'').trim();
+  var nomU=nom.toUpperCase();
+  var ambigu = (!nom) || /^(REMISE|VIREMENT|PRELEVEMENT|SEPA)$/.test(nomU) || /CB\s*\*{2,}|\bCB\b\s*\d/.test(u) || /^[\d\W]+$/.test(nom);
+  return {poste: nom||libOrig, categorie:'autre', sur: !ambigu};
+}
+// Extrait le COMMERÇANT d'un achat par carte (CB), en retirant date, n° de carte,
+// code d'autorisation, pays/ville et montant en devise. Ex :
+// « 040725 CB****8251 8KRPT60 LA FERME FR LA CLUSAZ 116,40EUR… » → « LA FERME ».
+function _bpMerchantCB(lib){
+  var s=(lib||'').toUpperCase()
+    .replace(/^\d{6}\s+/,'')                    // date DDMMYY en tête
+    .replace(/CB\*+\d+\s+/,'')                  // CB****8251
+    .replace(/^[A-Z0-9]{6,8}\s+/,'')            // code d'autorisation (8KRPT60…)
+    .replace(/\s+[\d ]*\d[.,]\d{2}\s*(EUR|USD|GBP|CHF|VND|JPY).*$/i,'')  // montant en devise (116,40EUR, 1494561,00VND…)
+    .replace(/\s+\d+\s*(EUR|USD|GBP|CHF|VND|JPY).*$/i,'')
+    .replace(/\s+FR\s+.*$/,'')                  // pays + ville
+    .replace(/([A-Z])FR\s+.*$/,'$1')            // pays collé au nom (…ROCHEFR LA CLUSAZ)
+    .replace(/\s{2,}/g,' ').trim();
+  return s;
 }
 function pdfParseLocalBP(pages){
   var full=(pages||[]).join('\n');
   if(!/DETAIL DES OPERATIONS DE VOTRE COMPTE COURANT/i.test(full)) return null; // format non reconnu → IA
   var montRe=/(-?)\s*(\d{1,3}(?:[  ]\d{3})*),(\d{2})\s*€\s*$/;
   var dateAny=/(\d{2})\/(\d{2})(?:\/(\d{2,4}))?/;
-  var reSepa=/D[EÉ]TAIL DE VOS (MOUVEMENTS|PR[EÉ]L[EÈ]VEMENTS|VIREMENTS) SEPA/i;
+  var reSepa=/D[EÉ]TAIL DE VOS .{0,45}SEPA/i;
   var idx=pages.findIndex(function(t){return reSepa.test(t);}), pagesOps;
   if(idx>=0){ var pt=pages[idx], c=pt.search(reSepa); pagesOps=pages.slice(0,idx); if(c>0)pagesOps.push(pt.slice(0,c)); }
   else pagesOps=pages;
-  var si=null,sf=null,td=null,tc=null,iban='',titulaire='';
+  var si=null,sf=null,td=null,tc=null,iban='',titulaire='',soldeInitDate=null;
   var metaTxt=(pages[0]||'')+'\n'+pages.filter(function(t){return /TOTAL DES MOUVEMENTS|SOLDE CREDITEUR/i.test(t);}).join('\n');
   metaTxt.split('\n').forEach(function(ln){ var U=ln.toUpperCase(), m=ln.match(montRe);
-    if(U.indexOf('SOLDE CREDITEUR AU')>=0&&m){ var v=_bpNum(m[1],m[2],m[3]); if(si===null)si=v; sf=v; }
-    if(U.indexOf('TOTAL DES MOUVEMENTS DEBITEURS')>=0&&m) td=_bpNum(m[1],m[2],m[3]);
-    if(U.indexOf('TOTAL DES MOUVEMENTS CREDITEURS')>=0&&m) tc=_bpNum(m[1],m[2],m[3]);
+    if(U.indexOf('SOLDE CREDITEUR AU')>=0&&m){ var v=_bpNum(m[1],m[2],m[3]); if(si===null){ si=v; var d0=ln.match(/AU\s+(\d{2}\/\d{2}\/\d{4})/i); soldeInitDate=d0?d0[1]:null; } sf=v; }
+    if(U.indexOf('TOTAL DES MOUVEMENTS DEBITEURS')>=0&&m) td=Math.abs(_bpNum(m[1],m[2],m[3]));   // POSITIF (comme l'IA)
+    if(U.indexOf('TOTAL DES MOUVEMENTS CREDITEURS')>=0&&m) tc=Math.abs(_bpNum(m[1],m[2],m[3]));
     var ib=ln.match(/IBAN\s*:?\s*([A-Z]{2}[0-9  ]{10,})/i); if(ib&&!iban)iban=ib[1].replace(/[  ]/g,'');
   });
   var mc=full.match(/AU\s+\d{2}\/\d{2}\/(\d{4})/i)||full.match(/\d{2}\/\d{2}\/(\d{4})/);
   var annee=mc?mc[1]:String((new Date()).getFullYear());
   var MSl=['JAN','FEV','MAR','AVR','MAI','JUI','JUL','AOU','SEP','OCT','NOV','DEC'];
+  // Frontière FIABLE de fin de section opérations : tout récap « DÉTAIL DE VOS … SEPA »,
+  // les totaux, ou un récapitulatif. Empêche de recompter les prélèvements listés une
+  // 2ᵉ fois dans les pages de récap (cause probable du double-comptage sur août).
+  var boundaryRe=/D[EÉ]TAIL DE VOS .{0,45}SEPA|TOTAL DES MOUVEMENTS|R[EÉ]CAPITULATIF/i;
+  var lignes=[]; pagesOps.forEach(function(pg){ pg.split('\n').forEach(function(ln){ lignes.push(ln); }); });
   var ops=[], moisCnt={};
-  pagesOps.forEach(function(pg){ pg.split('\n').forEach(function(ln){
-    var U=ln.toUpperCase(); if(U.indexOf('SOLDE')>=0||U.indexOf('TOTAL DES MOUVEMENTS')>=0) return;
-    var m=ln.match(montRe); if(!m) return;
-    var dm=ln.match(dateAny); if(!dm) return;
+  for(var li=0; li<lignes.length; li++){
+    var ln=lignes[li];
+    if(boundaryRe.test(ln)) break;                          // récap/totaux → fin de section
+    var sc=ln.match(/SOLDE CREDITEUR AU\s+(\d{2}\/\d{2}\/\d{4})/i);
+    if(sc){ if(soldeInitDate && sc[1]!==soldeInitDate) break; continue; }  // solde clôture → stop ; initial → ignorer
+    if(ln.toUpperCase().indexOf('SOLDE')>=0) continue;
+    var m=ln.match(montRe); if(!m) continue;
+    var dm=ln.match(dateAny); if(!dm) continue;
     var val=_bpNum(m[1],m[2],m[3]);
-    var lib=_bpCleanLib(ln.slice(dm.index+dm[0].length, ln.length-m[0].length)); if(!lib) lib='OPERATION';
+    var apres=ln.slice(dm.index+dm[0].length, ln.length-m[0].length);
+    // LIBELLÉ COMPLET : on ajoute les lignes de continuation (sous-libellé) qui
+    // suivent — elles n'ont ni date en tête ni montant (ex. « FACTURATION »,
+    // « REMUNERATION », « P 791505E001P001 BDR … »). On garde la référence.
+    var extra=[];
+    for(var lj=li+1; lj<lignes.length && extra.length<4; lj++){
+      var nx=lignes[lj]; if(!nx) break;
+      var nxt=nx.trim(); if(!nxt) break;
+      if(montRe.test(nx)) break;                 // prochaine opération (a un montant)
+      if(/^\d{2}\/\d{2}\b/.test(nxt)) break;      // prochaine opération (date en tête)
+      if(boundaryRe.test(nx) || /SOLDE CREDITEUR AU/i.test(nx)) break;
+      // pieds de page / en-têtes / boilerplate bancaire → on N'AJOUTE PAS au libellé
+      if(/BANQUE POPULAIRE|EXPLOITANT|DE PARSEVAL|CREDIT MARITIME|CLEMENCEAU|PERPIGNAN|DETAIL DES OPERATIONS|LIBELLE\s*\/|\bIBAN\b|\bBIC\b|MESSAGE DE VOTRE|VOTRE (RELEVE|AGENCE|CONSEILLER)|JE CONSERVE|A PARTIR DU|EXTCL0/i.test(nxt)) break;
+      if(/^\d{6,}\*/.test(nxt)) break;            // ligne technique « 20250801*124231*… »
+      if(nxt.length>60) break;                    // trop long = boilerplate, pas un libellé
+      extra.push(nxt);
+    }
+    // 1re ligne : on enlève seulement les dates opération/valeur de fin, on GARDE la référence
+    var apresClean=apres.replace(/^\s+|\s+$/g,'').replace(/(\s+\d{2}\/\d{2}(\/\d{2,4})?){1,2}\s*$/,'').replace(/\s{2,}/g,' ').trim();
+    var libFull=(apresClean+(extra.length?' '+extra.join(' '):'')).replace(/\s{2,}/g,' ').trim();
+    var libClean=_bpCleanLib(apres);              // version épurée pour le classement/regroupement
+    if(!libFull) libFull=libClean||'OPERATION';
     var mm=parseInt(dm[2],10); if(mm>=1&&mm<=12) moisCnt[mm]=(moisCnt[mm]||0)+1;
-    var libU=lib.toUpperCase();
-    var cheque=/\bCHEQUE\b|\bCHQ\b|REMISE\s+CHEQUE|VOTRE\s+CHEQUE/.test(libU);
-    var rc=_bpRegle(libU);
-    var poste=rc&&rc.poste?rc.poste:(lib.replace(/^(PRLV SEPA|PRLV INT ETS|VIR SEPA|EURO VIR|EUROVIR SEPA|PRLV|VIR)\s+/i,'').trim()||lib);
-    ops.push({ libelle:lib, montant:Math.abs(val), type:val<0?'sortie':'entree', poste:poste,
-      categorie:rc?rc.categorie:'autre', sur:cheque?false:(rc?!!rc.sur:false),
+    var fullU=libFull.toUpperCase();
+    var cheque=/\bCHEQUE\b|\bCHQ\b|REMISE\s+CHEQUE|VOTRE\s+CHEQUE/.test(fullU);
+    var cl=_bpClasse(fullU, libClean);            // mots-clés sur le libellé COMPLET ; nom propre depuis l'épuré
+    var estStc=/\bSTC\b|SOLDE DE TOUT COMPTE/.test(fullU);
+    // Nom du poste :
+    //  - créancier « sûr » (REMISE CB, FRANCE BKR…) → nom de poste propre ;
+    //  - sinon (VIR SEPA REMISE…, chèque) → on prend le VRAI bénéficiaire, qui est
+    //    sur la 2ᵉ ligne (ex. « JAMARD ELIOT - STC »), pour que tu puisses ranger.
+    var estCB=/CB\*{2,}/.test(fullU);
+    var poste;
+    if(estCB){
+      var _merch=_bpMerchantCB(libFull);        // achat carte → « CB + commerçant »
+      poste = _merch ? ('CB '+_merch) : libFull;
+    } else if(cl.sur && !cheque){ poste = cl.poste; }
+    else {
+      var benef = (extra.length && /[A-Za-zÀ-ÿ]/.test(extra[0]) && (/\s/.test(extra[0]) || /STC/i.test(extra[0]))) ? extra[0] : '';
+      poste = benef || libFull;
+    }
+    // Solde de tout compte : on GARANTIT « - STC » dans le titre (pour TOUS), même si
+    // la 2ᵉ ligne était formatée différemment — tu vois le STC sans avoir à déplier.
+    if(estStc && !estCB && !/\bSTC\b/i.test(poste)) poste = poste + ' - STC';
+    // Un achat CARTE (CB) et un PRÉLÈVEMENT SEPA du même fournisseur (ex. Uber) sont
+    // deux choses différentes → l'achat carte est TOUJOURS individuel, en « autre »,
+    // pour ne jamais être collé à un prélèvement du même nom.
+    var categorieF = estCB ? 'autre' : (estStc ? 'salaires' : cl.categorie);
+    var surF = (cheque || estCB) ? false : cl.sur;
+    ops.push({ libelle:libFull, montant:Math.abs(val), type:val<0?'sortie':'entree',
+      poste:poste, categorie:categorieF, sur:surF,
       date:dm[1]+'/'+dm[2]+'/'+annee, cheque:cheque });
-  });});
-  if(!ops.length) return null;
+  }
+  if(!ops.length) return null;   // format non exploitable → l'appli proposera l'IA
+  // Contrôle de fiabilité (NON bloquant) : débits+crédits = totaux officiels ET
+  // équation de solde juste. On renvoie le résultat AVEC le drapeau _soldeBoucle ;
+  // c'est l'appli qui décide (elle ne bascule JAMAIS seule sur l'IA).
+  var sumS=0, sumE=0; ops.forEach(function(o){ if(o.type==='sortie') sumS+=o.montant; else sumE+=o.montant; });
+  var eqOk  = (si!=null&&sf!=null) ? (Math.abs(si + sumE - sumS - sf)<0.05) : false;
+  var totOk = (td==null||Math.abs(sumS-td)<0.05) && (tc==null||Math.abs(sumE-tc)<0.05);
   var moisDom=1,best=-1; Object.keys(moisCnt).forEach(function(k){ if(moisCnt[k]>best){best=moisCnt[k];moisDom=parseInt(k,10);} });
-  return { _local:true, iban:iban, titulaire:titulaire, periode:MSl[moisDom-1]+' '+annee,
+  return { _local:true, _soldeBoucle:(eqOk&&totOk), _ecart:(si!=null&&sf!=null?(si+sumE-sumS-sf):null),
+           iban:iban, titulaire:titulaire, periode:MSl[moisDom-1]+' '+annee,
            solde_initial:si, solde_final:sf, total_debits:td, total_credits:tc, operations:ops };
 }
 
-function pdfAnalyse(file){
+// ── RECONNAISSANCE DU RESTAURANT PAR L'IBAN (avec apprentissage) ──
+// La correspondance IBAN → société est apprise à chaque import et mémorisée
+// (treso_categories, clé « IBAN::<iban> »). Le compte déjà connu est pré-rempli.
+window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {'78121697439':'BK 526'};
+function _ibanKey(iban){ return String(iban||'').toUpperCase().replace(/[^0-9A-Z]/g,''); }
+function tresoRestoParIban(iban){
+  var k=_ibanKey(iban); if(!k) return null;
+  var map=window.TRESO_IBAN_MAP||{};
+  if(map[k]) return map[k];
+  for(var key in map){ if(key && (k.indexOf(key)>=0 || key.indexOf(k)>=0)) return map[key]; }
+  return null;
+}
+window.tresoSaveIban = function(iban, resto){
+  try{
+    var k=_ibanKey(iban); if(!k||!resto) return;
+    window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {};
+    if(window.TRESO_IBAN_MAP[k]===resto) return;      // déjà connu
+    window.TRESO_IBAN_MAP[k]=resto;
+    sb.from('treso_categories').upsert({cle:'IBAN::'+k, categorie:resto},{onConflict:'cle'});
+  }catch(e){ console.warn('tresoSaveIban', e); }
+};
+// Applique la reconnaissance : sélectionne la bonne société et l'affiche.
+function _pdfAppliqueIban(parsed, restoSel){
+  try{
+    var iban=(parsed&&parsed.iban)||''; if(!iban) return restoSel;
+    var r=tresoRestoParIban(iban);
+    var det=document.getElementById('pdf-resto-detected');
+    if(r && typeof RAW!=='undefined' && RAW[r]){
+      if(r!==restoSel){
+        restoSel=r; resto=r;
+        var sel=document.getElementById('pdf-resto');
+        if(sel){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===r){ sel.selectedIndex=i; break; } } }
+      }
+      if(det){ det.style.display='block'; det.style.background='#e6f9f1'; det.style.color='#0d9e6e';
+        det.innerHTML='✓ Compte reconnu par l\'IBAN → <strong>'+r+'</strong>'; }
+    } else if(det){
+      det.style.display='block'; det.style.background='#fff7ed'; det.style.color='#b45309';
+      det.innerHTML='IBAN pas encore associé — vérifie la société choisie ci-dessus, je la retiendrai pour ce compte au prochain import.';
+    }
+  }catch(e){ console.warn('IBAN detect', e); }
+  return restoSel;
+}
+
+function pdfAnalyse(file, forceIA){
   var t0=Date.now();
   if(window._pdfTimer) clearInterval(window._pdfTimer);
   var etat={phase:'Préparation'};
@@ -2019,16 +2158,17 @@ function pdfAnalyse(file){
   }
 
   pdfTextePages(file).then(function(pages){
-    // ── 1) LECTURE LOCALE (gratuite, sans IA) pour les relevés Banque Populaire ──
-    try {
-      var _local = pdfParseLocalBP(pages);
+    if(!forceIA){
+      // ── LECTURE LOCALE (gratuite, sans IA). L'appli ne bascule JAMAIS seule sur
+      //    l'IA : selon le résultat elle affiche et te laisse le choix (bouton). ──
+      var _local=null; try { _local = pdfParseLocalBP(pages); } catch(_e){ console.warn('lecture locale KO', _e); }
       if(_local && _local.operations && _local.operations.length){
-        _pdfMeta = _local;
-        etat.phase = 'Lu localement (sans IA)';
-        return '__LOCAL_DONE__';   // on court-circuite l'IA
+        _pdfMeta = _local; etat.phase='Lu localement (sans IA)';
+        return '__LOCAL_DONE__';
       }
-    } catch(_e){ console.warn('Lecture locale impossible → bascule IA :', _e); }
-    // ── 2) sinon : lecture par IA (inchangée) ──
+      return '__LOCAL_UNRECOGNIZED__';   // format non reconnu → on le SIGNALE (pas d'IA auto)
+    }
+    // ── LECTURE PAR IA (uniquement si demandée explicitement via le bouton) ──
     // séparer pages d'opérations (avant le récap SEPA) et pages de récap/totaux
     var reSepa = /D[EÉ]TAIL DE VOS (MOUVEMENTS|PR[EÉ]L[EÈ]VEMENTS|VIREMENTS) SEPA/i;
     var idxRecap = pages.findIndex(function(t){ return reSepa.test(t); });
@@ -2096,15 +2236,27 @@ function pdfAnalyse(file){
     return seq;
   }).then(function(toutesOps){
     if(window._pdfTimer){clearInterval(window._pdfTimer);window._pdfTimer=null;}
-    if(toutesOps==='__LOCAL_DONE__'){   // la lecture locale a déjà tout fait
+    if(toutesOps==='__LOCAL_DONE__'){   // la lecture locale a produit un résultat
+      restoSel = _pdfAppliqueIban(_pdfMeta, restoSel);   // reconnaissance société par IBAN
       _pdfParsed = _pdfMeta;
-      pdfStatus('Lu sans IA (gratuit) : '+((_pdfMeta.operations||[]).length)+' opérations','ok');
       pdfTraiteResultat(_pdfMeta, restoSel);
+      var n=(_pdfMeta.operations||[]).length;
+      if(_pdfMeta._soldeBoucle){
+        pdfStatus('✓ Lu sans IA (gratuit) : '+n+' opérations — contrôle OK','ok');
+      } else {
+        var ec=(_pdfMeta._ecart!=null)?Math.abs(_pdfMeta._ecart).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'?';
+        pdfStatusIA('⚠️ Lu en local ('+n+' opérations) mais le contrôle ne tombe pas (écart '+ec+'). Vérifie/importe ci-dessous, ou');
+      }
+      return;
+    }
+    if(toutesOps==='__LOCAL_UNRECOGNIZED__'){   // format non reconnu → on SIGNALE (pas d'IA auto)
+      pdfStatusIA('Ce relevé n\'est pas reconnu par la lecture locale (gratuite). Tu peux réessayer, ou');
       return;
     }
     var parsed = Object.assign({}, _pdfMeta||{});
     parsed.operations = toutesOps;
     if(!toutesOps.length){ pdfStatus('Aucune opération lue. Réessaie.','err'); return; }
+    restoSel = _pdfAppliqueIban(parsed, restoSel);   // reconnaissance société par IBAN
     _pdfParsed = parsed;
     pdfTraiteResultat(parsed, restoSel);
   }).catch(function(ex){
@@ -2289,6 +2441,9 @@ function pdfNum(v){
   return isNaN(n)?0:n;
 }
 
+// Déplie / replie le détail des opérations d'un poste (dates + libellés complets) dans l'import.
+window.pdfToggleOps = function(i){ var el=document.getElementById('pdf-ops-'+i); if(el){ el.style.display = (!el.style.display || el.style.display==='none') ? 'block' : 'none'; } };
+
 // Reçoit la LISTE d'opérations lues par l'IA, REGROUPE et ADDITIONNE côté application.
 function pdfTraiteResultat(parsed, restoSel){
   _pdfRestoSel = restoSel;
@@ -2299,6 +2454,8 @@ function pdfTraiteResultat(parsed, restoSel){
   // La relecture des pages denses peut lire DEUX FOIS la même opération.
   // On retire les doublons EXACTS : même date + même montant (au centime) + même libellé.
   (function(){
+    if(parsed._local) return;   // lecture locale : chaque ligne lue une seule fois → NE PAS dédoublonner
+                                //  (sinon on perd de vraies opérations identiques, ex. plusieurs frais 0,30 € le même jour)
     var vus={}, uniq=[], nbDup=0;
     ops.forEach(function(o){
       var cle=(o.date||'')+'|'+Math.round(pdfNum(o.montant)*100)+'|'+String(o.libelle||o.poste||'').toUpperCase().replace(/\s+/g,' ').trim();
@@ -2362,7 +2519,10 @@ function pdfTraiteResultat(parsed, restoSel){
 
     // DÉTECTION CHÈQUE : soit l'IA l'a signalé (o.cheque), soit le libellé le trahit.
     var lib = (o.libelle||'').toUpperCase();
-    var estCheque = (o.cheque===true) || /\bCHEQUE\b|\bCHQ\b|REMISE\s+CHEQUE|VOTRE\s+CHEQUE/.test(lib);
+    // Lecture locale : on NE BLOQUE PLUS sur les chèques. Ils passent comme des
+    // opérations « à confirmer » normales (rangées en « autre »), à reclasser
+    // ensuite toi-même (souvent STC + nom de la personne).
+    var estCheque = !parsed._local && ((o.cheque===true) || /\bCHEQUE\b|\bCHQ\b|REMISE\s+CHEQUE|VOTRE\s+CHEQUE/.test(lib));
 
     // APPRENTISSAGE : si ce libellé a déjà été tranché par le passé, on applique le poste appris.
     // (On NE l'applique PAS aux chèques : chaque chèque doit être identifié individuellement.)
@@ -2520,8 +2680,26 @@ function pdfTraiteResultat(parsed, restoSel){
     var titreLigne = p.individuelle && p.libelle && p.libelle!==p.nom
       ? p.libelle+' <span style="color:#7a90a8;font-size:10px">(à affecter)</span>'
       : (p.nom||'?');
+    // ── DÉTAIL DÉPLIABLE : chaque opération avec sa DATE et son libellé COMPLET (2 lignes) ──
+    var _opsList = (p.ops && p.ops.length) ? p.ops : (p.individuelle ? [{date:p.date, libelle:p.libelle, montant:p.total}] : []);
+    var _opsCount = p.individuelle ? '1 op.' : ('×'+p.nb+' op.');
+    var _opsCountHtml = _opsList.length ? '<a onclick="pdfToggleOps('+i+')" style="cursor:pointer;color:#1a6cf4;text-decoration:underline dotted">'+_opsCount+' ▸ dates &amp; libellés</a>' : _opsCount;
+    var _opsDetail = '';
+    if(_opsList.length){
+      _opsDetail = '<div id="pdf-ops-'+i+'" style="display:none;flex:1 1 100%;margin-top:6px;padding:6px 10px;background:#f8fafc;border-radius:6px;border:1px solid #eef2f7">'
+        + _opsList.map(function(o){
+            var _d=(o.date||'—');
+            var _l=String(o.libelle||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+            var _m=(p.type==='sortie'?'- ':'+ ')+Math.abs(pdfNum(o.montant)).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+            return '<div style="display:flex;gap:8px;font-size:11px;color:#33465a;padding:3px 0;border-bottom:1px solid #eef2f7;align-items:flex-start">'
+              + '<span style="font-family:var(--mono);color:#1a6cf4;white-space:nowrap;min-width:80px">'+_d+'</span>'
+              + '<span style="flex:1;min-width:0">'+_l+'</span>'
+              + '<span style="font-family:var(--mono);white-space:nowrap">'+_m+'</span></div>';
+          }).join('')
+        + '</div>';
+    }
     h += '<div class="tx-row'+(sur?'':' tx-doute')+'" data-i="'+i+'" style="flex-wrap:wrap;'+(sur?'':'background:#fff7ec;border-left:3px solid #e07d1a;padding-left:8px;')+'">'
-      + '<div class="tx-lbl">'+titreLigne+'<br>'+badge+' <span style="color:#7a90a8;font-size:10px">'+(p.individuelle?'1 op.':('×'+p.nb+' op.'))+' · '+(p.categorie||'autre')+dateTxt+'</span></div>'
+      + '<div class="tx-lbl">'+titreLigne+'<br>'+badge+' <span style="color:#7a90a8;font-size:10px">'+_opsCountHtml+' · '+(p.categorie||'autre')+dateTxt+'</span></div>'
       + '<div class="tx-amt" style="color:'+color+'">'+(p.type==='sortie'?'- ':'+ ')+p.total.toLocaleString('fr-FR')+' €</div>'
       + '<select class="tx-sel" data-i="'+i+'" onchange="pdfChoixPoste(this)">'+opts+'</select>'
       // ── EXCEPTIONNEL : case à cocher + commentaire (apparaît quand coché) ──
@@ -2531,6 +2709,7 @@ function pdfTraiteResultat(parsed, restoSel){
       +   '</label>'
       +   '<input class="tx-exc-note" data-i="'+i+'" type="text" placeholder="Ex. facture ponctuelle fournisseur…" style="display:none;flex:1;min-width:160px;padding:4px 8px;border:1px solid #f0cfa0;border-radius:6px;font-size:11px;background:#fffaf0">'
       + '</div>'
+      + _opsDetail
       + '</div>';
   });
   document.getElementById('pdf-tx-list').innerHTML = h;
@@ -2611,6 +2790,8 @@ function pdfImport(){
   var restoSel=_pdfRestoSel;
   var periode=(_pdfParsed&&_pdfParsed._periode)||'';
   if(!periode){ pdfStatus('Période du relevé non détectée.','err'); return; }
+  // Apprentissage IBAN → société : on retient le compte pour l'auto-sélection future.
+  try { if(_pdfParsed && _pdfParsed.iban && window.tresoSaveIban) window.tresoSaveIban(_pdfParsed.iban, restoSel); } catch(e){}
   var postes=(_pdfParsed && _pdfParsed._postes)||[];
   var rows=document.querySelectorAll('#pdf-tx-list .tx-row');
   var imported=0;
@@ -8121,6 +8302,10 @@ async function loadTresoCategories(){
         // poste marqué « coût Vincent » : "CVTAG::soc||sec||label"
         window.TRESO_CV = window.TRESO_CV || {};
         window.TRESO_CV[r.cle.slice(7)] = true;
+      } else if(r.cle.indexOf('IBAN::')===0){
+        // correspondance apprise IBAN → société (auto-sélection à l'import)
+        window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {};
+        if(r.categorie) window.TRESO_IBAN_MAP[r.cle.slice(6)] = r.categorie;
       } else if(r.categorie){
         TRESO_CAT_OVERRIDE[r.cle] = r.categorie;
       }
