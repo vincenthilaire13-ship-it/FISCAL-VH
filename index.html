@@ -313,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v28 · distingue les comptes par IBAN (2 comptes même banque = addition)</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v29 · détail des banques DANS les tuiles du tableau de bord (total + comptes à droite)</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1102,45 +1102,43 @@ function renderDashboard(){
   function _cvSum(an){ var t=0; ['sorties','entrees'].forEach(function(sec){ (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(!_CV[resto+'||'+sec+'||'+x.label]) return; (d.wanted||[]).forEach(function(w){ if(w.year===an && x.vals && x.vals[w.label]!=null) t+=Number(x.vals[w.label])||0; }); }); }); return t; }
   var cv2025=_cvSum('2025'), cv2026=_cvSum('2026');
 
+  // ── VENTILATION PAR BANQUE (sociétés à plusieurs comptes) ──────────────────
+  // Le total reste à gauche dans chaque tuile ; le détail des comptes/banques est
+  // ajouté À DROITE de la même tuile (Solde actuel, Entrées, Sorties). Distinction
+  // par NUMÉRO DE COMPTE (IBAN), donc deux comptes de la même banque sont séparés.
+  var _bq = d.banques || {};
+  var _bqNoms = Object.keys(_bq);
+  var _multiBq = _bqNoms.length >= 2;
+  var _latBk = function(bk){ for(var bi=cols.length-1;bi>=0;bi--){ var L=cols[bi].label; if(_bq[bk].soldes && _bq[bk].soldes[L]!=null) return L; } return null; };
+  function _bkBreak(metric){   // metric : 'solde' | 'e' | 'sortie'
+    if(!_multiBq) return '';
+    var rows='';
+    _bqNoms.forEach(function(bk){
+      var L=_latBk(bk); if(!L) return;
+      var val = (metric==='solde') ? _bq[bk].soldes[L]
+              : ((_bq[bk].flux && _bq[bk].flux[L]) ? _bq[bk].flux[L][metric==='e'?'e':'s'] : null);
+      if(val==null) return;
+      var lab=(_bq[bk].label||bk);
+      var col = (metric==='solde') ? (val<0?'#e03a3a':'#0d9e6e') : (metric==='e'?'#0d9e6e':'#e03a3a');
+      rows += '<div style="white-space:nowrap;margin-bottom:3px">'+lab+'<br><span style="font-family:var(--mono);font-weight:700;color:'+col+'">'+fmt(val)+'</span></div>';
+    });
+    return rows ? '<div style="text-align:right;font-size:10px;color:var(--text3);padding-left:12px;border-left:1px solid var(--gray2)">'+rows+'</div>' : '';
+  }
+  function _tuile(lbl, val, col, extra){
+    return '<div class="kpi" style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+      + '<div><div class="kpi-lbl">'+lbl+'</div><div class="kpi-val" style="color:'+col+'">'+fmt(val)+'</div></div>'
+      + (extra||'') + '</div>';
+  }
+
   var html='<div class="pt">'+resto+' — Vue d\'ensemble</div>'
-    +'<div class="ps">Coup d\'œil · exercice 2025 – 2026</div>'
+    +'<div class="ps">Coup d\'œil · exercice 2025 – 2026'+(_multiBq?' · '+_bqNoms.length+' comptes bancaires (détail à droite des tuiles)':'')+'</div>'
     +'<div class="kpi-grid">'
-    +'<div class="kpi"><div class="kpi-lbl">Solde actuel ('+(latL||'—')+')</div><div class="kpi-val" style="color:'+(latV>=0?'#0d9e6e':'#e03a3a')+'">'+fmt(latV)+'</div></div>'
-    +'<div class="kpi"><div class="kpi-lbl">Entrées ('+(latL||'—')+')</div><div class="kpi-val" style="color:#0d9e6e">'+fmt(entMois)+'</div></div>'
-    +'<div class="kpi"><div class="kpi-lbl">Sorties ('+(latL||'—')+')</div><div class="kpi-val" style="color:#e03a3a">'+fmt(sorMois)+'</div></div>'
+    +_tuile('Solde actuel ('+(latL||'—')+')', latV, (latV>=0?'#0d9e6e':'#e03a3a'), _bkBreak('solde'))
+    +_tuile('Entrées ('+(latL||'—')+')', entMois, '#0d9e6e', _bkBreak('e'))
+    +_tuile('Sorties ('+(latL||'—')+')', sorMois, '#e03a3a', _bkBreak('sortie'))
     +'<div class="kpi"><div class="kpi-lbl">Variation depuis Déc 2024</div><div class="kpi-val" style="color:'+(diff>=0?'#0d9e6e':'#e03a3a')+'">'+(diff>=0?'+ ':'')+fmt(diff)+'</div></div>'
     +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent 2025</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'<div style="font-size:11px;color:var(--text3);margin-top:2px">postes marqués 👤 dans le tableau</div>')+'</div>'
     +'</div>';
-
-  // ── VENTILATION PAR BANQUE (sociétés à plusieurs comptes : SCI, BK Saint-Jean) ──
-  // On affiche chaque banque séparément : son solde (rouge si négatif → à alimenter)
-  // et ses flux du mois. Le solde société ci-dessus = somme des comptes.
-  var _bq = d.banques || {};
-  var _bqNoms = Object.keys(_bq);
-  if(_bqNoms.length >= 2){
-    var _latBanque = function(bk){
-      for(var bi=cols.length-1;bi>=0;bi--){ var L=cols[bi].label; if(_bq[bk].soldes && _bq[bk].soldes[L]!=null) return {solde:_bq[bk].soldes[L], mois:L, flux:(_bq[bk].flux&&_bq[bk].flux[L])||null}; }
-      return null;
-    };
-    var _cards='';
-    _bqNoms.forEach(function(bk){
-      var L=_latBanque(bk); if(!L) return;
-      var c=(L.solde>=0)?'#0d9e6e':'#e03a3a', fl=L.flux||{};
-      _cards += '<div style="flex:1;min-width:210px;border:1px solid var(--gray2);border-radius:12px;padding:14px 16px;background:'+((L.solde<0)?'#fff5f5':'#f6fbf9')+'">'
-        + '<div style="font-size:12px;font-weight:700;color:var(--text2)">🏦 '+((_bq[bk]&&_bq[bk].label)||bk)+'</div>'
-        + '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">solde '+L.mois+(L.solde<0?' · à alimenter':'')+'</div>'
-        + '<div style="font-size:22px;font-weight:800;font-family:var(--mono);color:'+c+'">'+fmt(L.solde)+'</div>'
-        + '<div style="display:flex;gap:16px;margin-top:8px;font-size:11px">'
-        +   '<div><span style="color:var(--text3)">Entrées</span><br><span style="font-family:var(--mono);color:#0d9e6e;font-weight:600">'+(fl.e!=null?fmt(fl.e):'—')+'</span></div>'
-        +   '<div><span style="color:var(--text3)">Sorties</span><br><span style="font-family:var(--mono);color:#e03a3a;font-weight:600">'+(fl.s!=null?fmt(fl.s):'—')+'</span></div>'
-        + '</div></div>';
-    });
-    if(_cards){
-      html += '<div style="font-size:13px;font-weight:700;color:#0f1c2e;margin:16px 0 8px">Par banque — quel compte alimenter</div>'
-        + '<div style="display:flex;gap:12px;flex-wrap:wrap">'+_cards+'</div>'
-        + '<div style="font-size:11px;color:var(--text3);margin-top:6px">Le « Solde actuel » de la société ci-dessus est la somme de ces comptes.</div>';
-    }
-  }
 
   // ── Courbe PAR ANNÉE, superposées sur le même axe des mois (JAN → DEC) ──
   var yrColors = {'2024':'#94a3b8','2025':'#3d86ff','2026':'#13c487','2027':'#f59e0b','2028':'#a78bfa','2029':'#ef4444'};
