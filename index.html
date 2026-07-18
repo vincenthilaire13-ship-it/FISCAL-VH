@@ -296,6 +296,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-item" onclick="sw('soc-bksj',this)"><span class="sb-ico">▣</span>BK Saint-Jean<span class="sb-badge r" id="b-bksj">!</span></div>
   <div class="sb-item" onclick="sw('soc-fvh',this)"><span class="sb-ico">▣</span>FVH SARL<span class="sb-badge r" id="b-fvh">!</span></div>
   <div class="sb-item" onclick="sw('soc-sci',this)"><span class="sb-ico">▣</span>SCI VH Immo<span class="sb-badge r" id="b-sci">!</span></div>
+  <div id="sb-soc-plus" class="sb-item" onclick="tresoPromptSocietePrincipale()" title="Créer une nouvelle société" style="opacity:.72"><span class="sb-ico">➕</span>Nouvelle société</div>
   <div class="sb-section">Patrimoine</div>
   <div class="sb-item" onclick="sw('batiments',this)"><span class="sb-ico">🏛</span>Bâtiments<span class="sb-badge" id="b-bat">0</span></div>
   <div class="sb-section">Trésorerie</div>
@@ -312,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v26 · import ADDITIONNE les banques (n'écrase plus) + solde/flux par banque</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v27 · créer de vraies sociétés dans le menu principal (page + trésorerie)</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1533,6 +1534,57 @@ window.tresoPromptSociete = function(){
   if(!r.ok){ try{ alert(r.err); }catch(e){} return; }
   // bascule directement sur la nouvelle société
   try{ resto=nom; render(); buildSocieteSidebar(); }catch(e){}
+};
+
+// ── CRÉER UNE SOCIÉTÉ DANS LE MENU PRINCIPAL « Sociétés » (page dédiée) ─────
+// La société apparaît EN HAUT dans « Sociétés » (comme VH Company…) avec sa
+// propre page, qui affiche sa trésorerie. Elle est aussi ajoutée à la Trésorerie.
+function _socSlug(nom){
+  var s=String(nom||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,24);
+  if(!s) s='soc';
+  var base=s,i=2; while(document.getElementById('tab-soc-'+s)){ s=base+'-'+i; i++; }
+  return s;
+}
+function tresoCreerSocietePrincipale(nom, opts){
+  opts=opts||{};
+  nom=String(nom||'').trim();
+  if(!nom) return {ok:false, err:'Donne un nom à la société.'};
+  // 1) trésorerie (créée si absente) — sans re-persister ici
+  if(!RAW[nom]) tresoCreerSociete(nom, opts.couleur||null, {noPersist:true, noRebuild:true});
+  // 2) slug + correspondance page → trésorerie (réutilise un slug existant si déjà mappé)
+  var existSlug=null; Object.keys(TRESO_MAP_SOC).forEach(function(k){ if(TRESO_MAP_SOC[k]===nom) existSlug=k; });
+  var slug = existSlug || _socSlug(nom);
+  TRESO_MAP_SOC[slug]=nom;
+  var pageId='soc-'+slug;
+  // 3) panneau DOM (page de la société)
+  if(!document.getElementById('tab-'+pageId)){
+    var container=(document.getElementById('tab-soc-sci')||{}).parentNode || document.querySelector('.main');
+    var panel=document.createElement('div'); panel.id='tab-'+pageId; panel.className='panel';
+    panel.innerHTML='<div class="alert a-b"><span>🏢</span><div><strong>'+nom.replace(/</g,'&lt;')+'</strong> — société créée par toi. Cette page regroupe sa <strong>trésorerie</strong> : soldes, comptes / banques et entrées-sorties. Importe ses relevés dans la Trésorerie (ou ajoute des lignes à la main) et tout remonte ici.</div></div>';
+    if(container) container.appendChild(panel);
+  }
+  titles[pageId]=nom;
+  // 4) item dans le menu principal « Sociétés » (juste avant le bouton +)
+  if(!document.querySelector('.sb-item[data-socpage="'+pageId+'"]')){
+    var plus=document.getElementById('sb-soc-plus');
+    var it=document.createElement('div'); it.className='sb-item'; it.setAttribute('data-socpage',pageId);
+    it.setAttribute('onclick', "sw('"+pageId+"',this)");
+    it.innerHTML='<span class="sb-ico">▣</span>'+nom.replace(/</g,'&lt;');
+    if(plus && plus.parentNode) plus.parentNode.insertBefore(it, plus);
+  }
+  // 5) mémorisation (SOCP:: → recrée la page ET la trésorerie au rechargement)
+  if(!opts.noPersist){ try{ sb.from('treso_categories').upsert({cle:'SOCP::'+nom, categorie:(opts.couleur||COLORS[nom]||'#64748b')},{onConflict:'cle'}); }catch(e){ console.warn('save SOCP', e); } }
+  // 6) rafraîchir la trésorerie (sidebar + menu import)
+  try{ buildSocieteSidebar(); }catch(e){}
+  try{ pdfRebuildResto(); }catch(e){}
+  return {ok:true, pageId:pageId};
+}
+window.tresoPromptSocietePrincipale = function(){
+  var nom=(prompt('Nom de la nouvelle société\n(elle apparaîtra dans « Sociétés » en haut, avec sa trésorerie) :')||'').trim();
+  if(!nom) return;
+  var r=tresoCreerSocietePrincipale(nom);
+  if(!r.ok){ try{ alert(r.err); }catch(e){} return; }
+  try{ sw(r.pageId, document.querySelector('.sb-item[data-socpage="'+r.pageId+'"]')); }catch(e){}
 };
 
 function setPage(p,btn){
@@ -8816,8 +8868,12 @@ async function loadTresoCategories(){
         // correspondance apprise IBAN → société (auto-sélection à l'import)
         window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {};
         if(r.categorie) window.TRESO_IBAN_MAP[r.cle.slice(6)] = r.categorie;
+      } else if(r.cle.indexOf('SOCP::')===0){
+        // société créée dans le MENU PRINCIPAL (page dédiée + trésorerie)
+        var _spnom=r.cle.slice(6);
+        if(_spnom){ try{ tresoCreerSocietePrincipale(_spnom, {couleur:r.categorie||null, noPersist:true}); }catch(e){} }
       } else if(r.cle.indexOf('SOC::')===0){
-        // société créée par l'utilisateur (SGE, PEA, PME, perso…) → on la recrée
+        // société créée dans la TRÉSORERIE seulement (SGE, PEA, PME, perso…)
         var _snom=r.cle.slice(5);
         if(_snom && !RAW[_snom]){ try{ tresoCreerSociete(_snom, r.categorie||null, {noPersist:true, noRebuild:true}); }catch(e){} }
       } else if(r.categorie){
