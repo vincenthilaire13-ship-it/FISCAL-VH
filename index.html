@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v12 · CB✓ STC✓ Uber-séparé✓</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v16 · poste STC unique (tous regroupés) · séparer une ligne · CB n° carte</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1946,12 +1946,13 @@ function _bpClasse(u, libOrig){
 function _bpMerchantCB(lib){
   var s=(lib||'').toUpperCase()
     .replace(/^\d{6}\s+/,'')                    // date DDMMYY en tête
-    .replace(/CB\*+\d+\s+/,'')                  // CB****8251
-    .replace(/^[A-Z0-9]{6,8}\s+/,'')            // code d'autorisation (8KRPT60…)
+    .replace(/CB\*+\d+\s+/,'')                  // CB****8251 (déjà repris en tête du poste)
+    .replace(/^(?=[A-Z0-9]{6,8}\s)[A-Z0-9]*\d[A-Z0-9]*\s+/,'')  // code d'autorisation (6-8 car., contient un chiffre : 8KRPT60, 969P3C1…)
     .replace(/\s+[\d ]*\d[.,]\d{2}\s*(EUR|USD|GBP|CHF|VND|JPY).*$/i,'')  // montant en devise (116,40EUR, 1494561,00VND…)
     .replace(/\s+\d+\s*(EUR|USD|GBP|CHF|VND|JPY).*$/i,'')
-    .replace(/\s+FR\s+.*$/,'')                  // pays + ville
-    .replace(/([A-Z])FR\s+.*$/,'$1')            // pays collé au nom (…ROCHEFR LA CLUSAZ)
+    // pays (VRAI code ISO isolé) + ville → retirés. On NE touche PAS à un « FR » collé
+    // au nom (ALLSPARESFR, INTERMARCHE FABFR) : ça fait partie du commerçant.
+    .replace(/\s+(FR|NL|BE|DE|ES|CH|LU|GB|PT|MC|MA|VN)\s+.*$/,'')
     .replace(/\s{2,}/g,' ').trim();
   return s;
 }
@@ -2024,21 +2025,28 @@ function pdfParseLocalBP(pages){
     var estCB=/CB\*{2,}/.test(fullU);
     var poste;
     if(estCB){
-      var _merch=_bpMerchantCB(libFull);        // achat carte → « CB + commerçant »
-      poste = _merch ? ('CB '+_merch) : libFull;
+      // Achat carte → titre « CB<n° carte> <commerçant> », ex. « CB****8251 ALLSPARESFR ».
+      // On GARDE le n° de carte (CB****8251) et le commerçant, on RETIRE le code
+      // d'autorisation (8RDUR38…), la date, le pays/ville et le montant en devise.
+      var _cardM = fullU.match(/CB\*+\d+/);      // n° de carte, ex. CB****8251
+      var _card  = _cardM ? _cardM[0] : 'CB';
+      var _merch = _bpMerchantCB(libFull);       // commerçant seul
+      poste = _merch ? (_card+' '+_merch) : (_cardM ? (_card+' '+libFull) : libFull);
     } else if(cl.sur && !cheque){ poste = cl.poste; }
     else {
       var benef = (extra.length && /[A-Za-zÀ-ÿ]/.test(extra[0]) && (/\s/.test(extra[0]) || /STC/i.test(extra[0]))) ? extra[0] : '';
       poste = benef || libFull;
     }
-    // Solde de tout compte : on GARANTIT « - STC » dans le titre (pour TOUS), même si
-    // la 2ᵉ ligne était formatée différemment — tu vois le STC sans avoir à déplier.
-    if(estStc && !estCB && !/\bSTC\b/i.test(poste)) poste = poste + ' - STC';
+    // Solde de tout compte : le poste s'appelle simplement « STC » et TOUS les soldes de
+    // tout compte sont regroupés sous ce seul poste (catégorie salaires). Le nom de chaque
+    // personne reste visible dans le détail dépliable (dates & libellés), et chaque ligne
+    // peut être « ↗ séparée » du groupe si besoin de la ranger à part.
+    if(estStc && !estCB) poste = 'STC';
     // Un achat CARTE (CB) et un PRÉLÈVEMENT SEPA du même fournisseur (ex. Uber) sont
     // deux choses différentes → l'achat carte est TOUJOURS individuel, en « autre »,
     // pour ne jamais être collé à un prélèvement du même nom.
     var categorieF = estCB ? 'autre' : (estStc ? 'salaires' : cl.categorie);
-    var surF = (cheque || estCB) ? false : cl.sur;
+    var surF = (cheque || estCB) ? false : (estStc ? true : cl.sur);   // STC → sûr, regroupé sous « STC »
     ops.push({ libelle:libFull, montant:Math.abs(val), type:val<0?'sortie':'entree',
       poste:poste, categorie:categorieF, sur:surF,
       date:dm[1]+'/'+dm[2]+'/'+annee, cheque:cheque });
@@ -2444,6 +2452,42 @@ function pdfNum(v){
 // Déplie / replie le détail des opérations d'un poste (dates + libellés complets) dans l'import.
 window.pdfToggleOps = function(i){ var el=document.getElementById('pdf-ops-'+i); if(el){ el.style.display = (!el.style.display || el.style.display==='none') ? 'block' : 'none'; } };
 
+// SÉPARER une opération d'un groupe : la ligne « oj » du poste groupé « gi » est
+// sortie du groupe et devient une ligne INDIVIDUELLE « à confirmer » (catégorie
+// « autre »), avec son propre menu pour la reclasser. Le total du groupe est réduit
+// d'autant. Puis on re-rend la liste (sans reparser le PDF).
+window.pdfSeparerOp = function(gi, oj){
+  var postes = (_pdfParsed && _pdfParsed._postes) || [];
+  var g = postes[gi];
+  if(!g || !g.ops || !g.ops[oj]) return;
+  var op = g.ops[oj];
+  var mont = Math.abs(pdfNum(op.montant));
+  // retire la ligne du groupe
+  g.ops.splice(oj, 1);
+  g.nb = Math.max(0, (g.nb||1) - 1);
+  g.total = Math.max(0, (g.total||0) - mont);
+  if(g.dates){ var di = g.dates.indexOf(op.date); if(di>=0) g.dates.splice(di,1); }
+  // nouvelle ligne individuelle, à reclasser (elle affiche son libellé complet + un menu)
+  var nouvelle = {
+    nom: (g.nom||op.libelle||'?'), libelle:(op.libelle||g.nom||''),
+    type: g.type, total: mont, nb:1,
+    categorie:'autre', sur:false, individuelle:true,
+    date:(op.date||''), cheque:false
+  };
+  // si le groupe est vidé, on le retire
+  if(g.nb<=0 || !g.ops.length) postes.splice(gi, 1);
+  postes.push(nouvelle);
+  // même tri qu'à l'origine : les « à confirmer » d'abord, puis par montant décroissant
+  postes.sort(function(a,b){ if(a.sur!==b.sur) return a.sur?1:-1; return b.total-a.total; });
+  _pdfParsed._postes = postes;
+  if(window._pdfRendu) window._pdfRendu();
+  // ré-ouvre le détail du groupe d'origine s'il existe encore, pour continuer à trier
+  try{
+    var gi2 = postes.indexOf(g);
+    if(gi2>=0){ var el=document.getElementById('pdf-ops-'+gi2); if(el) el.style.display='block'; }
+  }catch(e){}
+};
+
 // Reçoit la LISTE d'opérations lues par l'IA, REGROUPE et ADDITIONNE côté application.
 function pdfTraiteResultat(parsed, restoSel){
   _pdfRestoSel = restoSel;
@@ -2524,9 +2568,17 @@ function pdfTraiteResultat(parsed, restoSel){
     // ensuite toi-même (souvent STC + nom de la personne).
     var estCheque = !parsed._local && ((o.cheque===true) || /\bCHEQUE\b|\bCHQ\b|REMISE\s+CHEQUE|VOTRE\s+CHEQUE/.test(lib));
 
+    // MARQUEURS DE LA LECTURE LOCALE : sur un relevé lu sans IA, le lecteur pose
+    // lui-même « CB … » devant chaque paiement carte et « … - STC » derrière chaque
+    // solde de tout compte. Ces marqueurs sont VOULUS À CHAQUE IMPORT : l'apprentissage
+    // (qui renverrait un ancien poste appris SANS marqueur) ne doit donc PAS les écraser.
+    // Sinon on obtient l'incohérence constatée (certains noms marqués, d'autres non).
+    var marqueurLocal = parsed._local && (/^CB[*\s]/i.test(poste) || /^STC$/i.test(poste) || /\s-\s*STC\s*$/i.test(poste));
+
     // APPRENTISSAGE : si ce libellé a déjà été tranché par le passé, on applique le poste appris.
-    // (On NE l'applique PAS aux chèques : chaque chèque doit être identifié individuellement.)
-    var appris = (!estCheque && window.tresoPosteAppris) ? window.tresoPosteAppris(restoSel, o.libelle||poste) : null;
+    // (On NE l'applique PAS aux chèques : chaque chèque doit être identifié individuellement,
+    //  NI aux marqueurs CB/STC de la lecture locale : le lecteur fait foi.)
+    var appris = (!estCheque && !marqueurLocal && window.tresoPosteAppris) ? window.tresoPosteAppris(restoSel, o.libelle||poste) : null;
     if(appris){
       poste = appris; posteU = appris.toUpperCase();
       o.sur = true;                 // libellé connu → considéré sûr
@@ -2630,7 +2682,11 @@ function pdfTraiteResultat(parsed, restoSel){
       + conseil;
   }
 
-  // Affichage des postes regroupés
+  // Affichage des postes regroupés — encapsulé dans rendu() pour pouvoir RAFRAÎCHIR
+  // l'affichage après avoir séparé/reclassé une ligne depuis le détail d'un groupe,
+  // sans avoir à relire le PDF.
+  function rendu(){
+  var postes = (_pdfParsed && _pdfParsed._postes) || [];
   var nbDoute=0, h='';
   postes.forEach(function(p,i){
     var color = p.type==='sortie' ? '#e03a3a' : '#0d9e6e';
@@ -2687,14 +2743,19 @@ function pdfTraiteResultat(parsed, restoSel){
     var _opsDetail = '';
     if(_opsList.length){
       _opsDetail = '<div id="pdf-ops-'+i+'" style="display:none;flex:1 1 100%;margin-top:6px;padding:6px 10px;background:#f8fafc;border-radius:6px;border:1px solid #eef2f7">'
-        + _opsList.map(function(o){
+        + (!p.individuelle && _opsList.length>1 ? '<div style="font-size:10px;color:#7a90a8;padding:2px 0 5px">Une ligne mal rangée ? « ↗ séparer » la sort du groupe pour la classer à part.</div>' : '')
+        + _opsList.map(function(o,j){
             var _d=(o.date||'—');
             var _l=String(o.libelle||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
             var _m=(p.type==='sortie'?'- ':'+ ')+Math.abs(pdfNum(o.montant)).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+            var _sep = (!p.individuelle && _opsList.length>1)
+              ? '<a onclick="pdfSeparerOp('+i+','+j+')" title="Sortir cette ligne du groupe pour la classer séparément" style="cursor:pointer;color:#e07d1a;white-space:nowrap;font-size:11px;text-decoration:underline dotted">↗ séparer</a>'
+              : '';
             return '<div style="display:flex;gap:8px;font-size:11px;color:#33465a;padding:3px 0;border-bottom:1px solid #eef2f7;align-items:flex-start">'
               + '<span style="font-family:var(--mono);color:#1a6cf4;white-space:nowrap;min-width:80px">'+_d+'</span>'
               + '<span style="flex:1;min-width:0">'+_l+'</span>'
-              + '<span style="font-family:var(--mono);white-space:nowrap">'+_m+'</span></div>';
+              + '<span style="font-family:var(--mono);white-space:nowrap">'+_m+'</span>'
+              + _sep+'</div>';
           }).join('')
         + '</div>';
     }
@@ -2719,6 +2780,9 @@ function pdfTraiteResultat(parsed, restoSel){
   else pdfStatus(postes.length+' postes reconnus — vous pouvez importer','ok');
 
   pdfMajBouton();
+  }
+  window._pdfRendu = rendu;
+  rendu();
 }
 
 // Affiche/masque le champ commentaire quand on coche « exceptionnel »
