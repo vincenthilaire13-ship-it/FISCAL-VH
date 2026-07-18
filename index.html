@@ -312,7 +312,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v16 · poste STC unique (tous regroupés) · séparer une ligne · CB n° carte</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v20 · séparation par banque (dashboard) · Dropbox désactivé</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -782,8 +782,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div style="font-size:32px;margin-bottom:8px">&#128196;</div>
     <div style="font-size:14px;font-weight:600;color:#0f1c2e;margin-bottom:4px">Cliquez ou glissez votre PDF ici</div>
     <div style="font-size:12px;color:#7a90a8">Relevé bancaire mensuel</div>
-    <input id="pdf-file" type="file" accept=".pdf" style="display:none" onchange="pdfSelected(this)">
+    <input id="pdf-file" type="file" accept=".pdf" multiple style="display:none" onchange="pdfSelected(this)">
   </div>
+
+  <div id="pdf-queue-bar" style="display:none;padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:13px;background:#eef4ff;color:#1a4a7e;border:1px solid #d6e4ff"></div>
 
   <div id="pdf-resto-detected" style="display:none;padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
 
@@ -794,6 +796,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div id="pdf-tx-list"></div>
     <div style="margin-top:16px;display:flex;gap:8px">
       <button id="pdf-btn-import" onclick="pdfImport()" style="flex:1;padding:10px;background:#0d9e6e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">&#10003; Importer dans la trésorerie</button>
+      <button id="pdf-btn-skip" onclick="pdfQueueSkip()" style="display:none;padding:10px 14px;background:#fff3e0;color:#b45309;border:1px solid #f0cfa0;border-radius:8px;font-size:13px;cursor:pointer">Passer ce mois &rarr;</button>
       <button onclick="pdfClose()" style="padding:10px 14px;background:#f0f3f8;color:#4a607a;border:none;border-radius:8px;font-size:13px;cursor:pointer">Annuler</button>
     </div>
   </div>
@@ -1106,6 +1109,36 @@ function renderDashboard(){
     +'<div class="kpi"><div class="kpi-lbl">Variation depuis Déc 2024</div><div class="kpi-val" style="color:'+(diff>=0?'#0d9e6e':'#e03a3a')+'">'+(diff>=0?'+ ':'')+fmt(diff)+'</div></div>'
     +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent 2025</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'<div style="font-size:11px;color:var(--text3);margin-top:2px">postes marqués 👤 dans le tableau</div>')+'</div>'
     +'</div>';
+
+  // ── VENTILATION PAR BANQUE (sociétés à plusieurs comptes : SCI, BK Saint-Jean) ──
+  // On affiche chaque banque séparément : son solde (rouge si négatif → à alimenter)
+  // et ses flux du mois. Le solde société ci-dessus = somme des comptes.
+  var _bq = d.banques || {};
+  var _bqNoms = Object.keys(_bq);
+  if(_bqNoms.length >= 2){
+    var _latBanque = function(bk){
+      for(var bi=cols.length-1;bi>=0;bi--){ var L=cols[bi].label; if(_bq[bk].soldes && _bq[bk].soldes[L]!=null) return {solde:_bq[bk].soldes[L], mois:L, flux:(_bq[bk].flux&&_bq[bk].flux[L])||null}; }
+      return null;
+    };
+    var _cards='';
+    _bqNoms.forEach(function(bk){
+      var L=_latBanque(bk); if(!L) return;
+      var c=(L.solde>=0)?'#0d9e6e':'#e03a3a', fl=L.flux||{};
+      _cards += '<div style="flex:1;min-width:210px;border:1px solid var(--gray2);border-radius:12px;padding:14px 16px;background:'+((L.solde<0)?'#fff5f5':'#f6fbf9')+'">'
+        + '<div style="font-size:12px;font-weight:700;color:var(--text2)">🏦 '+bk+'</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">solde '+L.mois+(L.solde<0?' · à alimenter':'')+'</div>'
+        + '<div style="font-size:22px;font-weight:800;font-family:var(--mono);color:'+c+'">'+fmt(L.solde)+'</div>'
+        + '<div style="display:flex;gap:16px;margin-top:8px;font-size:11px">'
+        +   '<div><span style="color:var(--text3)">Entrées</span><br><span style="font-family:var(--mono);color:#0d9e6e;font-weight:600">'+(fl.e!=null?fmt(fl.e):'—')+'</span></div>'
+        +   '<div><span style="color:var(--text3)">Sorties</span><br><span style="font-family:var(--mono);color:#e03a3a;font-weight:600">'+(fl.s!=null?fmt(fl.s):'—')+'</span></div>'
+        + '</div></div>';
+    });
+    if(_cards){
+      html += '<div style="font-size:13px;font-weight:700;color:#0f1c2e;margin:16px 0 8px">Par banque — quel compte alimenter</div>'
+        + '<div style="display:flex;gap:12px;flex-wrap:wrap">'+_cards+'</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-top:6px">Le « Solde actuel » de la société ci-dessus est la somme de ces comptes.</div>';
+    }
+  }
 
   // ── Courbe PAR ANNÉE, superposées sur le même axe des mois (JAN → DEC) ──
   var yrColors = {'2024':'#94a3b8','2025':'#3d86ff','2026':'#13c487','2027':'#f59e0b','2028':'#a78bfa','2029':'#ef4444'};
@@ -1825,10 +1858,7 @@ function pdfSetupDrop(){
     if(files && files.length){
       var sel=document.getElementById('pdf-resto');
       if(sel && sel.value) resto = sel.value;
-      var f=files[0];
-      var nameDiv = zone.querySelector('div:nth-child(2)');
-      if(nameDiv) nameDiv.textContent = f.name;
-      pdfAnalyse(f);
+      pdfQueueStart(Array.prototype.slice.call(files));
     }
   }, false);
   // empêcher la fenêtre modale d'ouvrir le fichier si on rate la zone
@@ -1841,17 +1871,88 @@ function pdfClose(){
   document.getElementById('pdf-results').style.display='none';
   document.getElementById('pdf-status').style.display='none';
   var det=document.getElementById('pdf-resto-detected'); if(det) det.style.display='none';
-  document.getElementById('pdf-drop').innerHTML='<div style="font-size:32px;margin-bottom:8px">&#128196;</div><div style="font-size:14px;font-weight:600;color:#0f1c2e;margin-bottom:4px">Cliquez ou glissez votre PDF ici</div><div style="font-size:12px;color:#7a90a8">Relevé bancaire mensuel</div><input id="pdf-file" type="file" accept=".pdf" style="display:none" onchange="pdfSelected(this)">';
-  _pdfTx=[]; _pdfParsed=null;
+  var qb=document.getElementById('pdf-queue-bar'); if(qb) qb.style.display='none';
+  var sk=document.getElementById('pdf-btn-skip'); if(sk) sk.style.display='none';
+  document.getElementById('pdf-drop').innerHTML='<div style="font-size:32px;margin-bottom:8px">&#128196;</div><div style="font-size:14px;font-weight:600;color:#0f1c2e;margin-bottom:4px">Cliquez ou glissez vos PDF ici</div><div style="font-size:12px;color:#7a90a8">Relevé bancaire mensuel — plusieurs relevés acceptés d\'un coup</div><input id="pdf-file" type="file" accept=".pdf" multiple style="display:none" onchange="pdfSelected(this)">';
+  _pdfTx=[]; _pdfParsed=null; _pdfQueue=[]; _pdfQueueIdx=0;
 }
 
 function pdfSelected(inp){
-  var file=inp.files[0]; if(!file) return;
+  var files=inp.files; if(!files||!files.length) return;
   // la société cible = celle choisie dans le menu déroulant du modal
   var sel=document.getElementById('pdf-resto');
   if(sel && sel.value) resto = sel.value;
-  document.getElementById('pdf-drop').querySelector('div').textContent=file.name;
+  pdfQueueStart(Array.prototype.slice.call(files));
+}
+
+// ── MODE RATTRAPAGE : plusieurs relevés d'un coup ──────────────────────────
+// On empile tous les PDF déposés, on les lit un par un (en local, gratuit), et
+// on présente CHAQUE mois pour validation avant son import. Après « Importer »
+// (ou « Passer ce mois »), on enchaîne automatiquement sur le relevé suivant.
+var _pdfQueue=[], _pdfQueueIdx=0;
+function pdfQueueStart(files){
+  // tri par nom : les noms de relevés contiennent la date → ordre chronologique naturel
+  files.sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||''),'fr',{numeric:true}); });
+  _pdfQueue=files; _pdfQueueIdx=0;
+  pdfQueueNext();
+}
+function pdfQueueRestant(){ return _pdfQueue.length && _pdfQueueIdx < _pdfQueue.length; }
+function pdfQueueBar(){
+  var bar=document.getElementById('pdf-queue-bar');
+  var skip=document.getElementById('pdf-btn-skip');
+  if(!bar) return;
+  if(_pdfQueue.length>1){
+    bar.style.display='block';
+    var f=_pdfQueue[_pdfQueueIdx];
+    bar.innerHTML='📚 <strong>Relevé '+(_pdfQueueIdx+1)+' / '+_pdfQueue.length+'</strong> — '
+      +(f?String(f.name).replace(/</g,'&lt;'):'')+'<br><span style="font-size:11px;color:#3b6fb5">Vérifie puis importe ; on passe ensuite automatiquement au suivant.</span>';
+    if(skip) skip.style.display='inline-block';
+  } else {
+    bar.style.display='none';
+    if(skip) skip.style.display='none';
+  }
+}
+function pdfQueueNext(){
+  // masque le résultat précédent avant de charger le suivant
+  var res=document.getElementById('pdf-results'); if(res) res.style.display='none';
+  var det=document.getElementById('pdf-resto-detected'); if(det) det.style.display='none';
+  if(!pdfQueueRestant()){
+    var n=_pdfQueue.length;
+    document.getElementById('pdf-queue-bar').style.display='none';
+    var skip=document.getElementById('pdf-btn-skip'); if(skip) skip.style.display='none';
+    if(n>1) pdfStatus('✓ Tous les relevés ont été traités ('+n+').','ok');
+    _pdfQueue=[]; _pdfQueueIdx=0;
+    return;
+  }
+  pdfQueueBar();
+  var file=_pdfQueue[_pdfQueueIdx];
+  var drop=document.getElementById('pdf-drop');
+  if(drop){ var d=drop.querySelector('div:nth-child(2)'); if(d) d.textContent=file.name; }
   pdfAnalyse(file);
+}
+// « Passer ce mois » : on n'importe pas ce relevé, on va directement au suivant.
+window.pdfQueueSkip = function(){
+  if(!pdfQueueRestant()) return;
+  _pdfQueueIdx++;
+  pdfQueueNext();
+};
+// Appelé à la fin d'un import réussi. En mode rattrapage (plusieurs relevés),
+// enchaîne le suivant SANS fermer la fenêtre et renvoie true. En mode simple
+// (un seul relevé), ne fait rien et renvoie false → fermeture normale.
+function pdfQueueApresImport(){
+  if(_pdfQueue.length>1 && pdfQueueRestant()){
+    _pdfQueueIdx++;
+    if(pdfQueueRestant()){ pdfQueueNext(); return true; }
+    // c'était le dernier de la file
+    var bar=document.getElementById('pdf-queue-bar'); if(bar) bar.style.display='none';
+    var skip=document.getElementById('pdf-btn-skip'); if(skip) skip.style.display='none';
+    var res=document.getElementById('pdf-results'); if(res) res.style.display='none';
+    var n=_pdfQueue.length; _pdfQueue=[]; _pdfQueueIdx=0;
+    pdfStatus('✓ Tous les relevés ont été importés ('+n+').','ok');
+    return true;
+  }
+  _pdfQueue=[]; _pdfQueueIdx=0;   // mode simple → fermeture normale
+  return false;
 }
 
 function pdfStatus(msg, color){
@@ -1879,12 +1980,15 @@ async function pdfTextePages(file){
   if(!window.pdfjsLib) throw new Error('pdf.js non chargé');
   var buf = await file.arrayBuffer();
   var pdf = await pdfjsLib.getDocument({data:buf}).promise;
-  var pages=[];
+  var pages=[], rich=[];
   for(var p=1;p<=pdf.numPages;p++){
     var page = await pdf.getPage(p);
     var tc = await page.getTextContent();
     // reconstruire les lignes par position Y
     var items = tc.items.map(function(it){ return {s:it.str, x:it.transform[4], y:Math.round(it.transform[5])}; });
+    // On garde AUSSI les jetons bruts (x,y) : le lecteur Crédit Agricole en a besoin
+    // pour distinguer la colonne Débit de la colonne Crédit (par la position X).
+    rich.push(items.map(function(it){ return {s:it.s, x:Math.round(it.x), y:it.y}; }));
     var byY={};
     items.forEach(function(it){ (byY[it.y]=byY[it.y]||[]).push(it); });
     var ys=Object.keys(byY).map(Number).sort(function(a,b){return b-a;});
@@ -1893,6 +1997,7 @@ async function pdfTextePages(file){
     }).join('\n');
     pages.push(txt);
   }
+  window._pdfRichPages = rich;   // jetons bruts pour le lecteur Crédit Agricole
   return pages;
 }
 
@@ -1935,7 +2040,7 @@ function _bpClasse(u, libOrig){
   var b=u.match(/UBER|DELIVEROO|SWILE|PLUXEE|UP COOP|EDENRED|BIMPLI/); if(b) return {poste:b[0], categorie:'recette', sur:true};
   // Sinon : créancier générique = le nom (libellé sans le préfixe SEPA). « Sûr » sauf
   // si le nom est ambigu/générique (REMISE, VIREMENT…), une carte (CB ****) ou numérique.
-  var nom=(libOrig||'').replace(/^(PRLV SEPA|PRLV INT ETS|VIR SEPA|EURO VIR|EUROVIR SEPA|PRLV|VIR)\s+/i,'').trim();
+  var nom=(libOrig||'').replace(/^(PRLV SEPA|PRLV INT ETS|VIR SEPA|EURO VIR|EUROVIR SEPA|VIREMENT|PRLV|PRIV|VIR)\s+/i,'').trim();
   var nomU=nom.toUpperCase();
   var ambigu = (!nom) || /^(REMISE|VIREMENT|PRELEVEMENT|SEPA)$/.test(nomU) || /CB\s*\*{2,}|\bCB\b\s*\d/.test(u) || /^[\d\W]+$/.test(nom);
   return {poste: nom||libOrig, categorie:'autre', sur: !ambigu};
@@ -1955,6 +2060,28 @@ function _bpMerchantCB(lib){
     .replace(/\s+(FR|NL|BE|DE|ES|CH|LU|GB|PT|MC|MA|VN)\s+.*$/,'')
     .replace(/\s{2,}/g,' ').trim();
   return s;
+}
+// ── AFFECTATION COMMUNE (Banque Populaire ET Crédit Agricole) ──────────────
+// À partir du libellé complet, décide : nom du poste, catégorie et « sûr ? ».
+//  - achat carte (CB****)        → regroupé par n° de carte, catégorie « coût Vincent » ;
+//  - solde de tout compte (STC)  → poste unique « STC », catégorie salaires ;
+//  - créancier reconnu (_bpClasse) → son poste ; sinon nom générique (bénéficiaire).
+function _releveAffecte(fullU, libFull, extra, cheque, cl){
+  var estStc = /\bSTC\b|SOLDE DE TOUT COMPTE/.test(fullU);
+  var estCB  = /CB\*{2,}/.test(fullU);
+  var poste;
+  if(estCB){
+    var _cardM = fullU.match(/CB\*+\d+/);
+    poste = _cardM ? _cardM[0] : 'CB';
+  } else if(cl.sur && !cheque){ poste = cl.poste; }
+  else {
+    var benef = (extra && extra.length && /[A-Za-zÀ-ÿ]/.test(extra[0]) && (/\s/.test(extra[0]) || /STC/i.test(extra[0]))) ? extra[0] : '';
+    poste = benef || libFull;
+  }
+  if(estStc && !estCB) poste = 'STC';
+  var categorie = estCB ? 'cout-vincent' : (estStc ? 'salaires' : cl.categorie);
+  var sur = cheque ? false : ((estCB || estStc) ? true : cl.sur);
+  return { poste:poste, categorie:categorie, sur:sur };
 }
 function pdfParseLocalBP(pages){
   var full=(pages||[]).join('\n');
@@ -2017,38 +2144,9 @@ function pdfParseLocalBP(pages){
     var fullU=libFull.toUpperCase();
     var cheque=/\bCHEQUE\b|\bCHQ\b|REMISE\s+CHEQUE|VOTRE\s+CHEQUE/.test(fullU);
     var cl=_bpClasse(fullU, libClean);            // mots-clés sur le libellé COMPLET ; nom propre depuis l'épuré
-    var estStc=/\bSTC\b|SOLDE DE TOUT COMPTE/.test(fullU);
-    // Nom du poste :
-    //  - créancier « sûr » (REMISE CB, FRANCE BKR…) → nom de poste propre ;
-    //  - sinon (VIR SEPA REMISE…, chèque) → on prend le VRAI bénéficiaire, qui est
-    //    sur la 2ᵉ ligne (ex. « JAMARD ELIOT - STC »), pour que tu puisses ranger.
-    var estCB=/CB\*{2,}/.test(fullU);
-    var poste;
-    if(estCB){
-      // Achat carte → titre « CB<n° carte> <commerçant> », ex. « CB****8251 ALLSPARESFR ».
-      // On GARDE le n° de carte (CB****8251) et le commerçant, on RETIRE le code
-      // d'autorisation (8RDUR38…), la date, le pays/ville et le montant en devise.
-      var _cardM = fullU.match(/CB\*+\d+/);      // n° de carte, ex. CB****8251
-      var _card  = _cardM ? _cardM[0] : 'CB';
-      var _merch = _bpMerchantCB(libFull);       // commerçant seul
-      poste = _merch ? (_card+' '+_merch) : (_cardM ? (_card+' '+libFull) : libFull);
-    } else if(cl.sur && !cheque){ poste = cl.poste; }
-    else {
-      var benef = (extra.length && /[A-Za-zÀ-ÿ]/.test(extra[0]) && (/\s/.test(extra[0]) || /STC/i.test(extra[0]))) ? extra[0] : '';
-      poste = benef || libFull;
-    }
-    // Solde de tout compte : le poste s'appelle simplement « STC » et TOUS les soldes de
-    // tout compte sont regroupés sous ce seul poste (catégorie salaires). Le nom de chaque
-    // personne reste visible dans le détail dépliable (dates & libellés), et chaque ligne
-    // peut être « ↗ séparée » du groupe si besoin de la ranger à part.
-    if(estStc && !estCB) poste = 'STC';
-    // Un achat CARTE (CB) et un PRÉLÈVEMENT SEPA du même fournisseur (ex. Uber) sont
-    // deux choses différentes → l'achat carte est TOUJOURS individuel, en « autre »,
-    // pour ne jamais être collé à un prélèvement du même nom.
-    var categorieF = estCB ? 'autre' : (estStc ? 'salaires' : cl.categorie);
-    var surF = (cheque || estCB) ? false : (estStc ? true : cl.sur);   // STC → sûr, regroupé sous « STC »
+    var _aff=_releveAffecte(fullU, libFull, extra, cheque, cl);   // poste / catégorie / sûr (commun BP + CA)
     ops.push({ libelle:libFull, montant:Math.abs(val), type:val<0?'sortie':'entree',
-      poste:poste, categorie:categorieF, sur:surF,
+      poste:_aff.poste, categorie:_aff.categorie, sur:_aff.sur,
       date:dm[1]+'/'+dm[2]+'/'+annee, cheque:cheque });
   }
   if(!ops.length) return null;   // format non exploitable → l'appli proposera l'IA
@@ -2059,8 +2157,135 @@ function pdfParseLocalBP(pages){
   var eqOk  = (si!=null&&sf!=null) ? (Math.abs(si + sumE - sumS - sf)<0.05) : false;
   var totOk = (td==null||Math.abs(sumS-td)<0.05) && (tc==null||Math.abs(sumE-tc)<0.05);
   var moisDom=1,best=-1; Object.keys(moisCnt).forEach(function(k){ if(moisCnt[k]>best){best=moisCnt[k];moisDom=parseInt(k,10);} });
-  return { _local:true, _soldeBoucle:(eqOk&&totOk), _ecart:(si!=null&&sf!=null?(si+sumE-sumS-sf):null),
+  return { _local:true, _banque:'Banque Populaire', _soldeBoucle:(eqOk&&totOk), _ecart:(si!=null&&sf!=null?(si+sumE-sumS-sf):null),
            iban:iban, titulaire:titulaire, periode:MSl[moisDom-1]+' '+annee,
+           solde_initial:si, solde_final:sf, total_debits:td, total_credits:tc, operations:ops };
+}
+// Nom de la banque déduit du code banque de l'IBAN français (positions 5-9).
+// Sert de repli pour le tableau de bord « par banque » quand le lecteur ne l'a pas fixé.
+function _banqueDepuisIban(iban){
+  var s=String(iban||'').toUpperCase().replace(/[^0-9A-Z]/g,'');
+  if(!/^FR/.test(s) || s.length<9) return '';
+  var code=s.slice(4,9);
+  var M={'16607':'Banque Populaire','13506':'Crédit Agricole','13606':'Crédit Agricole','11306':'Crédit Agricole'};
+  return M[code] || ('Banque '+code);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// LECTURE LOCALE — CRÉDIT AGRICOLE (du Languedoc) — SANS IA, GRATUIT.
+// Format différent de la Banque Populaire : colonnes Débit / Crédit séparées
+// (le montant n'a NI signe NI €), dates « JJ.MM », deux colonnes de dates,
+// lignes « Ancien solde créditeur / Nouveau solde débiteur ». La colonne
+// (débit vs crédit) se déduit de la POSITION X du montant → on travaille sur
+// les jetons bruts (window._pdfRichPages), pas sur le texte déjà aplati.
+// Renvoie le MÊME objet `parsed` que la Banque Populaire → même fenêtre d'import.
+// ══════════════════════════════════════════════════════════════════════════
+function _caNum(s){ var t=String(s).replace(/[^\d,]/g,'').replace(',','.'); return parseFloat(t)||0; }
+function pdfParseLocalCA(richPages){
+  if(!richPages || !richPages.length) return null;
+  var allTxt = richPages.map(function(items){ return items.map(function(t){return t.s;}).join(' '); }).join('\n');
+  if(!/CR[EÉ]DIT\s+AGRICOLE/i.test(allTxt) || !/RELEV[EÉ] DE COMPTES/i.test(allTxt)) return null;
+
+  var amtRe=/^-?\d{1,3}(?:[\s  ]\d{3})*,\d{2}$/;
+  var estMontant=function(s){ return amtRe.test(String(s).trim()); };
+  var dateRe=/^\d{2}\.\d{2}$/;
+
+  // Seuil X entre les colonnes = milieu des en-têtes « Débit » et « Crédit ».
+  var xd=null, xc=null;
+  richPages.forEach(function(items){ items.forEach(function(t){ var s=String(t.s).trim();
+    if(/^D[EÉ]BIT$/i.test(s) && xd==null) xd=t.x;
+    if(/^CR[EÉ]DIT$/i.test(s) && xc==null) xc=t.x;
+  }); });
+  var seuil = (xd!=null && xc!=null) ? (xd+xc)/2 : 478;
+
+  // Regroupe les jetons d'une page en lignes tolérantes (Y à ±6px), en IGNORANT
+  // les codes verticaux de la marge gauche (x<15) qui fausseraient la 1ʳᵉ colonne.
+  function lignesDe(items){
+    var its=items.filter(function(t){ return String(t.s).trim()!=='' && t.x>=15; });
+    its.sort(function(a,b){ return b.y-a.y; });
+    var lines=[], cur=null;
+    its.forEach(function(t){
+      if(cur && Math.abs(t.y-cur.y)<=6){ cur.toks.push(t); }
+      else { cur={y:t.y, toks:[t]}; lines.push(cur); }
+    });
+    lines.forEach(function(l){ l.toks.sort(function(a,b){return a.x-b.x;});
+      l.text=l.toks.map(function(t){return t.s;}).join(' ').replace(/\s+/g,' ').trim(); });
+    return lines;
+  }
+  var pagesLines=richPages.map(lignesDe);
+
+  // ── Métadonnées ──
+  var iban=(allTxt.match(/IBAN\s*:?\s*(FR\d{2}[\d ]{18,40})/i)||[])[1]||''; iban=iban.replace(/[^0-9A-Z]/gi,'');
+  var titulaire=(allTxt.match(/Compte Courant\s*n[°o]\s*\d+/i)||[])[0]||'';
+  var si=null, sf=null, td=null, tc=null, closeM=null, closeY=null;
+  pagesLines.forEach(function(lines){ lines.forEach(function(l){
+    var amts=l.toks.filter(function(t){return estMontant(t.s);});
+    if(/Ancien solde (cr[eé]diteur|d[eé]biteur) au/i.test(l.text) && amts.length){
+      var v=_caNum(amts[0].s); si=/d[eé]biteur/i.test(l.text)?-v:v;
+    }
+    if(/Nouveau solde (cr[eé]diteur|d[eé]biteur) au/i.test(l.text)){
+      if(amts.length){ var v2=_caNum(amts[0].s); sf=/d[eé]biteur/i.test(l.text)?-v2:v2; }
+      var d=l.text.match(/au\s+(\d{2})\.(\d{2})\.(\d{4})/i); if(d){ closeM=+d[2]; closeY=+d[3]; }
+    }
+    if(/Total des op[eé]rations/i.test(l.text) && amts.length>=2){
+      amts.forEach(function(a){ if(a.x<seuil) td=_caNum(a.s); else tc=_caNum(a.s); });
+    }
+  }); });
+  if(closeM==null){ var dd=allTxt.match(/arr[eê]t[eé]\s*:?\s*\d{1,2}\s+([A-Za-zéû]+)\s+(\d{4})/i);
+    var mois={JANVIER:1,FEVRIER:2,'FÉVRIER':2,MARS:3,AVRIL:4,MAI:5,JUIN:6,JUILLET:7,AOUT:8,'AOÛT':8,SEPTEMBRE:9,OCTOBRE:10,NOVEMBRE:11,DECEMBRE:12,'DÉCEMBRE':12};
+    if(dd){ closeM=mois[dd[1].toUpperCase()]||null; closeY=+dd[2]; }
+  }
+  if(closeM==null){ var d2=allTxt.match(/au\s+(\d{2})\.(\d{2})\.(\d{4})/i); if(d2){ closeM=+d2[2]; closeY=+d2[3]; } }
+  if(closeM==null) return null;
+  var MSl=['JAN','FEV','MAR','AVR','MAI','JUI','JUL','AOU','SEP','OCT','NOV','DEC'];
+
+  // ── Opérations ──
+  var ops=[];
+  var estMetaLigne=function(txt){ return /Libell[eé] des op[eé]rations|Ancien solde|Nouveau solde|Total des op[eé]rations|RELEV[EÉ] DE COMPTES|Cr[eé]dit Agricole Du Languedoc|à reporter|Report/i.test(txt); };
+  pagesLines.forEach(function(lines){
+    var cur=null;
+    var pousse=function(){ if(!cur) return;
+      var libFull=(cur.lib+(cur.extra.length?' '+cur.extra.join(' '):'')).replace(/\s+/g,' ').trim();
+      var fullU=libFull.toUpperCase();
+      var cheque=/\bCHEQUE\b|\bCHQ\b/.test(fullU);
+      var cl=_bpClasse(fullU, cur.lib);
+      var aff=_releveAffecte(fullU, libFull, cur.extra, cheque, cl);
+      var opY = (cur.mm>closeM) ? (closeY-1) : closeY;   // déc. sur un relevé de janvier → année précédente
+      ops.push({ libelle:libFull, montant:Math.abs(cur.montant), type:cur.type,
+        poste:aff.poste, categorie:aff.categorie, sur:aff.sur,
+        date:cur.jj+'/'+cur.mm2+'/'+opY, cheque:cheque });
+      cur=null;
+    };
+    lines.forEach(function(l){
+      var t0=l.toks[0];
+      var startsDate = t0 && t0.x<65 && dateRe.test(String(t0.s).trim());
+      var amtTok = l.toks.filter(function(t){ return estMontant(t.s) && t.x>=400; });
+      if(estMetaLigne(l.text)){ pousse(); return; }
+      if(startsDate && amtTok.length){
+        pousse();
+        var a=amtTok[0];
+        var d=String(t0.s).trim();
+        var lib=l.toks.filter(function(t){ return t.x>=65 && t.x < a.x-2 && !estMontant(t.s); })
+                       .map(function(t){return t.s;}).join(' ').replace(/\s+/g,' ').trim();
+        cur={ jj:d.slice(0,2), mm2:d.slice(3,5), mm:parseInt(d.slice(3,5),10),
+              montant:_caNum(a.s), type:(a.x<seuil?'sortie':'entree'), lib:lib, extra:[] };
+      } else if(cur){
+        // ligne de continuation (référence) : pas de date en tête, pas de montant colonne
+        var cont=l.toks.filter(function(t){ return t.x>=65 && !estMontant(t.s); })
+                        .map(function(t){return t.s;}).join(' ').replace(/\s+/g,' ').trim();
+        if(cont && cur.extra.length<5) cur.extra.push(cont);
+      }
+    });
+    pousse();
+  });
+  if(!ops.length) return null;
+
+  // ── Contrôle (non bloquant) : sommes = totaux officiels ET équation de solde ──
+  var sumS=0, sumE=0; ops.forEach(function(o){ if(o.type==='sortie') sumS+=o.montant; else sumE+=o.montant; });
+  var eqOk  = (si!=null&&sf!=null) ? (Math.abs(si + sumE - sumS - sf)<0.05) : false;
+  var totOk = (td==null||Math.abs(sumS-td)<0.05) && (tc==null||Math.abs(sumE-tc)<0.05);
+  return { _local:true, _banque:'Crédit Agricole', _soldeBoucle:(eqOk&&totOk), _ecart:(si!=null&&sf!=null?(si+sumE-sumS-sf):null),
+           iban:iban, titulaire:titulaire, periode:MSl[closeM-1]+' '+closeY,
            solde_initial:si, solde_final:sf, total_debits:td, total_credits:tc, operations:ops };
 }
 
@@ -2169,7 +2394,12 @@ function pdfAnalyse(file, forceIA){
     if(!forceIA){
       // ── LECTURE LOCALE (gratuite, sans IA). L'appli ne bascule JAMAIS seule sur
       //    l'IA : selon le résultat elle affiche et te laisse le choix (bouton). ──
-      var _local=null; try { _local = pdfParseLocalBP(pages); } catch(_e){ console.warn('lecture locale KO', _e); }
+      var _local=null;
+      try { _local = pdfParseLocalBP(pages); } catch(_e){ console.warn('lecture locale BP KO', _e); }
+      // Format non-Banque Populaire → on tente le lecteur Crédit Agricole (jetons bruts).
+      if(!(_local && _local.operations && _local.operations.length)){
+        try { _local = pdfParseLocalCA(window._pdfRichPages); } catch(_e2){ console.warn('lecture locale CA KO', _e2); }
+      }
       if(_local && _local.operations && _local.operations.length){
         _pdfMeta = _local; etat.phase='Lu localement (sans IA)';
         return '__LOCAL_DONE__';
@@ -2961,40 +3191,43 @@ function pdfImport(){
     }
   });
 
-  // ── SOLDE : le relevé fait foi. On enregistre le solde FINAL du mois importé. ──
+  // ── SOLDE + VENTILATION PAR BANQUE ──────────────────────────────────────
+  // Le relevé fait foi. On enregistre le solde final de CE compte (cette banque)
+  // pour ce mois, ainsi que ses flux (entrées = crédits, sorties = débits). Le
+  // solde « fusionné » de la société = SOMME des soldes de ses banques, pour qu'une
+  // société à deux comptes (SCI, BK Saint-Jean) affiche bien le TOTAL, et pas
+  // seulement le dernier relevé importé.
   if(_pdfParsed && _pdfParsed.solde_final!=null){
     var soldeFin = pdfNum(_pdfParsed.solde_final);
+    var banque = _pdfParsed._banque || _banqueDepuisIban(_pdfParsed.iban) || 'Banque';
     if(!RAW[restoSel].soldes) RAW[restoSel].soldes={};
-    RAW[restoSel].soldes[periode] = soldeFin;
-    // on enregistre aussi le solde initial sur le mois précédent s'il est connu et absent
-    sbSave(restoSel, 'soldes', periode, {solde:soldeFin}, 'solde');
+    if(!RAW[restoSel].banques) RAW[restoSel].banques={};
+    if(!RAW[restoSel].banques[banque]) RAW[restoSel].banques[banque]={soldes:{},flux:{}};
+    RAW[restoSel].banques[banque].soldes[periode] = soldeFin;
+    var _fe = _pdfParsed.total_credits!=null ? pdfNum(_pdfParsed.total_credits) : null;
+    var _fs = _pdfParsed.total_debits!=null  ? pdfNum(_pdfParsed.total_debits)  : null;
+    RAW[restoSel].banques[banque].flux[periode] = {e:_fe, s:_fs};
+    // solde fusionné = somme des soldes de TOUTES les banques pour ce mois
+    var soldeTot=0; Object.keys(RAW[restoSel].banques).forEach(function(b){ var v=RAW[restoSel].banques[b].soldes[periode]; if(v!=null) soldeTot+=Number(v)||0; });
+    RAW[restoSel].soldes[periode] = soldeTot;
+    sbSave(restoSel, 'soldes', periode, {solde:soldeTot}, 'solde');
+    sbSave(restoSel, 'banque', banque, {periode:periode, solde:soldeFin, e:_fe, s:_fs}, 'banque');
   }
 
   // La société a désormais des données : on retire le marqueur « vide » pour que
   // render() affiche le tableau + la courbe au lieu de l'écran d'accueil.
   if(RAW[restoSel]) RAW[restoSel]._vide=false;
 
-  pdfStatus(imported+' poste(s) importé(s) pour '+periode+' — archivage du relevé…','ok');
+  // Archivage Dropbox DÉSACTIVÉ : les chiffres vivent dans Supabase, le PDF se
+  // récupère à la banque au besoin. On confirme simplement l'import.
+  pdfStatus(imported+' poste(s) importé(s) pour '+periode+' ✓','ok');
 
-  // Archivage du relevé PDF dans Dropbox + mémorisation du chemin dans Supabase
-  (function(){
-    var f = window._pdfFichier;
-    if(f && window.pushDropboxTreso){
-      window.pushDropboxTreso(f, restoSel, periode).then(function(path){
-        if(path){
-          // tracer l'archivage dans Supabase (table tresorerie_edits, action 'releve')
-          try{ sbSave(restoSel, 'meta', 'RELEVE '+periode, {dropbox_path:path}, 'releve'); }catch(e){}
-          if(!TRESO_RELEVES[restoSel]) TRESO_RELEVES[restoSel]={};
-          TRESO_RELEVES[restoSel][periode]=path;   // mémoire immédiate (lien + suppression)
-          pdfStatus(imported+' poste(s) importé(s) pour '+periode+' ✓ · relevé archivé dans Dropbox','ok');
-        } else {
-          pdfStatus(imported+' poste(s) importé(s) pour '+periode+' ✓ (relevé non archivé — Dropbox indisponible)','ok');
-        }
-      });
-    }
-  })();
-
-  setTimeout(function(){ pdfClose(); render(); if(window.tresoOnUpdate) window.tresoOnUpdate(); },1600);
+  setTimeout(function(){
+    render(); if(window.tresoOnUpdate) window.tresoOnUpdate();
+    // Mode rattrapage : s'il reste des relevés dans la file, on enchaîne le suivant
+    // (on NE ferme PAS la fenêtre). Sinon on ferme comme d'habitude.
+    if(!pdfQueueApresImport()) pdfClose();
+  },1600);
 }
 
 
@@ -3105,6 +3338,17 @@ async function sbLoad(){
     if(row.action==='solde' || sec==='soldes'){
       if(!r.soldes) r.soldes={};
       if(row.label && row.vals && row.vals.solde!=null) r.soldes[row.label]=row.vals.solde;
+      return;
+    }
+    // ventilation par banque : {periode, solde, e, s} → r.banques[banque]
+    if(row.action==='banque' || sec==='banque'){
+      if(!r.banques) r.banques={};
+      var _bq=row.label, _v=row.vals||{};
+      if(_bq && _v.periode){
+        if(!r.banques[_bq]) r.banques[_bq]={soldes:{},flux:{}};
+        if(_v.solde!=null) r.banques[_bq].soldes[_v.periode]=_v.solde;
+        r.banques[_bq].flux[_v.periode]={e:(_v.e!=null?_v.e:null), s:(_v.s!=null?_v.s:null)};
+      }
       return;
     }
     if(!r[sec]) return;   // section inconnue → ignorer sans planter
