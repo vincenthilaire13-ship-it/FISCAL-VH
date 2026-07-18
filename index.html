@@ -313,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v54 · Tresorerie : categories (Restaurant / Societe / Perso-Autre) choisies a la creation + section Perso/Autre</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v55 · Cout Vincent tresorerie = uniquement les lignes marquees 👤 (0 si aucun marquage), plus d'auto-classement</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1047,9 +1047,8 @@ function renderDashboard(){
   function _sumSec(sec, mois){ var t=0; (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()!=='TOTAL' && x.vals && x.vals[mois]!=null) t+=Number(x.vals[mois])||0; }); return t; }
   var entMois = latL ? _sumSec('entrees', latL) : 0;
   var sorMois = latL ? _sumSec('sorties', latL) : 0;
-  // Coût Vincent TRÉSORERIE — cumul par année. Source unique = catégorie cout-vincent
-  // (auto-classement CB / rémunération / URSSAF Vincent + lignes marquées 👤).
-  function _cvSum(an){ var t=0; ['sorties','entrees'].forEach(function(sec){ (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(tresoCategorie(resto,sec,x.label)!=='cout-vincent') return; (d.wanted||[]).forEach(function(w){ if(w.year===an && x.vals && x.vals[w.label]!=null) t+=Number(x.vals[w.label])||0; }); }); }); return t; }
+  // Coût Vincent TRÉSORERIE — cumul par année. Uniquement les lignes marquées 👤.
+  function _cvSum(an){ var t=0; ['sorties','entrees'].forEach(function(sec){ (d[sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(!_estCoutVincentTreso(resto,sec,x.label)) return; (d.wanted||[]).forEach(function(w){ if(w.year===an && x.vals && x.vals[w.label]!=null) t+=Number(x.vals[w.label])||0; }); }); }); return t; }
   var cv2025=_cvSum('2025'), cv2026=_cvSum('2026');
 
   // ── VENTILATION PAR BANQUE (sociétés à plusieurs comptes) ──────────────────
@@ -1088,7 +1087,7 @@ function renderDashboard(){
     +_tuile('Entrées ('+(latL||'—')+')', entMois, '#0d9e6e', _bkBreak('e'))
     +_tuile('Sorties ('+(latL||'—')+')', sorMois, '#e03a3a', _bkBreak('sortie'))
     +'<div class="kpi"><div class="kpi-lbl">Variation depuis Déc 2024</div><div class="kpi-val" style="color:'+(diff>=0?'#0d9e6e':'#e03a3a')+'">'+(diff>=0?'+ ':'')+fmt(diff)+'</div></div>'
-    +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent trésorerie 2025</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'<div style="font-size:11px;color:var(--text3);margin-top:2px">auto-classé + postes marqués 👤</div>')+'</div>'
+    +'<div class="kpi"><div class="kpi-lbl">👤 Coût Vincent trésorerie 2025</div><div class="kpi-val" style="color:#1a6cf4">'+fmt(cv2025)+'</div>'+(cv2026?'<div style="font-size:11px;color:var(--text3);margin-top:2px">2026 : '+fmt(cv2026)+'</div>':'<div style="font-size:11px;color:var(--text3);margin-top:2px">postes marqués 👤 uniquement</div>')+'</div>'
     +'</div>';
 
   // ── GESTION DES COMPTES BANCAIRES de la société : renommer (✏️) ou RETIRER (✕)
@@ -1185,9 +1184,9 @@ function renderGroupe(){
     }
   });
 
-  // Coût Vincent TRÉSORERIE (groupe) — même source unique que le tableau de bord :
-  // catégorie cout-vincent (auto-classement + lignes marquées 👤).
-  function cvGrp(an){ var t=0; socs.forEach(function(s){ ['sorties','entrees'].forEach(function(sec){ (RAW[s][sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(tresoCategorie(s,sec,x.label)!=='cout-vincent') return; MS.forEach(function(m){ var v=x.vals&&x.vals[m+' '+an]; if(v!=null) t+=Number(v)||0; }); }); }); }); return t; }
+  // Coût Vincent TRÉSORERIE (groupe) — uniquement les lignes marquées 👤 (même source
+  // que le tableau de bord et la fenêtre de détail). Aucun marquage → 0.
+  function cvGrp(an){ var t=0; socs.forEach(function(s){ ['sorties','entrees'].forEach(function(sec){ (RAW[s][sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(!_estCoutVincentTreso(s,sec,x.label)) return; MS.forEach(function(m){ var v=x.vals&&x.vals[m+' '+an]; if(v!=null) t+=Number(v)||0; }); }); }); }); return t; }
   var cv2025=cvGrp('2025'), cv2026=cvGrp('2026');
 
   // Petite pastille d'aide (ⓘ) : explication au survol.
@@ -8815,12 +8814,13 @@ function tresoCatKey(soc, section, label){ return soc+'||'+section+'||'+label; }
 function tresoCategorie(soc, section, label){
   const k = tresoCatKey(soc, section, label);
   if(TRESO_CAT_OVERRIDE[k]) return TRESO_CAT_OVERRIDE[k];
-  // Ligne marquée manuellement « coût Vincent » (bouton 👤) → même catégorie que
-  // l'auto-classement, pour que le « coût Vincent trésorerie » soit UN SEUL chiffre
-  // (auto + marquages manuels), cohérent partout (tableau de bord, groupe, détail).
-  try{ if(window.TRESO_CV && window.TRESO_CV[k]) return 'cout-vincent'; }catch(e){}
   for(const [rx,cat] of TRESO_CAT_RULES){ if(rx.test(label)) return cat; }
   return 'autre';
+}
+// Le « Coût Vincent trésorerie » ne compte QUE les lignes marquées à la main (bouton
+// 👤 → window.TRESO_CV). Aucune auto-classification : s'il n'y a aucun marquage, il vaut 0.
+function _estCoutVincentTreso(soc, section, label){
+  try{ return !!(window.TRESO_CV && window.TRESO_CV[soc+'||'+section+'||'+label]); }catch(e){ return false; }
 }
 
 // Total d'une ligne (somme de tous les mois) éventuellement filtré par année
@@ -8970,10 +8970,9 @@ function renderDashboardTreso(){
   set('kpi-treso-sor', fmt(totalSor));
   set('kpi-treso-sor-sub', moisGlobal||'\u00a0');
   // coût Vincent (cumul toutes sociétés)
-  // Coût Vincent : on itère TOUTES les sociétés de trésorerie (comme la fenêtre de
-  // détail tresoOpenCoutVincent), pas seulement TRESO_MAP_SOC — sinon le total du KPI
-  // et celui de la fenêtre pouvaient diverger (société créée en trésorerie-seule).
-  var cv=0; try{ Object.keys(data).filter(function(k){return data[k]&&!data[k]._vide;}).forEach(function(sk){ cv += tresoQuery(sk,{cat:'cout-vincent'}).reduce(function(s,r){return s+r.total;},0); }); }catch(e){}
+  // Coût Vincent TRÉSORERIE = uniquement les lignes marquées 👤 (window.TRESO_CV),
+  // toutes sociétés confondues, tous mois. Aucun marquage → 0.
+  var cv=0; try{ Object.keys(data).filter(function(k){return data[k]&&!data[k]._vide;}).forEach(function(sk){ ['sorties','entrees'].forEach(function(sec){ (data[sk][sec]||[]).forEach(function(x){ if((x.label||'').toUpperCase()==='TOTAL') return; if(!_estCoutVincentTreso(sk,sec,x.label)) return; var vv=x.vals||{}; for(var m in vv){ cv+=Number(vv[m])||0; } }); }); }); }catch(e){}
   set('kpi-treso-cv', fmt(cv));
 
   // grille banques
@@ -9105,9 +9104,8 @@ window.tresoOpenCoutVincent = function(showAdd){
     ['sorties','entrees'].forEach(function(section){
       (data[tkey][section]||[]).forEach(function(row){
         var lbl=row.label||''; if(lbl.toUpperCase()==='TOTAL'||(lbl.length===1&&/[A-Z]/.test(lbl))) return;
-        var cat=tresoCategorie(tkey, section, lbl);
         var tot=tresoLigneTotal(row.vals);
-        if(cat==='cout-vincent'){ inCV.push({soc:tkey,section:section,label:lbl,total:tot}); total+=tot; }
+        if(_estCoutVincentTreso(tkey, section, lbl)){ inCV.push({soc:tkey,section:section,label:lbl,total:tot}); total+=tot; }
         else if(section==='sorties' && tot){ cand.push({soc:tkey,section:section,label:lbl,total:tot}); }
       });
     });
@@ -9119,11 +9117,11 @@ window.tresoOpenCoutVincent = function(showAdd){
   var h='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px">'
     +'<div style="font-weight:800;font-size:16px">👤 Coût Vincent <span style="color:#1a6cf4">trésorerie</span> — détail</div>'
     +'<div style="font-family:var(--mono);font-weight:800;color:#1a6cf4;font-size:16px">'+fmt(total)+'</div></div>'
-    +'<div style="font-size:11px;color:#6b839a;margin-bottom:12px">Ce qui sort réellement des comptes bancaires pour Vincent : lignes de trésorerie classées « coût Vincent » (rémunération, URSSAF Vincent, retraite / prévoyance du gérant, achats carte…), toutes sociétés confondues. Retire une ligne mal classée, ou ajoute une dépense — le total se met à jour tout de suite.</div>'
-    +'<div style="font-size:11px;color:#8a6d3b;background:#fbf4e6;border:1px solid #ecdcb8;border-radius:8px;padding:7px 10px;margin-bottom:12px">ℹ️ C\'est le coût Vincent <strong>trésorerie</strong> (argent sorti des comptes). Il existe aussi un coût Vincent <strong>bilan</strong> (menu de gauche « Coût Vincent bilan »), calculé à partir des bilans comptables — les deux chiffres sont normalement différents.</div>';
+    +'<div style="font-size:11px;color:#6b839a;margin-bottom:12px">Uniquement les lignes que <strong>tu</strong> as marquées à la main avec le bouton 👤 dans les tableaux de trésorerie, toutes sociétés confondues. Aucun marquage → 0. « Retirer » enlève le 👤 ; « Ajouter » le met.</div>'
+    +'<div style="font-size:11px;color:#8a6d3b;background:#fbf4e6;border:1px solid #ecdcb8;border-radius:8px;padding:7px 10px;margin-bottom:12px">ℹ️ C\'est le coût Vincent <strong>trésorerie</strong> (argent sorti des comptes, choisi par toi). Il existe aussi un coût Vincent <strong>bilan</strong> (menu de gauche « Coût Vincent bilan »), calculé à partir des bilans comptables — les deux chiffres sont normalement différents.</div>';
 
   if(!inCV.length){
-    h+='<div style="font-size:13px;color:#6b839a;padding:10px 0">Aucune ligne classée « coût Vincent » pour l\'instant.</div>';
+    h+='<div style="font-size:13px;color:#6b839a;padding:10px 0">Aucune ligne marquée 👤 pour l\'instant — le coût Vincent trésorerie est à 0. Marque une dépense avec le 👤 dans les tableaux de trésorerie, ou ajoute-la ci-dessous.</div>';
   } else {
     var curSoc=null;
     h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>';
@@ -9168,14 +9166,16 @@ window.tresoCVFiltre = function(q){
 };
 window.tresoCVRetirer = async function(i){
   var it=(window._cvIn||[])[i]; if(!it) return;
-  try{ if(window.tresoSaveCategorie) await window.tresoSaveCategorie(it.soc, it.section, it.label, 'autre'); }catch(e){}
+  try{ var k=it.soc+'||'+it.section+'||'+it.label; window.TRESO_CV=window.TRESO_CV||{}; delete window.TRESO_CV[k]; if(window.tresoPersistCV) await window.tresoPersistCV('CVTAG::'+k, false); }catch(e){}
   try{ if(typeof renderDashboardTreso==='function') renderDashboardTreso(); }catch(e){}
+  try{ if(typeof render==='function') render(); }catch(e){}
   try{ tresoOpenCoutVincent(false); }catch(e){}
 };
 window.tresoCVAjouter = async function(i){
   var it=(window._cvCand||[])[i]; if(!it) return;
-  try{ if(window.tresoSaveCategorie) await window.tresoSaveCategorie(it.soc, it.section, it.label, 'cout-vincent'); }catch(e){}
+  try{ var k=it.soc+'||'+it.section+'||'+it.label; window.TRESO_CV=window.TRESO_CV||{}; window.TRESO_CV[k]=true; if(window.tresoPersistCV) await window.tresoPersistCV('CVTAG::'+k, true); }catch(e){}
   try{ if(typeof renderDashboardTreso==='function') renderDashboardTreso(); }catch(e){}
+  try{ if(typeof render==='function') render(); }catch(e){}
   try{ tresoOpenCoutVincent(true); }catch(e){}
 };
 
