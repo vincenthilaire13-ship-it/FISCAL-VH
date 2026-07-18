@@ -313,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v29 · détail des banques DANS les tuiles du tableau de bord (total + comptes à droite)</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v30 · vider la trésorerie d'une société + renommer les comptes/banques</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -1118,7 +1118,7 @@ function renderDashboard(){
       var val = (metric==='solde') ? _bq[bk].soldes[L]
               : ((_bq[bk].flux && _bq[bk].flux[L]) ? _bq[bk].flux[L][metric==='e'?'e':'s'] : null);
       if(val==null) return;
-      var lab=(_bq[bk].label||bk);
+      var lab=window.tresoBanqueNom(bk, (_bq[bk].label||bk));
       var col = (metric==='solde') ? (val<0?'#e03a3a':'#0d9e6e') : (metric==='e'?'#0d9e6e':'#e03a3a');
       rows += '<div style="white-space:nowrap;margin-bottom:3px">'+lab+'<br><span style="font-family:var(--mono);font-weight:700;color:'+col+'">'+fmt(val)+'</span></div>';
     });
@@ -1130,8 +1130,9 @@ function renderDashboard(){
       + (extra||'') + '</div>';
   }
 
-  var html='<div class="pt">'+resto+' — Vue d\'ensemble</div>'
-    +'<div class="ps">Coup d\'œil · exercice 2025 – 2026'+(_multiBq?' · '+_bqNoms.length+' comptes bancaires (détail à droite des tuiles)':'')+'</div>'
+  var html='<div class="pt">'+resto+' — Vue d\'ensemble'
+    +'<button onclick="tresoViderSociete(\''+resto.replace(/'/g,"\\'")+'\')" title="Vider la trésorerie de cette société pour tout ré-importer proprement" style="font-size:11px;font-weight:600;color:#e03a3a;background:#fff0f0;border:1px solid #f5c2c2;border-radius:6px;padding:3px 10px;cursor:pointer;margin-left:12px;vertical-align:middle">🗑 Vider la trésorerie</button></div>'
+    +'<div class="ps">Coup d\'œil · exercice 2025 – 2026'+(_multiBq?' · '+_bqNoms.length+' comptes bancaires (détail à droite des tuiles) — clique 🗑 puis ré-importe si un compte fait doublon':'')+'</div>'
     +'<div class="kpi-grid">'
     +_tuile('Solde actuel ('+(latL||'—')+')', latV, (latV>=0?'#0d9e6e':'#e03a3a'), _bkBreak('solde'))
     +_tuile('Entrées ('+(latL||'—')+')', entMois, '#0d9e6e', _bkBreak('e'))
@@ -1233,7 +1234,7 @@ function renderGroupe(){
       bqs.forEach(function(bk){
         var bv=null,bl=null; for(var j2=allLabels.length-1;j2>=0;j2--){ var vv=RAW[s].banques[bk].soldes&&RAW[s].banques[bk].soldes[allLabels[j2]]; if(vv!=null){bv=vv;bl=allLabels[j2];break;} }
         if(bv==null) return;
-        html+='<tr style="border-bottom:1px solid var(--gray2);background:#fafbfc"><td style="padding:4px 8px 4px 24px;color:var(--text3);font-size:11px">↳ 🏦 '+((RAW[s].banques[bk]&&RAW[s].banques[bk].label)||bk)+(bv<0?' · à alimenter':'')+'</td><td style="padding:4px 8px;color:var(--text3);font-size:11px">'+(bl||'—')+'</td><td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:'+((bv||0)>=0?'#0d9e6e':'#e03a3a')+';font-size:11px">'+fmt(bv)+'</td></tr>';
+        html+='<tr style="border-bottom:1px solid var(--gray2);background:#fafbfc"><td style="padding:4px 8px 4px 24px;color:var(--text3);font-size:11px">↳ 🏦 '+window.tresoBanqueNom(bk,(RAW[s].banques[bk]&&RAW[s].banques[bk].label)||bk)+(bv<0?' · à alimenter':'')+' <span onclick="tresoRenommerBanque(\''+s.replace(/\x27/g,"")+'\',\''+String(bk).replace(/\x27/g,"")+'\')" title="Renommer ce compte" style="cursor:pointer;opacity:.5">&#9998;</span></td><td style="padding:4px 8px;color:var(--text3);font-size:11px">'+(bl||'—')+'</td><td style="text-align:right;padding:4px 8px;font-family:var(--mono);color:'+((bv||0)>=0?'#0d9e6e':'#e03a3a')+';font-size:11px">'+fmt(bv)+'</td></tr>';
       });
     }
   });
@@ -1583,6 +1584,36 @@ window.tresoPromptSocietePrincipale = function(){
   var r=tresoCreerSocietePrincipale(nom);
   if(!r.ok){ try{ alert(r.err); }catch(e){} return; }
   try{ sw(r.pageId, document.querySelector('.sb-item[data-socpage="'+r.pageId+'"]')); }catch(e){}
+};
+
+// ── VIDER LA TRÉSORERIE D'UNE SOCIÉTÉ (pour tout ré-importer proprement) ────
+// Efface tous les montants importés de la société (postes, soldes, ventilation
+// par banque). Les correspondances IBAN→société et l'apprentissage sont gardés.
+window.tresoViderSociete = async function(soc){
+  soc = soc || resto;
+  if(!soc || !RAW[soc]) return;
+  if(!confirm('Vider TOUTE la trésorerie de « '+soc+' » ?\n\nTous les montants importés seront effacés (tu pourras ré-importer les relevés).')) return;
+  var ok=true;
+  try{ var res=await _sb.from('tresorerie_edits').delete().eq('resto', soc); if(res&&res.error){ ok=false; console.warn('vider', res.error); } }
+  catch(e){ ok=false; console.warn('vider', e); }
+  RAW[soc].sorties=[{label:'TOTAL',vals:{}}]; RAW[soc].entrees=[{label:'TOTAL',vals:{}}];
+  RAW[soc].soldes={}; RAW[soc].banques={}; RAW[soc]._vide=true;
+  try{ render(); if(window.tresoOnUpdate) window.tresoOnUpdate(); }catch(e){}
+  alert(ok ? ('✓ Trésorerie de « '+soc+' » vidée. Ré-importe les relevés : les comptes s\'additionneront proprement, sans doublon.')
+           : ('Affichage vidé, mais la suppression en base a peut-être échoué. Si les données reviennent au rechargement, dis-le moi.'));
+};
+
+// ── RENOMMER UN COMPTE / UNE BANQUE (ex. « Banque Populaire 1 ») ────────────
+window.TRESO_BANQUE_NOM = window.TRESO_BANQUE_NOM || {};
+window.tresoBanqueNom = function(key, fallback){ return (window.TRESO_BANQUE_NOM && window.TRESO_BANQUE_NOM[key]) || fallback || key; };
+window.tresoRenommerBanque = function(soc, key){
+  var base=(RAW[soc]&&RAW[soc].banques&&RAW[soc].banques[key]&&RAW[soc].banques[key].label)||key;
+  var cur = window.tresoBanqueNom(key, base);
+  var nom=(prompt('Nom de ce compte\n(ex. « Banque Populaire 1 » pour le principal, « Banque Populaire 2 » pour le secondaire) :', cur)||'').trim();
+  if(!nom) return;
+  window.TRESO_BANQUE_NOM[key]=nom;
+  try{ sb.from('treso_categories').upsert({cle:'BQNOM::'+key, categorie:nom},{onConflict:'cle'}); }catch(e){ console.warn('BQNOM', e); }
+  try{ render(); }catch(e){}
 };
 
 function setPage(p,btn){
@@ -8876,6 +8907,10 @@ async function loadTresoCategories(){
         // correspondance apprise IBAN → société (auto-sélection à l'import)
         window.TRESO_IBAN_MAP = window.TRESO_IBAN_MAP || {};
         if(r.categorie) window.TRESO_IBAN_MAP[r.cle.slice(6)] = r.categorie;
+      } else if(r.cle.indexOf('BQNOM::')===0){
+        // nom personnalisé d'un compte / banque (ex. « Banque Populaire 1 »)
+        window.TRESO_BANQUE_NOM = window.TRESO_BANQUE_NOM || {};
+        if(r.categorie) window.TRESO_BANQUE_NOM[r.cle.slice(7)]=r.categorie;
       } else if(r.cle.indexOf('SOCP::')===0){
         // société créée dans le MENU PRINCIPAL (page dédiée + trésorerie)
         var _spnom=r.cle.slice(6);
