@@ -313,7 +313,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="sb-footer">
     <div class="status-bar"><div class="status-dot" id="db-dot"></div><span id="db-status">Connexion...</span></div>
     <p style="margin-top:4px;">N° fiscal : 0710045887145</p>
-    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v56 · Cout Vincent tresorerie par ANNEE (tuile = annee en cours, fenetre avec menu deroulant 2025/2026)</p>
+    <p style="margin-top:4px;font-size:10px;opacity:.45;font-family:var(--mono);">version LOCALE 2026-07-18 · v57 · Remises carte regroupees en UNE ligne « Remise Carte » (existant + futurs imports)</p>
     <button onclick="window.lockNow && window.lockNow()" title="Reverrouiller l'accès"
       style="margin-top:10px;width:100%;padding:7px;background:rgba(255,255,255,0.08);color:rgba(244,241,236,0.8);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);">🔒 Verrouiller</button>
   </div>
@@ -2290,6 +2290,9 @@ function _bpClasse(u, libOrig){
   // RÉPLIQUE des règles du prompt IA : poste de regroupement + catégorie + « sûr ».
   // Postes spéciaux regroupés :
   if(/REMISE\s+CB/.test(u)) return {poste:'REMISE CB', categorie:'recette', sur:true};
+  // Remises carte (encaissements CB) : toutes regroupées en UNE ligne « Remise Carte »
+  // (sinon chaque n° de remise crée une ligne distincte).
+  if(/REMISE\s+CARTE|REMISES?\s+CARTES?/.test(u)) return {poste:'Remise Carte', categorie:'recette', sur:true};
   if(/\bCOM\s+CB\b|COMMISSION/.test(u)) return {poste:'COM CB', categorie:'banque', sur:true};
   if(/FRAIS\s+REMISE\s+SCT/.test(u)) return {poste:'Frais Remise SCT', categorie:'banque', sur:true};
   if(/\bVRST\b|VERSEMENT|\bDEPOT\b/.test(u)) return {poste:'VRST DEPOT', categorie:'recette', sur:true};
@@ -3676,6 +3679,34 @@ function tresoSyncColonnes(){
 }
 
 // Charger toutes les modifications depuis Supabase au démarrage
+// Regroupe, en mémoire (sans rien supprimer en base), toutes les lignes « Remise
+// Carte … » (avec numéro de remise) en UNE seule ligne « Remise Carte » par société
+// et par section, en additionnant les montants mois par mois. Les futurs imports sont
+// déjà nommés « Remise Carte » par le classeur ; ceci nettoie l'existant à l'affichage.
+function _collapseRemisesCartes(){
+  var re=/^\s*remises?\s+cartes?\b/i;
+  Object.keys(RAW).forEach(function(soc){
+    var d=RAW[soc]; if(!d) return;
+    ['entrees','sorties'].forEach(function(sec){
+      var arr=d[sec]; if(!Array.isArray(arr)) return;
+      var matches=arr.filter(function(x){ return x.label && (x.label||'').toUpperCase()!=='TOTAL' && re.test(x.label); });
+      if(!matches.length) return;
+      if(matches.length===1){ if(matches[0].label!=='Remise Carte') matches[0].label='Remise Carte'; return; }
+      var dst=arr.find(function(x){ return x.label==='Remise Carte'; }) || {label:'Remise Carte', vals:{}};
+      if(!dst.vals) dst.vals={};
+      matches.forEach(function(src){
+        if(src===dst) return;
+        Object.keys(src.vals||{}).forEach(function(per){ var v=Number(src.vals[per])||0; if(v) dst.vals[per]=(Number(dst.vals[per])||0)+v; });
+        if(src.exc){ dst.exc=dst.exc||{}; Object.keys(src.exc).forEach(function(per){ if(!dst.exc[per]) dst.exc[per]=src.exc[per]; }); }
+      });
+      var kept=arr.filter(function(x){ return !(x.label && (x.label||'').toUpperCase()!=='TOTAL' && re.test(x.label)); });
+      var ti=kept.findIndex(function(x){ return (x.label||'').toUpperCase()==='TOTAL'; });
+      if(ti>=0) kept.splice(ti,0,dst); else kept.push(dst);
+      d[sec]=kept;
+    });
+  });
+}
+
 async function sbLoad(){
   // CORRECTIF (perte des mois récents) : PostgREST/Supabase renvoie AU MAXIMUM
   // 1000 lignes par requête. La table tresorerie_edits ayant dépassé 1000
@@ -3790,6 +3821,7 @@ async function sbLoad(){
   // chargés au démarrage AVANT que RAW soit peuplé ; on les ré-applique une fois
   // les données en place pour qu'ils réapparaissent dans le tableau au rechargement.
   try { if(window.loadTresoCategories) await window.loadTresoCategories(); } catch(e){ console.error('reload categories', e); }
+  try { _collapseRemisesCartes(); } catch(e){ console.warn('collapse remises', e); }
   render();
   // CORRECTIF (tableau de bord vide à l'ouverture) : au tout premier chargement,
   // renderDashboardTreso() a été appelé par init() AVANT que sbLoad ait fini de
