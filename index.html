@@ -3602,7 +3602,7 @@ function pdfImport(){
 // ⚠️ CORRECTIF : l'ancien projet trésorerie (tydjzpguz…) n'existe plus (DNS mort).
 // On pointe la trésorerie vers le MÊME projet que le reste de l'appli (wbhgseot…),
 // qui est vivant et où la table tresorerie_edits doit exister (voir SQL_TRESO.sql).
-const _sb = supabase.createClient('https://wbhgseotvlipalgmxchy.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGdzZW90dmxpcGFsZ214Y2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjI0NTYsImV4cCI6MjA5NDgzODQ1Nn0.LoDkhHH56bFgRYwXAtX4IVb9qyx0_W2NAgzJ0x3Drpg', {auth:{persistSession:false, storageKey:'sb-treso'}});
+const _sb = supabase.createClient('https://qywucwvcnijkbdcdczch.supabase.co', 'sb_publishable_OjZ_TMHBKogqLzhay1JNJw_mUo5Zru0', {auth:{persistSession:false, storageKey:'sb-treso'}, db:{schema:'fiscal'}});
 
 // Bandeau d'erreur visible (diagnostic) : affiche le message Supabase exact en haut de l'app.
 function tresoErrBanner(msg){
@@ -4050,9 +4050,9 @@ window.tresoToggleExcDetail = tresoToggleExcDetail;
 
 <script>
 // ── SUPABASE — PROJET n°2 « Principal » (fiches, biens, bâtiments, SCI…) ──
-const SUPA_URL = 'https://wbhgseotvlipalgmxchy.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaGdzZW90dmxpcGFsZ214Y2h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjI0NTYsImV4cCI6MjA5NDgzODQ1Nn0.LoDkhHH56bFgRYwXAtX4IVb9qyx0_W2NAgzJ0x3Drpg';
-const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const SUPA_URL = 'https://qywucwvcnijkbdcdczch.supabase.co';
+const SUPA_KEY = 'sb_publishable_OjZ_TMHBKogqLzhay1JNJw_mUo5Zru0';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {db:{schema:'fiscal'}});
 
 // Paginateur générique : contourne le plafond de 1000 lignes de Supabase/PostgREST
 // en enchaînant des tranches de 1000. `build(a,b)` doit renvoyer une requête avec
